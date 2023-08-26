@@ -133,7 +133,7 @@ impl<T,const D: usize> EvalVec<T,D> {
     }
 }
 
-pub mod col_vec_math {
+pub mod col_vec_iterators {
     use std::ops::*;
     use super::*;
 
@@ -153,7 +153,7 @@ pub mod col_vec_math {
 
     macro_rules! impl_eval_col_vec {
         ($t:ty,1,$ti:ty,$tr:path) => {
-            impl<I: Iterator,S: Copy,const D: usize> EvalColVec<D> for $t where $t: Iterator,$ti: $tr {
+            impl<I: Iterator,S: Copy,const D: usize> EvalColVec<D> for $t where $ti: $tr {
                 type Output =  Vec<<$t as Iterator>::Item>;
 
                 fn eval(self) -> ColumnVec<Self::Output,D> {
@@ -166,7 +166,7 @@ pub mod col_vec_math {
             }
         };
         ($t:ty,2,$ti:ty,$tr:path) => {
-            impl<I1: Iterator,I2: Iterator,const D: usize> EvalColVec<D> for $t where $t: Iterator,$ti: $tr {
+            impl<I1: Iterator,I2: Iterator,const D: usize> EvalColVec<D> for $t where $ti: $tr {
                 type Output = Vec<<$t as Iterator>::Item>;
 
                 fn eval(self) -> ColumnVec<Self::Output,D> {
@@ -177,7 +177,7 @@ pub mod col_vec_math {
                     ColumnVec(vec)
                 }
             }
-        }
+        };
     }
 
     macro_rules! overload_given_operator_for_vec {
@@ -623,7 +623,7 @@ pub mod col_vec_math {
     }
 
 
-    impl<I1: Iterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<ColumnVec<I2,D>> for EvalVec<I1,D> 
+    impl<I1: Iterator + EvalColVec<D>,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<ColumnVec<I2,D>> for EvalVec<I1,D> 
     where I1::Item: Mul<I2::Item,Output = O> {
         type Output = Scalar<O>;
 
@@ -636,7 +636,7 @@ pub mod col_vec_math {
         }
     }
 
-    impl<'a,I1: Iterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<&'a ColumnVec<I2,D>> for EvalVec<I1,D> 
+    impl<'a,I1: Iterator + EvalColVec<D>,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<&'a ColumnVec<I2,D>> for EvalVec<I1,D> 
     where &'a I2: IntoIterator, I1::Item: Mul<<&'a I2 as IntoIterator>::Item,Output = O> {
         type Output = Scalar<O>;
 
@@ -649,7 +649,7 @@ pub mod col_vec_math {
         }
     }
 
-    impl<I1: IntoIterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for ColumnVec<I1,D> 
+    impl<I1: IntoIterator,I2: Iterator + EvalColVec<D>,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for ColumnVec<I1,D> 
     where I1::Item: Mul<I2::Item,Output = O> {
         type Output = Scalar<O>;
 
@@ -662,7 +662,7 @@ pub mod col_vec_math {
         }
     }
 
-    impl<'a, I1: IntoIterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for &'a ColumnVec<I1,D> 
+    impl<'a, I1: IntoIterator,I2: Iterator + EvalColVec<D>,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for &'a ColumnVec<I1,D> 
     where &'a I1: IntoIterator,<&'a I1 as IntoIterator>::Item: Mul<I2::Item,Output = O> {
         type Output = Scalar<O>;
 
@@ -676,7 +676,7 @@ pub mod col_vec_math {
     }
 
 
-    impl<I1: Iterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for EvalVec<I1,D> 
+    impl<I1: Iterator + EvalColVec<D>,I2: Iterator + EvalColVec<D>,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalVec<I2,D>> for EvalVec<I1,D> 
     where I1::Item: Mul<I2::Item,Output = O> {
         type Output = Scalar<O>;
 
@@ -688,6 +688,92 @@ pub mod col_vec_math {
             Scalar(output)
         }
     }
+
+    //Cloned and Copied
+    pub struct ClonedColVec<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize>(I) where T: Clone;
+
+    impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> Iterator for ClonedColVec<'a,I,T,D> where T: Clone {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next().cloned()
+        }
+    }
+
+    impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalColVec<D> for ClonedColVec<'a,I,T,D> where T: Clone {
+        type Output =  Vec<T>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            let mut vec = Vec::with_capacity(D);
+            for output in self {
+                vec.push(output)
+            }
+            ColumnVec(vec)
+        }
+    }
+
+
+    pub struct CopiedColVec<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize>(I) where T: Copy;
+
+    impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> Iterator for CopiedColVec<'a,I,T,D> where T: Copy {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next().copied()
+        }
+    }
+
+    impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalColVec<D> for CopiedColVec<'a,I,T,D> where T: Copy {
+        type Output =  Vec<T>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            let mut vec = Vec::with_capacity(D);
+            for output in self {
+                vec.push(output)
+            }
+            ColumnVec(vec)
+        }
+    }
+
+
+    impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalVec<I,D> {
+        pub fn cloned(self) -> EvalVec<ClonedColVec<'a,I,T,D>,D> where T: Clone{
+            EvalVec(ClonedColVec(
+                self.0
+            ))
+        }
+
+        pub fn copied(self) -> EvalVec<CopiedColVec<'a,I,T,D>,D> where T: Copy{
+            EvalVec(CopiedColVec(
+                self.0
+            ))
+        }
+    }
+
+    //Map
+    pub struct ColVecMap<I: Iterator,F: FnMut(I::Item) -> O,O,const D: usize>(I,F);
+
+    impl<I: Iterator,F: FnMut(I::Item) -> O,O,const D: usize> Iterator for ColVecMap<I,F,O,D> {
+        type Item = O;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(val) = self.0.next() {
+                Some(self.1(val))
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<I: Iterator,F: FnMut(I::Item) -> O,O,const D: usize> EvalColVec<D> for ColVecMap<I,F,O,D> {
+        type Output = Vec<O>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            let mut vec = Vec::with_capacity(D);
+            for output in self {
+                vec.push(output)
+            }
+            ColumnVec(vec)
+        }
+    }
 }
-
-
