@@ -5,6 +5,28 @@
 #[repr(transparent)]
 pub struct Scalar<T>(pub T);
 
+//CHECK
+impl<T> Scalar<T> {
+    //CHECK
+    pub fn move_ref_out<'a>(scalar: Scalar<&'a T>) -> &'a Self {
+        //DOUBLE CHECK THIS ZACH
+        //Scalar<&T> == &T == &Scalar<T>
+        unsafe{ std::mem::transmute(scalar) }
+    }
+
+    pub fn clone_inner<'a>(scalar: Scalar<&'a T>) -> Self where T: Clone {
+        Scalar(scalar.0.clone())
+    }
+
+    pub fn unwrap(self) -> T {
+        self.0
+    }
+
+    pub fn new(val: T) -> Self {
+        Scalar(val)
+    }
+}
+
 pub mod scalar_math {
     use std::ops::*;
     use super::Scalar;
@@ -107,14 +129,15 @@ impl<T,const D: usize> TryFrom<Vec<T>> for ColumnVec<Vec<T>,D> {
     }
 }
 
+//CHECK
 impl<Idx,T: IntoIterator + std::ops::Index<Idx>,const D: usize> std::ops::Index<Idx> for ColumnVec<T,D> where T::Output: Sized {
     type Output = Scalar<T::Output>;
     
     fn index(&self, index: Idx) -> &Self::Output {
         //SAFETY: scalar is repr(transparant) so the representaion of Scalar<T> 
         //is identical to T and as such &Scalar<T> is identical to &T or so I
-        //think. DOUBLE CHECK THIS ZACH
-        unsafe { std::mem::transmute(Scalar((&self.0).index(index))) }
+        //think. DOUBLE CHECK THIS ZACH, double checked, SHOULD BE CHECKED MORE
+        unsafe { std::mem::transmute((&self.0).index(index)) }
     }
 }
 
