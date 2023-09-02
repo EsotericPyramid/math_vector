@@ -955,6 +955,118 @@ pub mod col_vec_iterators {
                 EvalColVec(SecondDuplicateColVec(shared_iter))
             )
         }
+        
+        pub fn duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>) 
+        where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: Clone {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
+                iterator: (&self.0).into_iter(),
+                buffer: None
+            }));
+            (
+                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
+                EvalColVec(SecondDuplicateColVec(shared_iter))
+            )
+        }
+    }
+    
+    //buffer ops (clone_to_buffer,copy_to_buffer)
+    pub struct BufferedColVec<T,const D: usize>(Vec<T>);
+
+    impl<T,const D: usize> EvalsToColVec<D> for BufferedColVec<T,D> {
+        type Output = Vec<T>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            if self.0.len() == D {
+                ColumnVec(self.0)
+            } else if self.0.len() == 0 {
+                panic!("A BufferedColVec must be used written to before it is evaluated")
+            } else {
+                panic!("A BufferedColVec can only be written to once")
+            }
+        }
+    }
+        //not sure on this interface
+    pub fn get_col_vec_buffer<T,const D: usize>() -> EvalColVec<BufferedColVec<T,D>,D> {
+        EvalColVec(BufferedColVec(Vec::with_capacity(D)))
+    }
+
+        //Clone
+    pub struct CloneToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Clone {
+        iterator: I,
+        buffer: &'a mut Vec<I::Item>
+    }
+
+    impl<'a,I: Iterator,const D: usize> Iterator for CloneToBufferColVec<'a,I,D> where I::Item: Clone {
+        type Item = I::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let val = self.iterator.next();
+            if let Some(inner_val) = val.clone() {
+                self.buffer.push(inner_val);
+            }
+            val
+        }
+    }
+        //Kinda dumb, but they have no *actual* reason to not implement it
+    impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CloneToBufferColVec<'a,I,D> where I::Item: Clone {
+        type Output = Vec<I::Item>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            let mut vec = Vec::with_capacity(D);
+            for output in self {
+                vec.push(output)
+            }
+            ColumnVec(vec)
+        }
+    }
+
+        //Copy
+    pub struct CopyToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Copy {
+        iterator: I,
+        buffer: &'a mut Vec<I::Item>
+    }
+
+    impl<'a,I: Iterator,const D: usize> Iterator for CopyToBufferColVec<'a,I,D> where I::Item: Copy {
+        type Item = I::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let val = self.iterator.next();
+            if let Some(inner_val) = val {
+                self.buffer.push(inner_val);
+            }
+            val
+        }
+    }
+        //Kinda dumb, but they have no *actual* reason to not implement it
+    impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CopyToBufferColVec<'a,I,D> where I::Item: Copy {
+        type Output = Vec<I::Item>;
+
+        fn eval(self) -> ColumnVec<Self::Output,D> {
+            let mut vec = Vec::with_capacity(D);
+            for output in self {
+                vec.push(output)
+            }
+            ColumnVec(vec)
+        }
+    }
+
+
+    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
+        pub fn clone_to_buffer<'a>(self,buffer: &'a mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CloneToBufferColVec<'a,I,D>,D> 
+        where I::Item: Clone {
+            EvalColVec(CloneToBufferColVec{
+                iterator: self.0,
+                buffer: &mut buffer.0.0
+            })
+        }
+
+        pub fn copy_to_buffer<'a>(self,buffer: &'a mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CopyToBufferColVec<'a,I,D>,D> 
+        where I::Item: Copy {
+            EvalColVec(CopyToBufferColVec{
+                iterator: self.0,
+                buffer: &mut buffer.0.0
+            })
+        }
     }
 
     //Map
