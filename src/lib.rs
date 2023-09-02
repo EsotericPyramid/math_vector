@@ -95,6 +95,7 @@ pub mod scalar_math {
 }
 
 #[derive(PartialEq,Debug)]
+#[derive(Clone)]
 pub struct ColumnVec<T: IntoIterator,const D: usize>(T);
 
 impl<T: IntoIterator,const D: usize> ColumnVec<T,D> {
@@ -1058,6 +1059,8 @@ mod test {
     use super::*;
     use super::col_vec_iterators::EvalsToColVec;
 
+    use rand::Rng;
+
     #[test]
     fn basic_ops() {
         let x = ColumnVec::from([1;5]);
@@ -1147,5 +1150,56 @@ mod test {
         let (x,y) = ColumnVec::from([1,2,3,4,5]).duplicate();
 
         assert_eq!(ColumnVec::try_from(vec![2,4,6,8,10]).unwrap(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
+    }
+
+    #[test]
+    //much harder version
+    fn duplicate_stress_test() {
+        //4.54s: 1st run (dual Rc's over RefCells)
+        let mut rng = rand::thread_rng();
+        for _ in 0..1000000 {
+            let original: ColumnVec<[u32; 10], 10> = ColumnVec::from([
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000)
+            ]);
+            let (clone_a,clone_b) = original.clone().duplicate();
+            assert_eq!((original*Scalar(2)).eval(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<u32,10>,10>,10>>::add(clone_a,clone_b).eval());
+        }
+    }
+
+    #[test]
+    fn basic_speed_test() {
+        //1 billion computations + unavoidable computation overhead + math_vec overhead
+        //32.49s: 1st run, 2.37s release (about the same speed as capacity optimized (maybe faster cause Consts))
+        for _ in 0..1000000 {
+            let x = ColumnVec::from([1; 1000]);
+            let y = ColumnVec::from([1; 1000]);
+
+            let _z = std::ops::Add::<ColumnVec<[i32; 1000], 1000>>::add(x,y).eval();
+        }
+    }
+
+    #[test]
+    fn comparison_speed_test() {
+        //No math_vec overhead 
+        //34.52s: no capacity optimization, 3.60s release 
+        //32.75s: /w capacity optimization, 2.51s release
+        for _ in 0..1000000 {
+            let x = [1; 1000];
+            let y = [1; 1000];
+
+            let mut z = Vec::with_capacity(1000);
+            for (val_x,val_y) in x.into_iter().zip(y.into_iter()) {
+                z.push(val_x+val_y);
+            }
+        }
     }
 }
