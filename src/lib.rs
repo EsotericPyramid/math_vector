@@ -1,5 +1,95 @@
 #![recursion_limit = "20"]
 
+pub(crate) mod utils {
+    use std::mem::MaybeUninit;
+
+    pub unsafe fn leaky_iterator_to_array<I: Iterator,const D: usize>(iter: I) -> [I::Item; D] {
+        // SAFETY: an array of MaybeUninits doesn't require initialization as they may be uninitialized
+        let mut arr: [MaybeUninit<I::Item>; D] = unsafe { MaybeUninit::uninit().assume_init() };
+                
+        // SAFETY: old vals aren't dropped as dropping a MaybeUninit does nothing
+        for (idx,val) in iter.enumerate() {
+            arr[idx] = MaybeUninit::new(val);
+        }
+
+        // SAFETY: VERY UNSAFE, SHOULD BE CHANGED WHEN ARRAY ASSUME INIT IS STABLE
+        // 1: [MaybeUninit<T>; D] == [T; D] in mem
+        // 2: 1 -> *const [MaybeUninit<T>; D] == *const [T; D]
+        // 3: 2 -> transmute is safe
+        // 4: forget doesn't cause a leak because the initialized_arr and arr alias and so arr will be dropped with initialized_arr
+        //     4+: necessary because otherwise arr would be dropped twice invalidating initialized_arr and causing a double free
+        //
+        // addendum: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
+        let initialized_arr;
+        unsafe { 
+            initialized_arr = std::ptr::read(std::mem::transmute(&arr as *const [MaybeUninit<I::Item>; D]));
+            std::mem::forget(arr);
+        }
+
+        initialized_arr
+    }
+
+    pub struct IterInitArray<T,const D: usize>{pub array: [MaybeUninit<T>; D], pub last_index: Option<usize>}
+
+    impl<T,const D: usize> IterInitArray<T,D> {
+        pub fn assume_init(self) -> [T; D] {
+            // SAFETY: VERY UNSAFE, SHOULD BE CHANGED WHEN ARRAY ASSUME INIT IS STABLE
+            // 1: [MaybeUninit<T>; D] == [T; D] in mem
+            // 2: 1 -> *const [MaybeUninit<T>; D] == *const [T; D]
+            // 3: 2 -> transmute is safe
+            // 4: forget doesn't cause a leak because the initialized_arr and arr alias and so arr will be dropped with initialized_arr
+            //     4+: necessary because otherwise arr would be dropped twice invalidating initialized_arr and causing a double free
+            //
+            // addendum: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
+            let initialized_arr;
+            unsafe {
+                initialized_arr = std::ptr::read(std::mem::transmute(&self.array as *const [MaybeUninit<T>; D]));
+                std::mem::forget(self);
+            }
+            initialized_arr
+        }
+    }
+
+    //Also both of these are actually unsafe
+    //no check for if the value is initialized
+    impl<T,const D: usize> std::ops::Index<usize> for IterInitArray<T,D> where [MaybeUninit<T>; D]: std::ops::Index<usize>, usize: std::slice::SliceIndex<[MaybeUninit<T>]> {
+        type Output = <[MaybeUninit<T>; D] as std::ops::Index<usize>>::Output;
+
+        fn index(&self, index: usize) -> &Self::Output {
+            self.array.index(index)
+        }
+    }
+
+    //To ensure Safety, any val recieved must be written to with a valid value
+    impl<T,const D: usize> std::ops::IndexMut<usize> for IterInitArray<T,D> where [MaybeUninit<T>; D]: std::ops::Index<usize>, usize: std::slice::SliceIndex<[MaybeUninit<T>]> {
+        fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+            self.last_index = Some(index);
+            self.array.index_mut(index)
+        }
+    }
+
+    impl<T,const D: usize> std::ops::Drop for IterInitArray<T,D> {
+        fn drop(&mut self) {
+            if let Some(last_index) = self.last_index {
+                for i in 0..=last_index {
+                    unsafe { self.array[i].assume_init_drop() };
+                }
+            }
+        }
+    }
+
+    pub unsafe fn iterator_to_array<I: Iterator,const D: usize>(iter: I) -> [I::Item; D] {
+        let mut arr : IterInitArray<I::Item, D>= IterInitArray{array: unsafe {MaybeUninit::uninit().assume_init()},last_index: None};
+
+        for (idx,val) in iter.enumerate() {
+            arr[idx] = MaybeUninit::new(val);
+        }
+
+        arr.assume_init()
+    }
+}
+
+
 #[derive(PartialEq,Debug)]
 #[derive(Clone,Copy)]
 #[repr(transparent)]
@@ -219,46 +309,80 @@ pub mod col_vec_iterators {
 
 
     pub trait EvalsToColVec<const D: usize> {
-        type Output: IntoIterator;
+        type Item;
         
-        fn eval(self) -> ColumnVec<Self::Output,D>;
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D>;
+
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D>;
+
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D>;
     }
 
     impl<T: EvalsToColVec<D>,const D: usize> EvalsToColVec<D> for EvalColVec<T,D> {
-        type Output = T::Output;
+        type Item = T::Item;
         
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             self.0.eval()
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            self.0.leaky_eval_array()
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            self.0.eval_array()
         }
     }
 
     macro_rules! impl_eval_col_vec {
         ($t:ty,1,$ti:ty,$tr:path) => {
             impl<I: Iterator,S: Copy,const D: usize> EvalsToColVec<D> for $t where $ti: $tr {
-                type Output =  Vec<<$t as Iterator>::Item>;
+                type Item = <$t as Iterator>::Item;
 
                 #[inline]
-                fn eval(self) -> ColumnVec<Self::Output,D> {
+                fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
                     let mut vec = Vec::with_capacity(D);
                     for output in self {
                         vec.push(output)
                     }
                     ColumnVec(vec)
                 }
+                
+                #[inline]
+                fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                    ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+                }
+
+                #[inline]
+                fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                    ColumnVec(unsafe { utils::iterator_to_array(self) })
+                }
             }
         };
         ($t:ty,2,$ti:ty,$tr:path) => {
             impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for $t where $ti: $tr {
-                type Output = Vec<<$t as Iterator>::Item>;
+                type Item = <$t as Iterator>::Item;
 
                 #[inline]
-                fn eval(self) -> ColumnVec<Self::Output,D> {
+                fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
                     let mut vec = Vec::with_capacity(D);
                     for output in self {
                         vec.push(output)
                     }
                     ColumnVec(vec)
+                }
+
+                #[inline]
+                fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                    ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+                }
+
+                #[inline]
+                fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                    ColumnVec(unsafe { utils::iterator_to_array(self) })
                 }
             }
         };
@@ -885,15 +1009,25 @@ pub mod col_vec_iterators {
     }
 
     impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalsToColVec<D> for ClonedColVec<'a,I,T,D> where T: Clone {
-        type Output =  Vec<T>;
+        type Item = T;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -910,15 +1044,25 @@ pub mod col_vec_iterators {
     }
 
     impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalsToColVec<D> for CopiedColVec<'a,I,T,D> where T: Copy {
-        type Output =  Vec<T>;
+        type Item = T;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -1034,10 +1178,10 @@ pub mod col_vec_iterators {
     pub struct BufferedColVec<T,const D: usize>(Vec<T>);
 
     impl<T,const D: usize> EvalsToColVec<D> for BufferedColVec<T,D> {
-        type Output = Vec<T>;
+        type Item = T;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             if self.0.len() == D {
                 ColumnVec(self.0)
             } else if self.0.len() == 0 {
@@ -1045,6 +1189,16 @@ pub mod col_vec_iterators {
             } else {
                 panic!("A BufferedColVec can only be written to once")
             }
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            todo!()
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            todo!()
         }
     }
         //not sure on this interface
@@ -1073,15 +1227,25 @@ pub mod col_vec_iterators {
     }
         //Kinda dumb, but they have no *actual* reason to not implement it
     impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CloneToBufferColVec<'a,I,D> where I::Item: Clone {
-        type Output = Vec<I::Item>;
+        type Item = I::Item;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -1105,15 +1269,25 @@ pub mod col_vec_iterators {
     }
         //Kinda dumb, but they have no *actual* reason to not implement it
     impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CopyToBufferColVec<'a,I,D> where I::Item: Copy {
-        type Output = Vec<I::Item>;
+        type Item = I::Item;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -1155,15 +1329,25 @@ pub mod col_vec_iterators {
     }
 
     impl<I: Iterator,F: FnMut(I::Item) -> O,O,const D: usize> EvalsToColVec<D> for ColVecMap<I,F,O,D> {
-        type Output = Vec<O>;
+        type Item = O;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -1204,15 +1388,25 @@ pub mod col_vec_iterators {
     }
 
     impl<I: Iterator,const D: usize> EvalsToColVec<D> for NegatedColVec<I,D> where I::Item: Neg {
-        type Output = Vec<<I::Item as Neg>::Output>;
+        type Item = <I::Item as Neg>::Output;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Self::Output,D> {
+        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
             let mut vec = Vec::with_capacity(D);
             for output in self {
                 vec.push(output)
             }
             ColumnVec(vec)
+        }
+
+        #[inline]
+        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
@@ -1343,10 +1537,18 @@ mod test {
         assert_eq!(ColumnVec::try_from(vec![2,4,6,8,10]).unwrap(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
     }
 
+    //Doesnt check leaky-ness
     #[test]
-    //much harder version
+    fn eval_array_test() {
+        let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).eval_array());
+
+        let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).leaky_eval_array());
+    }
+
+    #[test]
     fn duplicate_stress_test() {
-        //4.54s: 1st run (dual Rc's over RefCells)
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
             let original: ColumnVec<[u32; 10], 10> = ColumnVec::from([
@@ -1365,4 +1567,49 @@ mod test {
             assert_eq!((original*Scalar(2)).eval(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<u32,10>,10>,10>>::add(clone_a,clone_b).eval());
         }
     }
+
+    #[test]
+    fn eval_array_stress_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..1000000 {
+            let vec_nums = (
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000)
+            );
+            let vec1 = ColumnVec::from(<[u32; 10]>::from(vec_nums));
+            let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
+            assert_eq!(vec2,(vec1 * Scalar(2)).eval_array());
+        }
+    }
+
+    #[test]
+    fn leaky_eval_array_stress_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..1000000 {
+            let vec_nums = (
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000)
+            );
+            let vec1 = ColumnVec::from(<[u32; 10]>::from(vec_nums));
+            let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
+            assert_eq!(vec2,(vec1 * Scalar(2)).leaky_eval_array());
+        }
+    }
+    
 }
