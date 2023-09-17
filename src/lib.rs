@@ -207,45 +207,32 @@ pub mod scalar_math {
 
 #[derive(PartialEq,Debug)]
 #[derive(Clone)] 
-pub struct ColumnVec<T: IntoIterator,const D: usize>(T);
+pub struct ColumnVec<T,const D: usize>([T; D]);
 
-impl<T: IntoIterator,const D: usize> ColumnVec<T,D> {
-    pub fn unwrap(self) -> T {
+impl<T,const D: usize> ColumnVec<T,D> {
+    #[inline]
+    pub fn unwrap(self) -> [T; D] {
         self.0
     }
 
-    pub unsafe fn unchecked_from(iterable: T) -> Self {
-        ColumnVec(iterable)
-    }
-
+    #[inline]
     pub fn transpose(self) -> RowVec<T,D> {
         RowVec(self.0)
     }
 }
 
-impl<T,const D: usize> From<[T; D]> for ColumnVec<[T; D],D> {
+impl<C,T,const D: usize> From<C> for ColumnVec<T,D> where [T; D]: From<C> {
     #[inline]
-    fn from(value: [T; D]) -> Self {
-        ColumnVec(value)
+    fn from(value: C) -> Self {
+        ColumnVec(<[T; D]>::from(value))
     }
 }
 
-impl<T,const D: usize> TryFrom<Vec<T>> for ColumnVec<Vec<T>,D> {
-    type Error = ();
-
-    #[inline]
-    fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
-        if value.len() == D {
-            Ok(ColumnVec(value))
-        } else {
-            Err(())
-        }
-    }
-}
 
 //CHECK
-impl<Idx,T: IntoIterator + std::ops::Index<Idx>,const D: usize> std::ops::Index<Idx> for ColumnVec<T,D> where T::Output: Sized {
-    type Output = Scalar<T::Output>;
+impl<Idx,T,const D: usize> std::ops::Index<Idx> for ColumnVec<T,D> 
+where [T; D]: std::ops::Index<Idx>, <[T; D] as std::ops::Index<Idx>>::Output: Sized {
+    type Output = Scalar<<[T; D] as std::ops::Index<Idx>>::Output>;
     
     #[inline]
     fn index(&self, index: Idx) -> &Self::Output {
@@ -272,9 +259,9 @@ impl<I: Iterator> Iterator for ColVecIter<I> {
     }
 }
 
-impl<T: IntoIterator,const D: usize> IntoIterator for ColumnVec<T,D> {
-    type IntoIter = ColVecIter<T::IntoIter>;
-    type Item = Scalar<T::Item>;
+impl<T,const D: usize> IntoIterator for ColumnVec<T,D> {
+    type IntoIter = ColVecIter<<[T; D] as IntoIterator>::IntoIter>;
+    type Item = Scalar<<[T; D] as IntoIterator>::Item>;
     
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -282,9 +269,9 @@ impl<T: IntoIterator,const D: usize> IntoIterator for ColumnVec<T,D> {
     }
 }
 
-impl<'a,T: IntoIterator,const D: usize> IntoIterator for &'a ColumnVec<T,D> where &'a T: IntoIterator {
-    type IntoIter = ColVecIter<<&'a T as IntoIterator>::IntoIter>;
-    type Item = Scalar<<&'a T as IntoIterator>::Item>;
+impl<'a,T,const D: usize> IntoIterator for &'a ColumnVec<T,D> {
+    type IntoIter = ColVecIter<<&'a [T; D] as IntoIterator>::IntoIter>;
+    type Item = Scalar<<&'a [T; D] as IntoIterator>::Item>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -292,9 +279,9 @@ impl<'a,T: IntoIterator,const D: usize> IntoIterator for &'a ColumnVec<T,D> wher
     }
 }
 
-impl<'a,T: IntoIterator,const D: usize> IntoIterator for &'a mut ColumnVec<T,D> where &'a mut T: IntoIterator {
-    type IntoIter = ColVecIter<<&'a mut T as IntoIterator>::IntoIter>;
-    type Item = Scalar<<&'a mut T as IntoIterator>::Item>;
+impl<'a,T,const D: usize> IntoIterator for &'a mut ColumnVec<T,D> {
+    type IntoIter = ColVecIter<<&'a mut [T; D] as IntoIterator>::IntoIter>;
+    type Item = Scalar<<&'a mut [T; D] as IntoIterator>::Item>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -303,14 +290,10 @@ impl<'a,T: IntoIterator,const D: usize> IntoIterator for &'a mut ColumnVec<T,D> 
 }
 
  
-pub struct RowVec<T: IntoIterator,const D: usize>(pub T);
+pub struct RowVec<T,const D: usize>([T; D]);
 
 
 pub trait Dot<T> {
-    ///A trait for implementing a dot product function
-    ///Implementations of It generally makes the assumption that
-    ///the output type has a default function which results
-    ///in a value akin to 0 (ex. 0,0.0,"")
     type Output;
 
     fn dot(self,rhs: T) -> Self::Output;
@@ -335,68 +318,43 @@ pub mod col_vec_iterators {
 
     pub trait EvalsToColVec<const D: usize> {
         type Item;
-        
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D>;
 
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D>;
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D>;
 
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D>;
+        fn eval(self) -> ColumnVec<Self::Item,D>;
     }
 
     impl<T: EvalsToColVec<D>,const D: usize> EvalsToColVec<D> for EvalColVec<T,D> {
         type Item = T::Item;
-        
+
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
+            self.0.leaky_eval()
+        }
+
+        #[inline]
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             self.0.eval()
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
-            self.0.leaky_eval_array()
-        }
-
-        #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
-            self.0.eval_array()
         }
     }
 
     
     pub trait SyncEvalsToColVec {
-        type EvalOut;
         type EvalArrayOut;
     
-        fn sync_eval(self) -> Self::EvalOut;
-        fn sync_leaky_eval_array(self) -> Self::EvalArrayOut;
-        fn sync_eval_array(self) -> Self::EvalArrayOut;
+        fn sync_leaky_eval(self) -> Self::EvalArrayOut;
+        fn sync_eval(self) -> Self::EvalArrayOut;
     }
 
     #[macro_export]
     macro_rules! impl_sync_evals_to_col_vec {
         ($($i:ident)*,$($i_buf:ident)*) => {
             impl<$($i: Iterator),*,const D: usize> SyncEvalsToColVec for ($(EvalColVec<$i,D>),*) {
-                type EvalOut = ($(ColumnVec<Vec<$i::Item>,D>),*);
-                type EvalArrayOut = ($(ColumnVec<[$i::Item; D],D>),*);
+                type EvalArrayOut = ($(ColumnVec<$i::Item,D>),*);
     
                 #[allow(non_snake_case)]
                 #[inline]
-                fn sync_eval(self) -> Self::EvalOut {
-                    let ($(EvalColVec(mut $i)),*) = self;
-                    $(
-                        let mut $i_buf = Vec::with_capacity(D);
-                    )*
-                    for _ in 0..D {
-                        $(
-                            $i_buf.push($i.next().expect("internal_error: The first D elements in a EvalColVec must be valid"));
-                        )*
-                    }
-                    ($(ColumnVec($i_buf)),*)
-                }
-    
-                #[allow(non_snake_case)]
-                #[inline]
-                fn sync_leaky_eval_array(self) -> Self::EvalArrayOut {
+                fn sync_leaky_eval(self) -> Self::EvalArrayOut {
                     let ($(EvalColVec(mut $i)),*) = self;
                     $(
                         let mut $i_buf: [std::mem::MaybeUninit<$i::Item>; D] = unsafe {std::mem::MaybeUninit::uninit().assume_init()};
@@ -415,7 +373,7 @@ pub mod col_vec_iterators {
 
                 #[allow(non_snake_case)]
                 #[inline]
-                fn sync_eval_array(self) -> Self::EvalArrayOut {
+                fn sync_eval(self) -> Self::EvalArrayOut {
                     let ($(EvalColVec(mut $i)),*) = self;
                     $(
                         let mut $i_buf: utils::IterInitArray<$i::Item, D>= utils::IterInitArray{array: unsafe {std::mem::MaybeUninit::uninit().assume_init()},last_index: None};
@@ -447,23 +405,14 @@ pub mod col_vec_iterators {
         ($t:ty,1,$ti:ty,$tr:path) => {
             impl<I: Iterator,S: Copy,const D: usize> EvalsToColVec<D> for $t where $ti: $tr {
                 type Item = <$t as Iterator>::Item;
-
-                #[inline]
-                fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-                    let mut vec = Vec::with_capacity(D);
-                    for output in self {
-                        vec.push(output)
-                    }
-                    ColumnVec(vec)
-                }
                 
                 #[inline]
-                fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
                     ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
                 }
 
                 #[inline]
-                fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                fn eval(self) -> ColumnVec<Self::Item,D> {
                     ColumnVec(unsafe { utils::iterator_to_array(self) })
                 }
             }
@@ -473,21 +422,12 @@ pub mod col_vec_iterators {
                 type Item = <$t as Iterator>::Item;
 
                 #[inline]
-                fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-                    let mut vec = Vec::with_capacity(D);
-                    for output in self {
-                        vec.push(output)
-                    }
-                    ColumnVec(vec)
-                }
-
-                #[inline]
-                fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
                     ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
                 }
 
                 #[inline]
-                fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+                fn eval(self) -> ColumnVec<Self::Item,D> {
                     ColumnVec(unsafe { utils::iterator_to_array(self) })
                 }
             }
@@ -496,11 +436,11 @@ pub mod col_vec_iterators {
 
     macro_rules! overload_given_operator_for_vec {
         ($Op:ident,$OpF:ident,$OpI:ident) => {
-            impl<I1: IntoIterator,I2: IntoIterator,const D: usize> $Op<ColumnVec<I2,D>> for ColumnVec<I1,D> where I1::Item: $Op<I2::Item> {
-                type Output = EvalColVec<$OpI<I1::IntoIter,I2::IntoIter,D>,D>;
+            impl<T1,T2,const D: usize> $Op<ColumnVec<T2,D>> for ColumnVec<T1,D> where <[T1; D] as IntoIterator>::Item: $Op<<[T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<<[T1; D] as IntoIterator>::IntoIter,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         self.0.into_iter(),
                         other.0.into_iter()
@@ -508,12 +448,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I1: IntoIterator,I2: IntoIterator,const D: usize> $Op<ColumnVec<I2,D>> for &'a ColumnVec<I1,D> 
-            where &'a I1: IntoIterator, <&'a I1 as IntoIterator>::Item: $Op<I2::Item> {
-                type Output = EvalColVec<$OpI<<&'a I1 as IntoIterator>::IntoIter,I2::IntoIter,D>,D>;
+            impl<'a,T1,T2,const D: usize> $Op<ColumnVec<T2,D>> for &'a ColumnVec<T1,D> 
+            where <&'a [T1; D] as IntoIterator>::Item: $Op<<[T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<<&'a [T1; D] as IntoIterator>::IntoIter,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         (&self.0).into_iter(),
                         other.0.into_iter()
@@ -521,12 +461,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I1: IntoIterator,I2: IntoIterator,const D: usize> $Op<&'a ColumnVec<I2,D>> for ColumnVec<I1,D> 
-            where &'a I2: IntoIterator, I1::Item: $Op<<&'a I2 as IntoIterator>::Item> {
-                type Output = EvalColVec<$OpI<I1::IntoIter,<&'a I2 as IntoIterator>::IntoIter,D>,D>;
+            impl<'a,T1,T2,const D: usize> $Op<&'a ColumnVec<T2,D>> for ColumnVec<T1,D> 
+            where <[T1; D] as IntoIterator>::Item: $Op<<&'a [T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<<[T1; D] as IntoIterator>::IntoIter,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: &'a ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         self.0.into_iter(),
                         (&other.0).into_iter()
@@ -534,12 +474,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I1: IntoIterator,I2: IntoIterator,const D: usize> $Op<&'a ColumnVec<I2,D>> for &'a ColumnVec<I1,D> 
-            where &'a I1: IntoIterator, &'a I2: IntoIterator, <&'a I1 as IntoIterator>::Item: $Op<<&'a I2 as IntoIterator>::Item> {
-                type Output = EvalColVec<$OpI<<&'a I1 as IntoIterator>::IntoIter,<&'a I2 as IntoIterator>::IntoIter,D>,D>;
+            impl<'a,T1,T2,const D: usize> $Op<&'a ColumnVec<T2,D>> for &'a ColumnVec<T1,D> 
+            where <&'a [T1; D] as IntoIterator>::Item: $Op<<&'a [T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<<&'a [T1; D] as IntoIterator>::IntoIter,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: &'a ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         (&self.0).into_iter(),
                         (&other.0).into_iter()
@@ -548,11 +488,11 @@ pub mod col_vec_iterators {
             }
         
 
-            impl<I1: Iterator,I2: IntoIterator,const D: usize> $Op<ColumnVec<I2,D>> for EvalColVec<I1,D> where I1::Item: $Op<I2::Item> {
-                type Output = EvalColVec<$OpI<I1,I2::IntoIter,D>,D>;
+            impl<I1: Iterator,T2,const D: usize> $Op<ColumnVec<T2,D>> for EvalColVec<I1,D> where I1::Item: $Op<<[T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<I1,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         self.0,
                         other.0.into_iter()
@@ -560,12 +500,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I1: Iterator,I2: IntoIterator,const D: usize> $Op<&'a ColumnVec<I2,D>> for EvalColVec<I1,D> 
-            where &'a I2: IntoIterator, I1::Item: $Op<<&'a I2 as IntoIterator>::Item> {
-                type Output = EvalColVec<$OpI<I1,<&'a I2 as IntoIterator>::IntoIter,D>,D>;
+            impl<'a,I1: Iterator,T2,const D: usize> $Op<&'a ColumnVec<T2,D>> for EvalColVec<I1,D> 
+            where I1::Item: $Op<<&'a [T2; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<I1,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,other: &'a ColumnVec<I2,D>) -> Self::Output {
+                fn $OpF(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
                     EvalColVec($OpI(
                         self.0,
                         (&other.0).into_iter()
@@ -573,8 +513,8 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<I1: IntoIterator,I2: Iterator,const D: usize> $Op<EvalColVec<I2,D>> for ColumnVec<I1,D> where I1::Item: $Op<I2::Item> {
-                type Output = EvalColVec<$OpI<I1::IntoIter,I2,D>,D>;
+            impl<T1,I2: Iterator,const D: usize> $Op<EvalColVec<I2,D>> for ColumnVec<T1,D> where <[T1; D] as IntoIterator>::Item: $Op<I2::Item> {
+                type Output = EvalColVec<$OpI<<[T1; D] as IntoIterator>::IntoIter,I2,D>,D>;
 
                 #[inline]
                 fn $OpF(self,other: EvalColVec<I2,D>) -> Self::Output {
@@ -585,9 +525,9 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I1: IntoIterator,I2: Iterator,const D: usize> $Op<EvalColVec<I2,D>> for &'a ColumnVec<I1,D> 
-            where &'a I1: IntoIterator, <&'a I1 as IntoIterator>::Item: $Op<I2::Item> {
-                type Output = EvalColVec<$OpI<<&'a I1 as IntoIterator>::IntoIter,I2,D>,D>;
+            impl<'a,T1,I2: Iterator,const D: usize> $Op<EvalColVec<I2,D>> for &'a ColumnVec<T1,D> 
+            where <&'a [T1; D] as IntoIterator>::Item: $Op<I2::Item> {
+                type Output = EvalColVec<$OpI<<&'a [T1; D] as IntoIterator>::IntoIter,I2,D>,D>;
 
                 #[inline]
                 fn $OpF(self,other: EvalColVec<I2,D>) -> Self::Output {
@@ -613,8 +553,8 @@ pub mod col_vec_iterators {
             }
         };
         ($Op:ident,$OpF:ident,$OpI:ident,0) => {
-            impl<I: IntoIterator,S: Copy,const D: usize> $Op<Scalar<S>> for ColumnVec<I,D> where I::Item: $Op<S> {
-                type Output = EvalColVec<$OpI<I::IntoIter,S,D>,D>;
+            impl<T,S: Copy,const D: usize> $Op<Scalar<S>> for ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: $Op<S> {
+                type Output = EvalColVec<$OpI<<[T; D] as IntoIterator>::IntoIter,S,D>,D>;
 
                 #[inline]
                 fn $OpF(self,rhs: Scalar<S>) -> Self::Output {
@@ -625,9 +565,9 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<Scalar<S>> for &'a ColumnVec<I,D> 
-            where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: $Op<S> {
-                type Output = EvalColVec<$OpI<<&'a I as IntoIterator>::IntoIter,S,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<Scalar<S>> for &'a ColumnVec<T,D> 
+            where <&'a [T; D] as IntoIterator>::Item: $Op<S> {
+                type Output = EvalColVec<$OpI<<&'a [T; D] as IntoIterator>::IntoIter,S,D>,D>;
 
                 #[inline]
                 fn $OpF(self,rhs: Scalar<S>) -> Self::Output {
@@ -638,8 +578,8 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<&'a Scalar<S>> for ColumnVec<I,D> where I::Item: $Op<&'a S> {
-                type Output = EvalColVec<$OpI<I::IntoIter,&'a S,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<&'a Scalar<S>> for ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: $Op<&'a S> {
+                type Output = EvalColVec<$OpI<<[T; D] as IntoIterator>::IntoIter,&'a S,D>,D>;
 
                 #[inline]
                 fn $OpF(self,rhs: &'a Scalar<S>) -> Self::Output {
@@ -650,9 +590,9 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<&'a Scalar<S>> for &'a ColumnVec<I,D> 
-            where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: $Op<&'a S> {
-                type Output = EvalColVec<$OpI<<&'a I as IntoIterator>::IntoIter,&'a S,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<&'a Scalar<S>> for &'a ColumnVec<T,D> 
+            where <&'a [T; D] as IntoIterator>::Item: $Op<&'a S> {
+                type Output = EvalColVec<$OpI<<&'a [T; D] as IntoIterator>::IntoIter,&'a S,D>,D>;
 
                 #[inline]
                 fn $OpF(self,rhs: &'a Scalar<S>) -> Self::Output {
@@ -689,11 +629,11 @@ pub mod col_vec_iterators {
             }
         };
         ($Op:ident,$OpF:ident,$OpI:ident,1) => {
-            impl<I: IntoIterator,S: Copy,const D: usize> $Op<ColumnVec<I,D>> for Scalar<S> where S: $Op<I::Item> {
-                type Output = EvalColVec<$OpI<S,I::IntoIter,D>,D>;
+            impl<T,S: Copy,const D: usize> $Op<ColumnVec<T,D>> for Scalar<S> where S: $Op<<[T; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<S,<[T; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,rhs: ColumnVec<I,D>) -> Self::Output {
+                fn $OpF(self,rhs: ColumnVec<T,D>) -> Self::Output {
                     EvalColVec($OpI(
                         rhs.0.into_iter(),
                         self.0
@@ -701,11 +641,11 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<ColumnVec<I,D>> for &'a Scalar<S> where &'a S: $Op<I::Item> {
-                type Output = EvalColVec<$OpI<&'a S,I::IntoIter,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<ColumnVec<T,D>> for &'a Scalar<S> where &'a S: $Op<<[T; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<&'a S,<[T; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,rhs: ColumnVec<I,D>) -> Self::Output {
+                fn $OpF(self,rhs: ColumnVec<T,D>) -> Self::Output {
                     EvalColVec($OpI(
                         rhs.0.into_iter(),
                         &self.0
@@ -713,12 +653,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<&'a ColumnVec<I,D>> for Scalar<S> 
-            where &'a I: IntoIterator, S: $Op<<&'a I as IntoIterator>::Item> {
-                type Output = EvalColVec<$OpI<S,<&'a I as IntoIterator>::IntoIter,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<&'a ColumnVec<T,D>> for Scalar<S> 
+            where S: $Op<<&'a [T; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<S,<&'a [T; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,rhs: &'a ColumnVec<I,D>) -> Self::Output {
+                fn $OpF(self,rhs: &'a ColumnVec<T,D>) -> Self::Output {
                     EvalColVec($OpI(
                         (&rhs.0).into_iter(),
                         self.0
@@ -726,12 +666,12 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'a,I: IntoIterator,S: Copy,const D: usize> $Op<&'a ColumnVec<I,D>> for &'a Scalar<S> 
-            where &'a I: IntoIterator, &'a S: $Op<<&'a I as IntoIterator>::Item> {
-                type Output = EvalColVec<$OpI<&'a S,<&'a I as IntoIterator>::IntoIter,D>,D>;
+            impl<'a,T,S: Copy,const D: usize> $Op<&'a ColumnVec<T,D>> for &'a Scalar<S> 
+            where &'a S: $Op<<&'a [T; D] as IntoIterator>::Item> {
+                type Output = EvalColVec<$OpI<&'a S,<&'a [T; D] as IntoIterator>::IntoIter,D>,D>;
 
                 #[inline]
-                fn $OpF(self,rhs: &'a ColumnVec<I,D>) -> Self::Output {
+                fn $OpF(self,rhs: &'a ColumnVec<T,D>) -> Self::Output {
                     EvalColVec($OpI(
                         (&rhs.0).into_iter(),
                         &self.0
@@ -913,28 +853,28 @@ pub mod col_vec_iterators {
     //Assign operators
     macro_rules! impl_assign_operator_for_vec {
         ($Op:ident,$OpF:ident,0) => {
-            impl<I1: IntoIterator,I2: IntoIterator,O,const D: usize> $Op<ColumnVec<I2,D>> for ColumnVec<I1,D> 
-            where for<'a> &'a mut I1: IntoIterator<Item = &'a mut O>,O: $Op<I2::Item> {
+            impl<T1,T2,O,const D: usize> $Op<ColumnVec<T2,D>> for ColumnVec<T1,D> 
+            where for<'a> &'a mut [T1; D]: IntoIterator<Item = &'a mut O>,O: $Op<<[T2; D] as IntoIterator>::Item> {
                 #[inline]
-                fn $OpF(&mut self,rhs: ColumnVec<I2,D>) {
+                fn $OpF(&mut self,rhs: ColumnVec<T2,D>) {
                     for (self_val,other_val) in (&mut self.0).into_iter().zip(rhs.0.into_iter()) {
                         (self_val).$OpF(other_val)
                     }
                 }
             }
 
-            impl<'b,I1: IntoIterator,I2: IntoIterator,O,const D: usize> $Op<&'b ColumnVec<I2,D>> for ColumnVec<I1,D> 
-            where &'b I2: IntoIterator,for<'a> &'a mut I1: IntoIterator<Item = &'a mut O>,O: $Op<<&'b I2 as IntoIterator>::Item> {
+            impl<'b,T1,T2,O,const D: usize> $Op<&'b ColumnVec<T2,D>> for ColumnVec<T1,D> 
+            where for<'a> &'a mut [T1; D]: IntoIterator<Item = &'a mut O>,O: $Op<<&'b [T2; D] as IntoIterator>::Item> {
                 #[inline]
-                fn $OpF(&mut self,rhs: &'b ColumnVec<I2,D>) {
+                fn $OpF(&mut self,rhs: &'b ColumnVec<T2,D>) {
                     for (self_val,other_val) in (&mut self.0).into_iter().zip((&rhs.0).into_iter()) {
                         (self_val).$OpF(other_val)
                     }
                 }
             }
 
-            impl<I1: IntoIterator,I2: Iterator,O,const D: usize> $Op<EvalColVec<I2,D>> for ColumnVec<I1,D> 
-            where for<'a> &'a mut I1: IntoIterator<Item = &'a mut O>,O: $Op<I2::Item> {
+            impl<T1,I2: Iterator,O,const D: usize> $Op<EvalColVec<I2,D>> for ColumnVec<T1,D> 
+            where for<'a> &'a mut [T1; D]: IntoIterator<Item = &'a mut O>,O: $Op<I2::Item> {
                 #[inline]
                 fn $OpF(&mut self,rhs: EvalColVec<I2,D>) {
                     for (self_val,other_val) in (&mut self.0).into_iter().zip(rhs.0) {
@@ -944,8 +884,8 @@ pub mod col_vec_iterators {
             }
         };
         ($Op:ident,$OpF:ident,1) => {
-            impl<I: IntoIterator,O,S: Copy,const D: usize> $Op<Scalar<S>> for ColumnVec<I,D> 
-            where for<'a> &'a mut I: IntoIterator<Item = &'a mut O>,for<'a> O: $Op<S> {
+            impl<T,O,S: Copy,const D: usize> $Op<Scalar<S>> for ColumnVec<T,D> 
+            where for<'a> &'a mut [T; D]: IntoIterator<Item = &'a mut O>,for<'a> O: $Op<S> {
                 #[inline]
                 fn $OpF(&mut self,rhs: Scalar<S>) {
                     for val in (&mut self.0).into_iter() {
@@ -954,8 +894,8 @@ pub mod col_vec_iterators {
                 }
             }
 
-            impl<'b,I: IntoIterator,O,S: Copy,const D: usize> $Op<&'b Scalar<S>> for ColumnVec<I,D> 
-            where for<'a> &'a mut I: IntoIterator<Item = &'a mut O>,for<'a> O: $Op<&'b S> {
+            impl<'b,T,O,S: Copy,const D: usize> $Op<&'b Scalar<S>> for ColumnVec<T,D> 
+            where for<'a> &'a mut [T; D]: IntoIterator<Item = &'a mut O>,for<'a> O: $Op<&'b S> {
                 #[inline]
                 fn $OpF(&mut self,rhs: &'b Scalar<S>) {
                     for val in (&mut self.0).into_iter() {
@@ -973,135 +913,151 @@ pub mod col_vec_iterators {
     impl_assign_operator_for_vec!(RemAssign,rem_assign,1);
 
     //dot product
+    impl<T1,T2,O: AddAssign<O> ,const D: usize> Dot<ColumnVec<T2,D>> for ColumnVec<T1,D>
+    where <[T1; D] as IntoIterator>::Item: Mul<<[T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
 
-    //assumes the default is something akin to 0
-    impl<I1: IntoIterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default ,const D: usize> Dot<ColumnVec<I2,D>> for ColumnVec<I1,D>
+        #[inline]
+        fn dot(self,rhs: ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = self.0.into_iter().zip(rhs.0.into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<'a,T1,T2,O: AddAssign<O> ,const D: usize> Dot<ColumnVec<T2,D>> for &'a ColumnVec<T1,D>
+    where <&'a [T1; D] as IntoIterator>::Item: Mul<<[T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = (&self.0).into_iter().zip(rhs.0.into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<'a,T1,T2,O: AddAssign<O> ,const D: usize> Dot<&'a ColumnVec<T2,D>> for ColumnVec<T1,D>
+    where <[T1; D] as IntoIterator>::Item: Mul<<&'a [T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: &'a ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = self.0.into_iter().zip((&rhs.0).into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<'a,T1,T2,O: AddAssign<O> ,const D: usize> Dot<&'a ColumnVec<T2,D>> for &'a ColumnVec<T1,D>
+    where <&'a [T1; D] as IntoIterator>::Item: Mul<<&'a [T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: &'a ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = (&self.0).into_iter().zip((&rhs.0).into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    
+    impl<I1: Iterator,T2,O: AddAssign<O> ,const D: usize> Dot<ColumnVec<T2,D>> for EvalColVec<I1,D>
+    where I1::Item: Mul<<[T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = self.0.zip(rhs.0.into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<'a,I1: Iterator,T2,O: AddAssign<O> ,const D: usize> Dot<&'a ColumnVec<T2,D>> for EvalColVec<I1,D>
+    where I1::Item: Mul<<&'a [T2; D] as IntoIterator>::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: &'a ColumnVec<T2,D>) -> Self::Output {
+            let mut iter = self.0.zip((&rhs.0).into_iter());
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<T1,I2: Iterator,O: AddAssign<O> ,const D: usize> Dot<EvalColVec<I2,D>> for ColumnVec<T1,D>
+    where <[T1; D] as IntoIterator>::Item: Mul<I2::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: EvalColVec<I2,D>) -> Self::Output {
+            let mut iter = self.0.into_iter().zip(rhs.0);
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+    impl<'a,T1,I2: Iterator,O: AddAssign<O> ,const D: usize> Dot<EvalColVec<I2,D>> for &'a ColumnVec<T1,D>
+    where <&'a [T1; D] as IntoIterator>::Item: Mul<I2::Item,Output = O>  {
+        type Output = Scalar<O>;
+
+        #[inline]
+        fn dot(self,rhs: EvalColVec<I2,D>) -> Self::Output {
+            let mut iter = (&self.0).into_iter().zip(rhs.0);
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
+            }
+            Scalar(output)
+        }
+    }
+
+
+    impl<I1: Iterator,I2: Iterator,O: AddAssign<O> ,const D: usize> Dot<EvalColVec<I2,D>> for EvalColVec<I1,D>
     where I1::Item: Mul<I2::Item,Output = O>  {
         type Output = Scalar<O>;
 
         #[inline]
-        fn dot(self,rhs: ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.into_iter().zip(rhs.0.into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-    impl<'a, I1: IntoIterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default ,const D: usize> Dot<ColumnVec<I2,D>> for &'a ColumnVec<I1,D>
-    where &'a I1: IntoIterator,<&'a I1 as IntoIterator>::Item: Mul<I2::Item,Output = O>  {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in (&self.0).into_iter().zip(rhs.0.into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-    impl<'a, I1: IntoIterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default ,const D: usize> Dot<&'a ColumnVec<I2,D>> for ColumnVec<I1,D>
-    where &'a I2: IntoIterator, I1::Item: Mul<<&'a I2 as IntoIterator>::Item,Output = O>  {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: &'a ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.into_iter().zip((&rhs.0).into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-    impl<'a, I1: IntoIterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default ,const D: usize> Dot<&'a ColumnVec<I2,D>> for &'a ColumnVec<I1,D>
-    where &'a I2: IntoIterator, &'a I1: IntoIterator, <&'a I1 as IntoIterator>::Item: Mul<<&'a I2 as IntoIterator>::Item,Output = O>  {
-        type Output = Scalar<O>;
-
-        fn dot(self,rhs: &'a ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in (&self.0).into_iter().zip((&rhs.0).into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-
-    impl<I1: Iterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<ColumnVec<I2,D>> for EvalColVec<I1,D> 
-    where I1::Item: Mul<I2::Item,Output = O> {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.zip(rhs.0.into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-    impl<'a,I1: Iterator,I2: IntoIterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<&'a ColumnVec<I2,D>> for EvalColVec<I1,D> 
-    where &'a I2: IntoIterator, I1::Item: Mul<<&'a I2 as IntoIterator>::Item,Output = O> {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: &'a ColumnVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.zip((&rhs.0).into_iter()) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-    impl<I1: IntoIterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalColVec<I2,D>> for ColumnVec<I1,D> 
-    where I1::Item: Mul<I2::Item,Output = O> {
-        type Output = Scalar<O>;
-
-        #[inline]
         fn dot(self,rhs: EvalColVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.into_iter().zip(rhs.0) {
-                output += left_val * right_val;
+            let mut iter = self.0.zip(rhs.0);
+            let (first_self_val,first_other_val) = iter.next().expect("The ColumnVecs should have a element in them both");
+            let mut output = first_self_val * first_other_val;
+            for (self_val,other_val) in iter {
+                output += self_val * other_val;
             }
             Scalar(output)
         }
     }
-
-    impl<'a, I1: IntoIterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalColVec<I2,D>> for &'a ColumnVec<I1,D> 
-    where &'a I1: IntoIterator,<&'a I1 as IntoIterator>::Item: Mul<I2::Item,Output = O> {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: EvalColVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in (&self.0).into_iter().zip(rhs.0) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
-
-    impl<I1: Iterator,I2: Iterator,O: AddAssign<O> + std::default::Default,const D: usize> Dot<EvalColVec<I2,D>> for EvalColVec<I1,D> 
-    where I1::Item: Mul<I2::Item,Output = O> {
-        type Output = Scalar<O>;
-
-        #[inline]
-        fn dot(self,rhs: EvalColVec<I2,D>) -> Self::Output {
-            let mut output = <O>::default();
-            for (left_val,right_val) in self.0.zip(rhs.0) {
-                output += left_val * right_val;
-            }
-            Scalar(output)
-        }
-    }
-
     //Cloned and Copied
     pub struct ClonedColVec<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize>(I) where T: Clone;
 
@@ -1118,21 +1074,12 @@ pub mod col_vec_iterators {
         type Item = T;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1153,21 +1100,12 @@ pub mod col_vec_iterators {
         type Item = T;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1189,16 +1127,16 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<'a,I: IntoIterator<Item = &'a T>,T: 'a,const D: usize> ColumnVec<I,D> {
+    impl<'a,T1,T2: 'a,const D: usize> ColumnVec<T1,D> where [T1; D]: IntoIterator<Item = &'a T2> { 
         #[inline]
-        pub fn cloned(self) -> EvalColVec<ClonedColVec<'a,I::IntoIter,T,D>,D> where T: Clone{
+        pub fn cloned(self) -> EvalColVec<ClonedColVec<'a,<[T1; D] as IntoIterator>::IntoIter,T2,D>,D> where T2: Clone{
             EvalColVec(ClonedColVec(
                 self.0.into_iter()
             ))
         }
 
         #[inline]
-        pub fn copied(self) -> EvalColVec<CopiedColVec<'a,I::IntoIter,T,D>,D> where T: Copy{
+        pub fn copied(self) -> EvalColVec<CopiedColVec<'a,<[T1; D] as IntoIterator>::IntoIter,T2,D>,D> where T2: Copy{
             EvalColVec(CopiedColVec(
                 self.0.into_iter()
             ))
@@ -1257,9 +1195,9 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<I: IntoIterator,const D: usize> ColumnVec<I,D> where I::Item: Clone {
+    impl<T,const D: usize> ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Clone {
         #[inline]
-        pub fn duplicate(self) -> (EvalColVec<FirstDuplicateColVec<I::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<I::IntoIter,D>,D>) {
+        pub fn duplicate(self) -> (EvalColVec<FirstDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>) {
             let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
                 iterator: self.0.into_iter(),
                 buffer: None
@@ -1271,8 +1209,8 @@ pub mod col_vec_iterators {
         }
         
         #[inline]
-        pub fn duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>) 
-        where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: Clone {
+        pub fn duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>) 
+        where <&'a [T; D] as IntoIterator>::Item: Clone {
             let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
                 iterator: (&self.0).into_iter(),
                 buffer: None
@@ -1329,9 +1267,9 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<I: IntoIterator,const D: usize> ColumnVec<I,D> where I::Item: Clone {
+    impl<T,const D: usize> ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Clone {
         #[inline]
-        pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<I::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<I::IntoIter,D>,D>) {
+        pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>) {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
                 iterator: self.0.into_iter(),
                 buffer: None
@@ -1343,8 +1281,8 @@ pub mod col_vec_iterators {
         }
         
         #[inline]
-        pub unsafe fn unchecked_duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a I as IntoIterator>::IntoIter,D>,D>) 
-        where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: Clone {
+        pub unsafe fn unchecked_duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>) 
+        where <&'a [T; D] as IntoIterator>::Item: Clone {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
                 iterator: (&self.0).into_iter(),
                 buffer: None
@@ -1362,22 +1300,12 @@ pub mod col_vec_iterators {
     impl<T,const D: usize> EvalsToColVec<D> for BufferedColVec<T,D> {
         type Item = T;
 
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            if self.0.last_index == Some(D-1) {
-                ColumnVec(unsafe { self.0.assume_init() }.into())
-            } else if self.0.last_index == Some(0) {
-                panic!("A BufferedColVec must be written to before being evaluated");
-            } else {
-                panic!("A BufferedColVec must be written to only once");
-            }
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
+            eprintln!("math_vector: Warning, BufferedColVec's leaky_eval is equivilent to its eval. \n\tUse LeakyUncheckedBufferedColVec for that instead");
+            self.eval()
         }
 
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
-            eprintln!("math_vector: Warning, BufferedColVec's leaky_eval_array is equivilent to its eval_array. \n\tUse LeakyUncheckedBufferedColVec for that instead");
-            self.eval_array()
-        }
-
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             if self.0.last_index == Some(D-1) {
                 ColumnVec(unsafe { self.0.assume_init() })
             } else if self.0.last_index == Some(0) {
@@ -1415,21 +1343,12 @@ pub mod col_vec_iterators {
         type Item = I::Item;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1457,21 +1376,12 @@ pub mod col_vec_iterators {
         type Item = I::Item;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1513,21 +1423,12 @@ pub mod col_vec_iterators {
         type Item = O;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1540,14 +1441,14 @@ pub mod col_vec_iterators {
         }
     }
     
-    impl<I: IntoIterator,const D: usize> ColumnVec<I,D> {
+    impl<T,const D: usize> ColumnVec<T,D> {
         #[inline]
-        pub fn map<F: FnMut(I::Item) -> O,O>(self,f: F) -> ColVecMap<I::IntoIter,F,O,D> {
+        pub fn map<F: FnMut(<[T; D] as IntoIterator>::Item) -> O,O>(self,f: F) -> ColVecMap<<[T; D] as IntoIterator>::IntoIter,F,O,D> {
             ColVecMap(self.0.into_iter(),f)
         }
 
         #[inline]
-        pub fn map_ref<'a,F: FnMut(<&'a I as IntoIterator>::Item) -> O,O>(&'a self,f: F) -> ColVecMap<<&'a I as IntoIterator>::IntoIter,F,O,D> where &'a I: IntoIterator {
+        pub fn map_ref<'a,F: FnMut(<&'a [T; D] as IntoIterator>::Item) -> O,O>(&'a self,f: F) -> ColVecMap<<&'a [T; D] as IntoIterator>::IntoIter,F,O,D> {
             ColVecMap((&self.0).into_iter(),f)
         }
     }
@@ -1578,21 +1479,12 @@ pub mod col_vec_iterators {
         type Item = O;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1634,21 +1526,12 @@ pub mod col_vec_iterators {
         type Item = O;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
@@ -1663,7 +1546,6 @@ pub mod col_vec_iterators {
             })
         }
     }
-
 
     //neg
     pub struct NegatedColVec<I: Iterator,const D: usize>(I) where I::Item: Neg;
@@ -1685,28 +1567,19 @@ pub mod col_vec_iterators {
         type Item = <I::Item as Neg>::Output;
 
         #[inline]
-        fn eval(self) -> ColumnVec<Vec<Self::Item>,D> {
-            let mut vec = Vec::with_capacity(D);
-            for output in self {
-                vec.push(output)
-            }
-            ColumnVec(vec)
-        }
-
-        #[inline]
-        fn leaky_eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
         }
 
         #[inline]
-        fn eval_array(self) -> ColumnVec<[Self::Item; D],D> {
+        fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
 
-    impl<I: IntoIterator,const D: usize> Neg for ColumnVec<I,D> where I::Item: Neg {
-        type Output = EvalColVec<NegatedColVec<I::IntoIter,D>,D>;
+    impl<T,const D: usize> Neg for ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Neg {
+        type Output = EvalColVec<NegatedColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>;
 
         #[inline]
         fn neg(self) -> Self::Output {
@@ -1714,8 +1587,8 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<'a,I: IntoIterator,const D: usize> Neg for &'a ColumnVec<I,D> where &'a I: IntoIterator, <&'a I as IntoIterator>::Item: Neg{
-        type Output = EvalColVec<NegatedColVec<<&'a I as IntoIterator>::IntoIter,D>,D>;
+    impl<'a,T,const D: usize> Neg for &'a ColumnVec<T,D> where <&'a [T; D] as IntoIterator>::Item: Neg{
+        type Output = EvalColVec<NegatedColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>;
 
         #[inline]
         fn neg(self) -> Self::Output {
@@ -1744,60 +1617,60 @@ mod test {
 
     #[test]
     fn basic_ops() {
-        let x = ColumnVec::from([1;5]);
-        let y = ColumnVec::from([2;5]);
-        let z = std::ops::Add::<ColumnVec<[i32;5],5>>::add(x,y).eval();
-        assert_eq!(ColumnVec::try_from(vec![3,3,3,3,3]).unwrap(),z);
+        let x = ColumnVec::from([1; 5]);
+        let y = ColumnVec::from([2; 5]);
+        let z = (x+y).eval();
+        assert_eq!(ColumnVec::from([3,3,3,3,3]),z);
 
-        let x = ColumnVec::from([1;5]);
-        let y = ColumnVec::from([2;5]);
-        let z = std::ops::Sub::<ColumnVec<[i32;5],5>>::sub(x,y).eval();
-        assert_eq!(ColumnVec::try_from(vec![-1,-1,-1,-1,-1]).unwrap(),z);
+        let x = ColumnVec::from([1; 5]);
+        let y = ColumnVec::from([2; 5]);
+        let z = (x-y).eval();
+        assert_eq!(ColumnVec::from([-1,-1,-1,-1,-1]),z);
 
-        let x = ColumnVec::from([2;5]);
-        assert_eq!(ColumnVec::try_from(vec![6;5]).unwrap(),(x * Scalar(3)).eval());
+        let x = ColumnVec::from([2; 5]);
+        assert_eq!(ColumnVec::from([6; 5]),(x * Scalar(3)).eval());
 
-        let x = ColumnVec::from([6;5]);
-        assert_eq!(ColumnVec::try_from(vec![2;5]).unwrap(),(x / Scalar(3)).eval());
+        let x = ColumnVec::from([6; 5]);
+        assert_eq!(ColumnVec::from([2; 5]),(x / Scalar(3)).eval());
 
-        let x = ColumnVec::from([5;5]);
-        assert_eq!(ColumnVec::try_from(vec![2;5]).unwrap(),(x % Scalar(3)).eval());
+        let x = ColumnVec::from([5; 5]);
+        assert_eq!(ColumnVec::from([2; 5]),(x % Scalar(3)).eval());
 
-        let x = ColumnVec::from([2;5]);
-        let y = std::ops::Mul::<ColumnVec<[i32;5],5>>::mul(Scalar(3),x).eval();
-        assert_eq!(ColumnVec::try_from(vec![6;5]).unwrap(),y);
+        let x = ColumnVec::from([2; 5]);
+        let y = (Scalar(3) * x).eval();
+        assert_eq!(ColumnVec::from([6; 5]),y);
 
-        let x = ColumnVec::from([2;5]);
-        let y = std::ops::Div::<ColumnVec<[i32;5],5>>::div(Scalar(6),x).eval();
-        assert_eq!(ColumnVec::try_from(vec![3;5]).unwrap(),y);
+        let x = ColumnVec::from([2; 5]);
+        let y = (Scalar(6) / x).eval();
+        assert_eq!(ColumnVec::from([3; 5]),y);
 
-        let x = ColumnVec::from([2;5]);
-        let y = std::ops::Rem::<ColumnVec<[i32;5],5>>::rem(Scalar(3),x).eval();
-        assert_eq!(ColumnVec::try_from(vec![1;5]).unwrap(),y);
+        let x = ColumnVec::from([2; 5]);
+        let y = (Scalar(3) % x).eval();
+        assert_eq!(ColumnVec::from([1; 5]),y);
     }
 
     #[test]
     fn stacking_ops() {
-        let a = ColumnVec::from([4;5]);
-        let b = ColumnVec::from([2;5]);
-        let c = ColumnVec::from([1;5]);
+        let a = ColumnVec::from([4; 5]);
+        let b = ColumnVec::from([2; 5]);
+        let c = ColumnVec::from([1; 5]);
         let test = 
-            std::ops::Sub::<ColumnVec<[i32;5],5>>::sub(
-                std::ops::Add::<ColumnVec<[i32; 5], 5>>::add(a,b),
+            std::ops::Sub::<ColumnVec<i32,5>>::sub(
+                std::ops::Add::<ColumnVec<i32, 5>>::add(a,b),
                 c)
             *Scalar(3)
             /Scalar(5)
             %Scalar(2);
         let test = test.eval();
-        assert_eq!(ColumnVec::try_from(vec![1;5]).unwrap(),test);
+        assert_eq!(ColumnVec::from([1;5]),test);
     }
 
     #[test]
     fn assign_ops() {
-        let mut x: ColumnVec<[i32; 5], 5> = ColumnVec::from([4; 5]);
-        std::ops::AddAssign::<ColumnVec<[i32; 5],5>>::add_assign(&mut x,ColumnVec::from([3; 5]));
+        let mut x: ColumnVec<i32, 5> = ColumnVec::from([4; 5]);
+        std::ops::AddAssign::<ColumnVec<i32,5>>::add_assign(&mut x,ColumnVec::from([3; 5]));
         assert_eq!(ColumnVec::from([7; 5]),x);
-        std::ops::SubAssign::<ColumnVec<[i32; 5],5>>::sub_assign(&mut x, ColumnVec::from([5; 5]));
+        std::ops::SubAssign::<ColumnVec<i32,5>>::sub_assign(&mut x, ColumnVec::from([5; 5]));
         assert_eq!(ColumnVec::from([2; 5]),x);
         x *= Scalar(4);
         assert_eq!(ColumnVec::from([8; 5]),x);
@@ -1810,75 +1683,70 @@ mod test {
     #[test]
     fn custom_ops() {
         let x = ColumnVec::from([3; 5]);
-        assert_eq!(ColumnVec::try_from(vec![-3; 5]).unwrap(),(-x).eval());
+        assert_eq!(ColumnVec::from([-3; 5]),(-x).eval());
 
         let x = ColumnVec::from([3; 5]);
         let y = ColumnVec::from([2; 5]);
-        assert_eq!(Scalar(30),Dot::<ColumnVec<[i32; 5],5>>::dot(x,y));
+        assert_eq!(Scalar(30),Dot::<ColumnVec<i32,5>>::dot(x,y));
 
         let x = ColumnVec::from([&3; 5]);
-        assert_eq!(ColumnVec::try_from(vec![3; 5]).unwrap(),x.cloned().eval());
+        assert_eq!(ColumnVec::from([3; 5]),x.cloned().eval());
 
         let x = ColumnVec::from([&3; 5]);
-        assert_eq!(ColumnVec::try_from(vec![3; 5]).unwrap(),x.copied().eval());
+        assert_eq!(ColumnVec::from([3; 5]),x.copied().eval());
 
         let x = ColumnVec::from([3; 5]);
-        assert_eq!(ColumnVec::try_from(vec![4; 5]).unwrap(),x.map(|val| {val + 1}).eval())
+        assert_eq!(ColumnVec::from([4; 5]),x.map(|val| {val + 1}).eval())
     }
 
     #[test]
     fn duplicate_test() {
         let (x,y) = ColumnVec::from([1,2,3,4,5]).duplicate();
 
-        assert_eq!(ColumnVec::try_from(vec![2,4,6,8,10]).unwrap(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
+        assert_eq!(ColumnVec::from([2,4,6,8,10]),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
     }
 
     #[test]
     fn unchecked_duplicate_test() {
         let (x,y) = unsafe { ColumnVec::from([1,2,3,4,5]).unchecked_duplicate() };
 
-        assert_eq!(ColumnVec::try_from(vec![2,4,6,8,10]).unwrap(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondUncheckedDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
+        assert_eq!(ColumnVec::from([2,4,6,8,10]),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondUncheckedDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
     }
 
     #[test]
     fn synchronize_test() {
         let (a,b) = (ColumnVec::from([1,2,3,4,5,6,7,8,9,10]) * Scalar(2)).duplicate();
-        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_eval();
-        assert_eq!(ColumnVec::try_from(vec![4,8,12,16,20,24,28,32,36,40]).unwrap(),c);
-        assert_eq!(ColumnVec::try_from(vec![6,12,18,24,30,36,42,48,54,60]).unwrap(),d);
-
-        let (a,b) = (ColumnVec::from([1,2,3,4,5,6,7,8,9,10]) * Scalar(2)).duplicate();
-        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_leaky_eval_array();
+        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_leaky_eval();
         assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),c);
         assert_eq!(ColumnVec::from([6,12,18,24,30,36,42,48,54,60]),d);
 
         let (a,b) = (ColumnVec::from([1,2,3,4,5,6,7,8,9,10]) * Scalar(2)).duplicate();
-        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_eval_array();
+        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_eval();
         assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),c);
         assert_eq!(ColumnVec::from([6,12,18,24,30,36,42,48,54,60]),d);
     }
 
     //Doesnt check leaky-ness
     #[test]
-    fn eval_array_test() {
+    fn eval_test() {
         let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
-        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).eval_array());
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).eval());
 
         let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
-        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).leaky_eval_array());
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).leaky_eval());
     }
 
     #[test]
     fn clone_and_copy_to_buffer_test() {
         let mut buf = get_col_vec_buffer();
         let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
-        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),((vec * Scalar(2)).clone_to_buffer(&mut buf) * Scalar(2)).eval_array());
-        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),buf.eval_array());
+        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),((vec * Scalar(2)).clone_to_buffer(&mut buf) * Scalar(2)).eval());
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),buf.eval());
 
         let mut buf = get_col_vec_buffer();
         let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
-        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),((vec * Scalar(2)).copy_to_buffer(&mut buf) * Scalar(2)).eval_array());
-        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),buf.eval_array());
+        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),((vec * Scalar(2)).copy_to_buffer(&mut buf) * Scalar(2)).eval());
+        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),buf.eval());
     }
 
 
@@ -1886,7 +1754,7 @@ mod test {
     fn duplicate_stress_test() {
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
-            let original: ColumnVec<[u32; 10], 10> = ColumnVec::from([
+            let original: ColumnVec<u32, 10> = ColumnVec::from([
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000),
@@ -1907,7 +1775,7 @@ mod test {
     fn unchecked_duplicate_stress_test() {
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
-            let original: ColumnVec<[u32; 10], 10> = ColumnVec::from([
+            let original: ColumnVec<u32, 10> = ColumnVec::from([
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000),
@@ -1925,7 +1793,7 @@ mod test {
     }
 
     #[test]
-    fn eval_array_stress_test() {
+    fn eval_stress_test() {
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
             let vec_nums = (
@@ -1940,14 +1808,14 @@ mod test {
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000)
             );
-            let vec1 = ColumnVec::from(<[u32; 10]>::from(vec_nums));
+            let vec1 = ColumnVec::from(<[u32;10]>::from(vec_nums));
             let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
-            assert_eq!(vec2,(vec1 * Scalar(2)).eval_array());
+            assert_eq!(vec2,(vec1 * Scalar(2)).eval());
         }
     }
 
     #[test]
-    fn leaky_eval_array_stress_test() {
+    fn leaky_eval_stress_test() {
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
             let vec_nums = (
@@ -1962,9 +1830,9 @@ mod test {
                 rng.gen_range(1..1000000000),
                 rng.gen_range(1..1000000000)
             );
-            let vec1 = ColumnVec::from(<[u32; 10]>::from(vec_nums));
+            let vec1 = ColumnVec::from(<[u32;10]>::from(vec_nums));
             let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
-            assert_eq!(vec2,(vec1 * Scalar(2)).leaky_eval_array());
+            assert_eq!(vec2,(vec1 * Scalar(2)).leaky_eval());
         }
     }
 
@@ -1972,7 +1840,7 @@ mod test {
     fn synchronize_stress_test() {
         let mut rng = rand::thread_rng();
         for _ in 0..1000000 {
-            let original: ColumnVec<[u32; 10], 10> = ColumnVec::from([
+            let original: ColumnVec<u32, 10> = ColumnVec::from([
                 rng.gen_range(1..100000000),
                 rng.gen_range(1..100000000),
                 rng.gen_range(1..100000000),
@@ -1995,11 +1863,11 @@ mod test {
             let (dupe4,dupe5) = dupe4.duplicate();
             assert_eq!(
                 (
-                    (copy1 * Scalar(2)).eval_array(),
-                    (copy2 * Scalar(3)).eval_array(),
-                    (copy3 * Scalar(4)).eval_array(),
-                    (copy4 * Scalar(5)).eval_array(),
-                    (copy5 * Scalar(6)).eval_array()
+                    (copy1 * Scalar(2)).eval(),
+                    (copy2 * Scalar(3)).eval(),
+                    (copy3 * Scalar(4)).eval(),
+                    (copy4 * Scalar(5)).eval(),
+                    (copy5 * Scalar(6)).eval()
                 ),
                 (
                     dupe1 * Scalar(2),
@@ -2007,7 +1875,7 @@ mod test {
                     dupe3 * Scalar(4),
                     dupe4 * Scalar(5),
                     dupe5 * Scalar(6)
-                ).sync_eval_array()
+                ).sync_eval()
             );
         }
     }
