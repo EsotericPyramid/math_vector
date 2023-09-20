@@ -42,7 +42,7 @@ pub(crate) mod utils {
             // 4: forget doesn't cause a leak because the initialized_arr and arr alias and so arr will be dropped with initialized_arr
             //     4+: necessary because otherwise arr would be dropped twice invalidating initialized_arr and causing a double free
             //
-            // addendum: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
+            // FIXME: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
             let initialized_arr;
             unsafe {
                 initialized_arr = std::ptr::read(std::mem::transmute(&self.array as *const [MaybeUninit<T>; D]));
@@ -109,6 +109,7 @@ pub(crate) mod utils {
         }
 
         #[inline]
+        #[allow(clippy::mut_from_ref)]
         pub unsafe fn borrow_mut<'a>(&'a self) -> &'a mut T {
             unsafe { &mut *self.0.get()}
         }
@@ -289,7 +290,7 @@ impl<'a,T,const D: usize> IntoIterator for &'a mut ColumnVec<T,D> {
     }
 }
 
- 
+
 pub struct RowVec<T,const D: usize>([T; D]);
 
 
@@ -299,10 +300,17 @@ pub trait Dot<T> {
     fn dot(self,rhs: T) -> Self::Output;
 }
 
+pub trait Zip<T> {
+    type Output;
+
+    fn zip(self,other: T) -> Self::Output;
+}
+
 pub mod col_vec_iterators {
     use std::ops::*;
     use super::*;
 
+    #[must_use]
     pub struct EvalColVec<T,const D: usize>(pub(crate) T);
 
     impl<I: Iterator,const D: usize> IntoIterator for EvalColVec<I,D> {
@@ -1058,6 +1066,7 @@ pub mod col_vec_iterators {
             Scalar(output)
         }
     }
+    
     //Cloned and Copied
     pub struct ClonedColVec<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize>(I) where T: Clone;
 
@@ -1172,8 +1181,7 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let val = std::mem::replace(&mut self.0.borrow_mut().buffer,None);
-            match val {
+            match std::mem::replace(&mut self.0.borrow_mut().buffer,None) {
                 Some(inner_val) => inner_val,
                 None => {panic!("math_vector: Error, FirstDuplicateColVec<...> must be read before SecondDuplicateColVec<...> for each item within\n\nEither you need to switch around the order of these 2 or \none of these 2 is being fully read before the other (ie finding the dot product with one)")}
             }
@@ -1213,6 +1221,19 @@ pub mod col_vec_iterators {
         where <&'a [T; D] as IntoIterator>::Item: Clone {
             let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
                 iterator: (&self.0).into_iter(),
+                buffer: None
+            }));
+            (
+                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
+                EvalColVec(SecondDuplicateColVec(shared_iter))
+            )
+        }
+
+        #[inline]
+        pub fn duplicate_mut_ref<'a>(&'a mut self) -> (EvalColVec<FirstDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>) 
+        where <&'a mut [T; D] as IntoIterator>::Item: Clone {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
+                iterator: (&mut self.0).into_iter(),
                 buffer: None
             }));
             (
@@ -1292,6 +1313,18 @@ pub mod col_vec_iterators {
                 EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
             )
         }
+
+        pub unsafe fn unchecked_duplicate_mut_ref<'a>(&'a mut self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>) 
+        where <&'a mut [T; D] as IntoIterator>::Item: Clone {
+            let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
+                iterator: (&mut self.0).into_iter(),
+                buffer: None
+            }));
+            (
+                EvalColVec(FirstUncheckedDuplicateColVec(shared_iter.clone())),
+                EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
+            )
+        }
     }
  
     //buffer ops (clone_to_buffer,copy_to_buffer)
@@ -1300,18 +1333,20 @@ pub mod col_vec_iterators {
     impl<T,const D: usize> EvalsToColVec<D> for BufferedColVec<T,D> {
         type Item = T;
 
+        #[inline]
         fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            eprintln!("math_vector: Warning, BufferedColVec's leaky_eval is equivilent to its eval. \n\tUse LeakyUncheckedBufferedColVec for that instead");
+            eprintln!("\n\tmath_vector: Warning, BufferedColVec's leaky_eval is equivilent to its eval. \n\tUse LeakyUncheckedBufferedColVec for that instead");
             self.eval()
         }
 
+        #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
             if self.0.last_index == Some(D-1) {
                 ColumnVec(unsafe { self.0.assume_init() })
             } else if self.0.last_index == Some(0) {
-                panic!("A BufferedColVec must be written to before being evaluated");
+                panic!("\n\tmath_vector: Error, A BufferedColVec must be written to before being evaluated");
             } else {
-                panic!("A BufferedColVec must be written to only once");
+                panic!("\n\tmath_vector: Error, A BufferedColVec must be written to only once");
             }
         }
     }
@@ -1451,6 +1486,11 @@ pub mod col_vec_iterators {
         pub fn map_ref<'a,F: FnMut(<&'a [T; D] as IntoIterator>::Item) -> O,O>(&'a self,f: F) -> ColVecMap<<&'a [T; D] as IntoIterator>::IntoIter,F,O,D> {
             ColVecMap((&self.0).into_iter(),f)
         }
+
+        #[inline]
+        pub fn map_mut_ref<'a,F: FnMut(<&'a mut [T; D] as IntoIterator>::Item) -> O,O>(&'a mut self,f: F) -> ColVecMap<<&'a mut [T; D] as IntoIterator>::IntoIter,F,O,D> {
+            ColVecMap((&mut self.0).into_iter(),f)
+        }
     }
     
     //Map_and_store
@@ -1587,7 +1627,7 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<'a,T,const D: usize> Neg for &'a ColumnVec<T,D> where <&'a [T; D] as IntoIterator>::Item: Neg{
+    impl<'a,T,const D: usize> Neg for &'a ColumnVec<T,D> where <&'a [T; D] as IntoIterator>::Item: Neg {
         type Output = EvalColVec<NegatedColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>;
 
         #[inline]
@@ -1602,6 +1642,357 @@ pub mod col_vec_iterators {
         #[inline]
         fn neg(self) -> Self::Output {
             EvalColVec(NegatedColVec(self.0))
+        }
+    }
+
+    //zip
+    pub struct ZippedColVec<I1: Iterator,I2: Iterator,const D: usize>(I1,I2);
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> Iterator for ZippedColVec<I1,I2,D> {
+        type Item = (I1::Item,I2::Item);
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            if let (Some(val1),Some(val2)) = (self.0.next(),self.1.next()) {
+                Some((val1,val2))
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for ZippedColVec<I1,I2,D> {
+        type Item = (I1::Item,I2::Item);
+
+        #[inline]
+        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
+        }
+
+        #[inline]
+        fn eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
+        }
+    }
+
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> Zip<EvalColVec<I2,D>> for EvalColVec<I1,D> {
+        type Output = EvalColVec<ZippedColVec<I1,I2,D>,D>;
+
+        #[inline]
+        fn zip(self,other: EvalColVec<I2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0,
+                other.0
+            ))
+        }
+    }
+
+
+    impl<I1: Iterator,T2,const D: usize> Zip<ColumnVec<T2,D>> for EvalColVec<I1,D> {
+        type Output = EvalColVec<ZippedColVec<I1,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0,
+                other.0.into_iter()
+            ))
+        }
+    }
+
+    impl<'a, I1: Iterator,T2,const D: usize> Zip<&'a ColumnVec<T2,D>> for EvalColVec<I1,D> {
+        type Output = EvalColVec<ZippedColVec<I1,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0,
+                (&other.0).into_iter()
+            ))
+        }
+    }
+
+    impl<'a, I1: Iterator,T2,const D: usize> Zip<&'a mut ColumnVec<T2,D>> for EvalColVec<I1,D> {
+        type Output = EvalColVec<ZippedColVec<I1,<&'a mut [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a mut ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0,
+                (&mut other.0).into_iter()
+            ))
+        }
+    }
+
+
+    impl<T1,I2: Iterator,const D: usize> Zip<EvalColVec<I2,D>> for ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<[T1; D] as IntoIterator>::IntoIter,I2,D>,D>;
+
+        #[inline]
+        fn zip(self,other: EvalColVec<I2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0.into_iter(),
+                other.0
+            ))
+        }
+    }
+
+    impl<'a,T1,I2: Iterator,const D: usize> Zip<EvalColVec<I2,D>> for &'a ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a [T1; D] as IntoIterator>::IntoIter,I2,D>,D>;
+
+        #[inline]
+        fn zip(self,other: EvalColVec<I2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&self.0).into_iter(),
+                other.0
+            ))
+        }
+    }
+
+    impl<'a,T1,I2: Iterator,const D: usize> Zip<EvalColVec<I2,D>> for &'a mut ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a mut [T1; D] as IntoIterator>::IntoIter,I2,D>,D>;
+
+        #[inline]
+        fn zip(self,other: EvalColVec<I2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&mut self.0).into_iter(),
+                other.0
+            ))
+        }
+    }
+
+
+    impl<T1,T2,const D: usize> Zip<ColumnVec<T2,D>> for ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<[T1; D] as IntoIterator>::IntoIter,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0.into_iter(),
+                other.0.into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a ColumnVec<T2,D>> for ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<[T1; D] as IntoIterator>::IntoIter,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0.into_iter(),
+                (&other.0).into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a mut ColumnVec<T2,D>> for ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<[T1; D] as IntoIterator>::IntoIter,<&'a mut [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a mut ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                self.0.into_iter(),
+                (&mut other.0).into_iter()
+            ))
+        }
+    }
+
+
+    impl<'a,T1,T2,const D: usize> Zip<ColumnVec<T2,D>> for &'a ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a [T1; D] as IntoIterator>::IntoIter,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&self.0).into_iter(),
+                other.0.into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a ColumnVec<T2,D>> for &'a ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a [T1; D] as IntoIterator>::IntoIter,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&self.0).into_iter(),
+                (&other.0).into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a mut ColumnVec<T2,D>> for &'a ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a [T1; D] as IntoIterator>::IntoIter,<&'a mut [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a mut ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&self.0).into_iter(),
+                (&mut other.0).into_iter()
+            ))
+        }
+    }
+
+
+    impl<'a,T1,T2,const D: usize> Zip<ColumnVec<T2,D>> for &'a mut ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a mut [T1; D] as IntoIterator>::IntoIter,<[T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&mut self.0).into_iter(),
+                other.0.into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a ColumnVec<T2,D>> for &'a mut ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a mut [T1; D] as IntoIterator>::IntoIter,<&'a [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&mut self.0).into_iter(),
+                (&other.0).into_iter()
+            ))
+        }
+    }
+
+    impl<'a,T1,T2,const D: usize> Zip<&'a mut ColumnVec<T2,D>> for &'a mut ColumnVec<T1,D> {
+        type Output = EvalColVec<ZippedColVec<<&'a mut [T1; D] as IntoIterator>::IntoIter,<&'a mut [T2; D] as IntoIterator>::IntoIter,D>,D>;
+
+        #[inline]
+        fn zip(self,other: &'a mut ColumnVec<T2,D>) -> Self::Output {
+            EvalColVec(ZippedColVec(
+                (&mut self.0).into_iter(),
+                (&mut other.0).into_iter()
+            ))
+        }
+    }
+
+    //Unzip
+    struct UnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>{iter: I,buffer_val: Option<Option<T2>>}
+
+    pub struct FirstUnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedColVec<I,T1,T2>>>);
+
+    pub struct SecondUnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedColVec<I,T1,T2>>>);
+
+    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for FirstUnzippedColVec<I,T1,T2> {
+        type Item = T1;
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            let mut mut_self = self.0.borrow_mut();
+            if let Some(_) = mut_self.buffer_val {
+                panic!("math_vector: Error, FirstUnzippedColVec was called upon twice in a row, it is possible that it is being fully evaluated before SecondUnzippedColVec \nthis cant be used while that is the case");
+            }
+            match mut_self.iter.next() {
+                Some((val1,val2)) => {mut_self.buffer_val = Some(Some(val2)); Some(val1)}
+                None => {mut_self.buffer_val = Some(None); None}
+            }
+        }
+    }
+
+    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for SecondUnzippedColVec<I,T1,T2> {
+        type Item = T2;
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            match std::mem::replace(&mut self.0.borrow_mut().buffer_val,None) {
+                Some(val) => val,
+                None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
+            }
+        }
+    }
+
+
+    struct UnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>{iter: I,buffer_val: Option<Option<T1>>}
+
+    pub struct FirstUnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedRevColVec<I,T1,T2>>>);
+
+    pub struct SecondUnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedRevColVec<I,T1,T2>>>);
+
+    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for SecondUnzippedRevColVec<I,T1,T2> {
+        type Item = T2;
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            let mut mut_self = self.0.borrow_mut();
+            if let Some(_) = mut_self.buffer_val {
+                panic!("math_vector: Error, SecondUnzippedRevColVec was called upon twice in a row, it is possible that it is being fully evaluated before FirstUnzippedRevColVec \nthis cant be used while that is the case");
+            }
+            match mut_self.iter.next() {
+                Some((val1,val2)) => {mut_self.buffer_val = Some(Some(val1)); Some(val2)}
+                None => {mut_self.buffer_val = Some(None); None}
+            }
+        }
+    }
+
+    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for FirstUnzippedRevColVec<I,T1,T2> {
+        type Item = T1;
+
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+            match std::mem::replace(&mut self.0.borrow_mut().buffer_val,None) {
+                Some(val) => val,
+                None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
+            }
+        }
+    }
+
+
+    impl<I: Iterator<Item = (T1,T2)>,T1,T2,const D: usize> EvalColVec<I,D> {
+        #[inline]
+        pub fn unzip(self) -> (EvalColVec<FirstUnzippedColVec<I,T1,T2>,D>,EvalColVec<SecondUnzippedColVec<I,T1,T2>,D>) {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedColVec{
+                iter: self.0,
+                buffer_val: None
+            }));
+            (
+                EvalColVec(FirstUnzippedColVec(shared_iter.clone())),
+                EvalColVec(SecondUnzippedColVec(shared_iter))
+            )
+        }
+
+        #[inline]
+        pub fn unzip_rev(self) -> (EvalColVec<FirstUnzippedRevColVec<I,T1,T2>,D>,EvalColVec<SecondUnzippedRevColVec<I,T1,T2>,D>) {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedRevColVec{
+                iter: self.0,
+                buffer_val: None
+            }));
+            (
+                EvalColVec(FirstUnzippedRevColVec(shared_iter.clone())),
+                EvalColVec(SecondUnzippedRevColVec(shared_iter))
+            )
+        }
+    }
+
+    impl<T1,T2,const D: usize> ColumnVec<(T1,T2),D> {
+        #[inline]
+        pub fn unzip(self) -> (EvalColVec<FirstUnzippedColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>,EvalColVec<SecondUnzippedColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>) {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedColVec{
+                iter: self.0.into_iter(),
+                buffer_val: None
+            }));
+            (
+                EvalColVec(FirstUnzippedColVec(shared_iter.clone())),
+                EvalColVec(SecondUnzippedColVec(shared_iter))
+            )
+        }
+
+        #[inline]
+        pub fn unzip_rev(self) -> (EvalColVec<FirstUnzippedRevColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>,EvalColVec<SecondUnzippedRevColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>) {
+            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedRevColVec{
+                iter: self.0.into_iter(),
+                buffer_val: None
+            }));
+            (
+                EvalColVec(FirstUnzippedRevColVec(shared_iter.clone())),
+                EvalColVec(SecondUnzippedRevColVec(shared_iter))
+            )
         }
     }
 }
@@ -1749,6 +2140,24 @@ mod test {
         assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),buf.eval());
     }
 
+    #[test]
+    fn zip_and_unzip_test() {
+        let x = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
+        let y = ColumnVec::from([10,9,8,7,6,5,4,3,2,1]);
+        let z = x.zip(y).eval();
+        assert_eq!(ColumnVec::from([(1,10),(2,9),(3,8),(4,7),(5,6),(6,5),(7,4),(8,3),(9,2),(10,1)]),z);
+
+        let (x_iter,y_iter) = z.clone().unzip();
+        let (x,y) = (x_iter,y_iter).sync_eval();
+        assert_eq!(ColumnVec::from([1,2,3,4,5,6,7,8,9,10]),x);
+        assert_eq!(ColumnVec::from([10,9,8,7,6,5,4,3,2,1]),y);
+
+        let (x_iter,y_iter) = z.unzip_rev();
+        let (y,x) = (y_iter,x_iter).sync_eval();
+        assert_eq!(ColumnVec::from([1,2,3,4,5,6,7,8,9,10]),x);
+        assert_eq!(ColumnVec::from([10,9,8,7,6,5,4,3,2,1]),y);
+    }
+
 
     #[test]
     fn duplicate_stress_test() {
@@ -1880,6 +2289,7 @@ mod test {
         }
     }
 
+
     #[ignore]
     #[test]
     fn iter_copy_to_slice_speed_test() {
@@ -1901,6 +2311,33 @@ mod test {
             let y: &mut [i32] = &mut [0; 1000];
             let now = std::time::Instant::now();
             y.copy_from_slice(x);
+            let next_time = now.elapsed();
+            builtin += next_time;
+        }
+        println!("{}",custom.as_nanos());
+        println!("{}",builtin.as_nanos());
+    }
+
+    #[ignore]
+    #[test]
+    fn col_vec_vs_vec_speed_test() {
+        let mut custom = std::time::Duration::new(0,0);
+        let mut builtin = std::time::Duration::new(0,0);
+        for _ in 0..1000000 {
+            let now = std::time::Instant::now();
+            let x = ColumnVec::from([15; 1000]);
+            let y = ColumnVec::from([15; 1000]);
+            let _z = (x+y).eval();
+            let next_time = now.elapsed();
+            custom += next_time;
+
+            let now = std::time::Instant::now();
+            let x = vec![15;1000];
+            let y = vec![15;1000];
+            let mut z = Vec::with_capacity(1000);
+            for (x_val,y_val) in x.into_iter().zip(y.into_iter()) {
+                z.push(x_val + y_val);
+            }
             let next_time = now.elapsed();
             builtin += next_time;
         }
