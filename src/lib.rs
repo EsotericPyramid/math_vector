@@ -1,5 +1,8 @@
-#![recursion_limit = "20"]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::into_iter_on_ref)]
+#![allow(clippy::useless_conversion)]
 
+#[allow(clippy::missing_safety_doc)]
 pub(crate) mod utils {
     use std::mem::MaybeUninit;
 
@@ -104,13 +107,13 @@ pub(crate) mod utils {
 
         #[allow(dead_code)]
         #[inline]
-        pub unsafe fn borrow<'a>(&'a self) -> &'a T {
+        pub unsafe fn borrow(&self) -> &T {
             unsafe { &*self.0.get()}
         }
 
         #[inline]
         #[allow(clippy::mut_from_ref)]
-        pub unsafe fn borrow_mut<'a>(&'a self) -> &'a mut T {
+        pub unsafe fn borrow_mut(&self) -> &mut T {
             unsafe { &mut *self.0.get()}
         }
     }
@@ -240,7 +243,7 @@ where [T; D]: std::ops::Index<Idx>, <[T; D] as std::ops::Index<Idx>>::Output: Si
         //SAFETY: scalar is repr(transparant) so the representaion of Scalar<T> 
         //is identical to T and as such &Scalar<T> is identical to &T or so I
         //think. DOUBLE CHECK THIS ZACH, double checked, SHOULD BE CHECKED MORE
-        unsafe { std::mem::transmute((&self.0).index(index)) }
+        unsafe { std::mem::transmute(self.0.index(index)) }
     }
 }
 
@@ -252,11 +255,7 @@ impl<I: Iterator> Iterator for ColVecIter<I> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(val) = self.0.next() {
-            Some(Scalar(val))
-        } else {
-            None
-        }
+        self.0.next().map(Scalar)
     }
 }
 
@@ -1168,7 +1167,7 @@ pub mod col_vec_iterators {
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
             let val = self.0.borrow_mut().iterator.next();
-            if let Some(_) = self.0.borrow().buffer {
+            if self.0.borrow().buffer.is_some() {
                 panic!("math_vector: Error, FirstDuplicateColVec<...> must be read before SecondDuplicateColVec<...> for each item within\n\nThe FirstDuplicateColVec is likely being fully read before the other (ie finding the dot product with one)")
             }
             self.0.borrow_mut().buffer = Some(val.clone());
@@ -1181,7 +1180,7 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            match std::mem::replace(&mut self.0.borrow_mut().buffer,None) {
+            match self.0.borrow_mut().buffer.take() {
                 Some(inner_val) => inner_val,
                 None => {panic!("math_vector: Error, FirstDuplicateColVec<...> must be read before SecondDuplicateColVec<...> for each item within\n\nEither you need to switch around the order of these 2 or \none of these 2 is being fully read before the other (ie finding the dot product with one)")}
             }
@@ -1269,13 +1268,17 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            std::mem::replace( unsafe { &mut self.0.borrow_mut().buffer }, None)
+            unsafe { &mut self.0.borrow_mut().buffer }.take()
         }
     }
 
 
     impl<I: Iterator,const D: usize> EvalColVec<I,D> where I::Item: Clone {
         #[inline]
+        /// # Safety
+        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
+        /// 
+        /// In general, if duplicate works here, unchecked_duplicate should also work
         pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<I,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<I,D>,D>) {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
                 iterator: self.0,
@@ -1290,6 +1293,10 @@ pub mod col_vec_iterators {
 
     impl<T,const D: usize> ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Clone {
         #[inline]
+        /// # Safety
+        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
+        /// 
+        /// In general, if duplicate works here, unchecked_duplicate should also work
         pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>) {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
                 iterator: self.0.into_iter(),
@@ -1302,6 +1309,10 @@ pub mod col_vec_iterators {
         }
         
         #[inline]
+        /// # Safety
+        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
+        /// 
+        /// In general, if duplicate works here, unchecked_duplicate should also work
         pub unsafe fn unchecked_duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>) 
         where <&'a [T; D] as IntoIterator>::Item: Clone {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
@@ -1314,6 +1325,11 @@ pub mod col_vec_iterators {
             )
         }
 
+        #[inline]
+        /// # Safety
+        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
+        /// 
+        /// In general, if duplicate_mut_ref works here, unchecked_duplicate_mut_ref should also work
         pub unsafe fn unchecked_duplicate_mut_ref<'a>(&'a mut self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>) 
         where <&'a mut [T; D] as IntoIterator>::Item: Clone {
             let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
@@ -1423,14 +1439,14 @@ pub mod col_vec_iterators {
         
 
     impl<I: Iterator,const D: usize> EvalColVec<I,D> {
-        pub fn clone_to_buffer<'a>(self,buf: &'a mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CloneToBufferColVec<'a,I,D>,D> where I::Item: Clone {
+        pub fn clone_to_buffer(self,buf: &mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CloneToBufferColVec<'_,I,D>,D> where I::Item: Clone {
             EvalColVec(CloneToBufferColVec{
                 iter: self.0,
                 buffer: &mut buf.0
             })
         }
 
-        pub fn copy_to_buffer<'a>(self,buf: &'a mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CopyToBufferColVec<'a,I,D>,D> where I::Item: Copy {
+        pub fn copy_to_buffer(self,buf: &mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CopyToBufferColVec<'_,I,D>,D> where I::Item: Copy {
             EvalColVec(CopyToBufferColVec{
                 iter: self.0,
                 buffer: &mut buf.0
@@ -1531,7 +1547,7 @@ pub mod col_vec_iterators {
 
 
     impl<I: Iterator,const D: usize> EvalColVec<I,D> {
-        pub fn map_and_store<'a,F,O>(self,f: F,buffer: &'a mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMapAndStore<'a,I,F,O,D>,D> where for<'b> F: FnMut(&'b I::Item) -> O {
+        pub fn map_and_store<F,O>(self,f: F,buffer: &mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMapAndStore<'_,I,F,O,D>,D> where for<'b> F: FnMut(&'b I::Item) -> O {
             EvalColVec(ColVecMapAndStore{
                 iter: self.0,
                 f,
@@ -1578,7 +1594,7 @@ pub mod col_vec_iterators {
 
 
     impl<I: Iterator,const D: usize> EvalColVec<I,D> {
-        pub fn mut_map_and_store<'a,F,O>(self,f: F,buffer: &'a mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMutMapAndStore<'a,I,F,O,D>,D> where for<'b> F: FnMut(&'b mut I::Item) -> O {
+        pub fn mut_map_and_store<F,O>(self,f: F,buffer: &mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMutMapAndStore<'_,I,F,O,D>,D> where for<'b> F: FnMut(&'b mut I::Item) -> O {
             EvalColVec(ColVecMutMapAndStore{
                 iter: self.0,
                 f,
@@ -1595,11 +1611,7 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            if let Some(val) = self.0.next() {
-                Some(-val)
-            } else {
-                None
-            }
+            self.0.next().map(|val| -val)
         }
     }
 
@@ -1886,7 +1898,7 @@ pub mod col_vec_iterators {
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
             let mut mut_self = self.0.borrow_mut();
-            if let Some(_) = mut_self.buffer_val {
+            if mut_self.buffer_val.is_some() {
                 panic!("math_vector: Error, FirstUnzippedColVec was called upon twice in a row, it is possible that it is being fully evaluated before SecondUnzippedColVec \nthis cant be used while that is the case");
             }
             match mut_self.iter.next() {
@@ -1901,7 +1913,7 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            match std::mem::replace(&mut self.0.borrow_mut().buffer_val,None) {
+            match self.0.borrow_mut().buffer_val.take() {
                 Some(val) => val,
                 None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
             }
@@ -1921,7 +1933,7 @@ pub mod col_vec_iterators {
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
             let mut mut_self = self.0.borrow_mut();
-            if let Some(_) = mut_self.buffer_val {
+            if mut_self.buffer_val.is_some() {
                 panic!("math_vector: Error, SecondUnzippedRevColVec was called upon twice in a row, it is possible that it is being fully evaluated before FirstUnzippedRevColVec \nthis cant be used while that is the case");
             }
             match mut_self.iter.next() {
@@ -1936,7 +1948,7 @@ pub mod col_vec_iterators {
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            match std::mem::replace(&mut self.0.borrow_mut().buffer_val,None) {
+            match self.0.borrow_mut().buffer_val.take() {
                 Some(val) => val,
                 None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
             }
@@ -2286,6 +2298,41 @@ mod test {
                     dupe5 * Scalar(6)
                 ).sync_eval()
             );
+        }
+    }
+
+    #[test]
+    fn zip_and_unzip_stress_test() {
+        let mut rng = rand::thread_rng();
+        for _ in 0..1000000 {
+            let x: ColumnVec<u32, 10> = ColumnVec::from([
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000)
+            ]);
+            let y: ColumnVec<u32, 10> = ColumnVec::from([
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000),
+                rng.gen_range(1..1000000000)
+            ]);
+
+            let (x_prime,y_prime) = x.clone().zip(y.clone()).unzip().sync_eval();
+            assert_eq!(x_prime,x);
+            assert_eq!(y_prime,y);
         }
     }
 
