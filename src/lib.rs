@@ -6,34 +6,7 @@
 pub(crate) mod utils {
     use std::mem::MaybeUninit;
 
-    #[inline]
-    pub unsafe fn leaky_iterator_to_array<I: Iterator,const D: usize>(iter: I) -> [I::Item; D] {
-        // SAFETY: an array of MaybeUninits doesn't require initialization as they may be uninitialized
-        let mut arr: [MaybeUninit<I::Item>; D] = unsafe { MaybeUninit::uninit().assume_init() };
-                
-        // SAFETY: old vals aren't dropped as dropping a MaybeUninit does nothing
-        for (idx,val) in iter.enumerate() {
-            arr[idx] = MaybeUninit::new(val);
-        }
-
-        // SAFETY: VERY UNSAFE, SHOULD BE CHANGED WHEN ARRAY ASSUME INIT IS STABLE
-        // 1: [MaybeUninit<T>; D] == [T; D] in mem
-        // 2: 1 -> *const [MaybeUninit<T>; D] == *const [T; D]
-        // 3: 2 -> transmute is safe
-        // 4: forget doesn't cause a leak because the initialized_arr and arr alias and so arr will be dropped with initialized_arr
-        //     4+: necessary because otherwise arr would be dropped twice invalidating initialized_arr and causing a double free
-        //
-        // addendum: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
-        let initialized_arr;
-        unsafe { 
-            initialized_arr = std::ptr::read(std::mem::transmute(&arr as *const [MaybeUninit<I::Item>; D]));
-            std::mem::forget(arr);
-        }
-
-        initialized_arr
-    }
-
-    pub struct IterInitArray<T,const D: usize>{pub array: [MaybeUninit<T>; D], pub last_index: Option<usize>}
+    pub struct IterInitArray<T,const D: usize>{pub array: [MaybeUninit<T>; D], pub last_index: usize}
 
     impl<T,const D: usize> IterInitArray<T,D> {
         #[inline]
@@ -45,7 +18,7 @@ pub(crate) mod utils {
             // 4: forget doesn't cause a leak because the initialized_arr and arr alias and so arr will be dropped with initialized_arr
             //     4+: necessary because otherwise arr would be dropped twice invalidating initialized_arr and causing a double free
             //
-            // FIXME: pointers are only used because transmute thinks size_of::<T> != size_of::<T> 
+            // FIXME: pointers are only used because transmute thinks size_of::<T> != size_of::<T>, only true is T is a DST, which it cant be
             let initialized_arr;
             unsafe {
                 initialized_arr = std::ptr::read(std::mem::transmute(&self.array as *const [MaybeUninit<T>; D]));
@@ -53,16 +26,30 @@ pub(crate) mod utils {
             }
             initialized_arr
         }
+
+        #[inline]
+        pub fn new() -> Self {
+            IterInitArray{
+                array: unsafe {MaybeUninit::uninit().assume_init()},
+                last_index: 0
+            }
+        }
+
+        #[inline]
+        pub fn assign_next(&mut self, val: T) {
+            let index = self.last_index;
+            self[index] = std::mem::MaybeUninit::new(val);
+        }
     }
 
     //Also both of these are actually unsafe
     //no check for if the value is initialized
     impl<T,const D: usize> std::ops::Index<usize> for IterInitArray<T,D> where [MaybeUninit<T>; D]: std::ops::Index<usize>, usize: std::slice::SliceIndex<[MaybeUninit<T>]> {
-        type Output = <[MaybeUninit<T>; D] as std::ops::Index<usize>>::Output;
+        type Output = <usize as std::slice::SliceIndex<[MaybeUninit<T>]>>::Output;
 
         #[inline]
         fn index(&self, index: usize) -> &Self::Output {
-            self.array.index(index)
+            unsafe {self.array.get_unchecked(index)}
         }
     }
 
@@ -70,51 +57,49 @@ pub(crate) mod utils {
     impl<T,const D: usize> std::ops::IndexMut<usize> for IterInitArray<T,D> where [MaybeUninit<T>; D]: std::ops::Index<usize>, usize: std::slice::SliceIndex<[MaybeUninit<T>]> {
         #[inline]
         fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-            self.last_index = Some(index);
-            self.array.index_mut(index)
+            let output = unsafe {self.array.get_unchecked_mut(index)};
+            self.last_index += 1;
+            output
         }
     }
 
     impl<T,const D: usize> std::ops::Drop for IterInitArray<T,D> {
         #[inline]
         fn drop(&mut self) {
-            if let Some(last_index) = self.last_index {
-                for i in 0..=last_index {
-                    unsafe { self.array[i].assume_init_drop() };
-                }
+            for i in 0..self.last_index {
+                unsafe { self.array[i].assume_init_drop() };
             }
         }
     }
 
     #[inline]
     pub unsafe fn iterator_to_array<I: Iterator,const D: usize>(iter: I) -> [I::Item; D] {
-        let mut arr : IterInitArray<I::Item, D>= IterInitArray{array: unsafe {MaybeUninit::uninit().assume_init()},last_index: None};
+        let mut arr : IterInitArray<I::Item, D>= IterInitArray::new();
 
-        for (idx,val) in iter.enumerate() {
-            arr[idx] = MaybeUninit::new(val);
+        for val in iter {
+            arr.assign_next(val)
         }
 
         arr.assume_init()
     }
 
-    pub struct UncheckedCell<T>(std::cell::UnsafeCell<T>);
 
-    impl<T> UncheckedCell<T> {
+    pub struct NoneIter<T>(std::marker::PhantomData<T>);
+
+    #[allow(dead_code)]
+    impl<T> NoneIter<T> {
         #[inline]
-        pub fn new(val: T) -> UncheckedCell<T> {
-            UncheckedCell(std::cell::UnsafeCell::new(val))
+        fn new() -> Self {
+            NoneIter(std::marker::PhantomData)
         }
+    }
 
-        #[allow(dead_code)]
-        #[inline]
-        pub unsafe fn borrow(&self) -> &T {
-            unsafe { &*self.0.get()}
-        }
+    impl<T> Iterator for NoneIter<T> {
+        type Item = T;
 
         #[inline]
-        #[allow(clippy::mut_from_ref)]
-        pub unsafe fn borrow_mut(&self) -> &mut T {
-            unsafe { &mut *self.0.get()}
+        fn next(&mut self) -> Option<Self::Item> {
+            None
         }
     }
 }
@@ -127,12 +112,26 @@ pub struct Scalar<T>(pub T);
 
 //CHECK
 impl<T> Scalar<T> {
-    pub fn unwrap(self) -> T {
-        self.0
-    }
-
+    #[inline]
     pub fn new(val: T) -> Self {
         Scalar(val)
+    }
+}
+
+impl<T> std::ops::Deref for Scalar<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> std::ops::DerefMut for Scalar<T> {
+    
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -210,7 +209,7 @@ pub mod scalar_math {
 }
 
 #[derive(PartialEq,Debug)]
-#[derive(Clone)] 
+#[derive(Clone)]
 pub struct ColumnVec<T,const D: usize>([T; D]);
 
 impl<T,const D: usize> ColumnVec<T,D> {
@@ -232,6 +231,22 @@ impl<C,T,const D: usize> From<C> for ColumnVec<T,D> where [T; D]: From<C> {
     }
 }
 
+
+impl<T,const D: usize> std::ops::Deref for ColumnVec<T,D> {
+    type Target = [T;D];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T,const D: usize> std::ops::DerefMut for ColumnVec<T,D> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 //CHECK
 impl<Idx,T,const D: usize> std::ops::Index<Idx> for ColumnVec<T,D> 
@@ -305,6 +320,10 @@ pub trait Zip<T> {
     fn zip(self,other: T) -> Self::Output;
 }
 
+pub trait Unzippable<T> {
+    fn unzip(data: T) -> Self;
+}
+
 pub mod col_vec_iterators {
     use std::ops::*;
     use super::*;
@@ -326,18 +345,11 @@ pub mod col_vec_iterators {
     pub trait EvalsToColVec<const D: usize> {
         type Item;
 
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D>;
-
         fn eval(self) -> ColumnVec<Self::Item,D>;
     }
 
     impl<T: EvalsToColVec<D>,const D: usize> EvalsToColVec<D> for EvalColVec<T,D> {
         type Item = T::Item;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            self.0.leaky_eval()
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -368,7 +380,7 @@ pub mod col_vec_iterators {
                     )*
                     for i in 0..D {
                         $(
-                            $i_buf[i] = std::mem::MaybeUninit::new($i.next().expect("internal_error: The first D elements in a EvalColVec must be valid"));
+                            $i_buf[i] = std::mem::MaybeUninit::new($i.next().expect("math_vector internal_error: The first D elements in a EvalColVec must be valid"));
                         )*
                     }
                     ($(ColumnVec(unsafe {
@@ -383,12 +395,12 @@ pub mod col_vec_iterators {
                 fn sync_eval(self) -> Self::EvalArrayOut {
                     let ($(EvalColVec(mut $i)),*) = self;
                     $(
-                        let mut $i_buf: utils::IterInitArray<$i::Item, D>= utils::IterInitArray{array: unsafe {std::mem::MaybeUninit::uninit().assume_init()},last_index: None};
+                        let mut $i_buf: utils::IterInitArray<$i::Item, D>= utils::IterInitArray{array: unsafe {std::mem::MaybeUninit::uninit().assume_init()},last_index: 0};
                     )*
 
                     for i in 0..D {
                         $(
-                            $i_buf[i] = std::mem::MaybeUninit::new($i.next().expect("internal_error: The first D elements in a EvalColVec must be valid"));
+                            $i_buf[i] = std::mem::MaybeUninit::new($i.next().expect("math_vector internal_error: The first D elements in a EvalColVec must be valid"));
                         )*
                     }
                     ($(ColumnVec(unsafe {$i_buf.assume_init()})),*)
@@ -412,11 +424,6 @@ pub mod col_vec_iterators {
         ($t:ty,1,$ti:ty,$tr:path) => {
             impl<I: Iterator,S: Copy,const D: usize> EvalsToColVec<D> for $t where $ti: $tr {
                 type Item = <$t as Iterator>::Item;
-                
-                #[inline]
-                fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-                    ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-                }
 
                 #[inline]
                 fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -427,11 +434,6 @@ pub mod col_vec_iterators {
         ($t:ty,2,$ti:ty,$tr:path) => {
             impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for $t where $ti: $tr {
                 type Item = <$t as Iterator>::Item;
-
-                #[inline]
-                fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-                    ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-                }
 
                 #[inline]
                 fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -919,6 +921,52 @@ pub mod col_vec_iterators {
     impl_assign_operator_for_vec!(DivAssign,div_assign,1);
     impl_assign_operator_for_vec!(RemAssign,rem_assign,1);
 
+
+
+
+    //comp_mul
+    pub struct ColVecCompMul<I1: Iterator,I2: Iterator,const D: usize>(I1,I2) where I1::Item: Mul<I2::Item>;
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> Iterator for ColVecCompMul<I1,I2,D> where I1::Item: Mul<I2::Item> {
+        type Item = <I1::Item as Mul<I2::Item>>::Output;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            match (self.0.next(),self.1.next()) {
+                (Some(x1),Some(x2)) => Some(x1*x2),
+                _ => None
+            }
+        }
+    }
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for ColVecCompMul<I1,I2,D> where I1::Item: Mul<I2::Item> {
+        type Item = <I1::Item as Mul<I2::Item>>::Output;
+
+        fn eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
+        }
+    }
+
+    pub struct ColVecCompDiv<I1: Iterator,I2: Iterator,const D: usize>(I1,I2) where I1::Item: Div<I2::Item>;
+
+    impl<I1: Iterator,I2: Iterator,const D: usize> Iterator for ColVecCompDiv<I1,I2,D> where I1::Item: Div<I2::Item> {
+        type Item = <I1::Item as Div<I2::Item>>::Output;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            match (self.0.next(),self.1.next()) {
+                (Some(x1),Some(x2)) => Some(x1/x2),
+                _ => None
+            }
+        }
+    }
+    
+    impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for ColVecCompDiv<I1,I2,D> where I1::Item: Div<I2::Item> {
+        type Item = <I1::Item as Div<I2::Item>>::Output;
+
+        fn eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
+        }
+    }
+
     //dot product
     impl<T1,T2,O: AddAssign<O> ,const D: usize> Dot<ColumnVec<T2,D>> for ColumnVec<T1,D>
     where <[T1; D] as IntoIterator>::Item: Mul<<[T2; D] as IntoIterator>::Item,Output = O>  {
@@ -1082,11 +1130,6 @@ pub mod col_vec_iterators {
         type Item = T;
 
         #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
-
-        #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
             ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
@@ -1106,11 +1149,6 @@ pub mod col_vec_iterators {
 
     impl<'a,I: Iterator<Item = &'a T>,T: 'a,const D: usize> EvalsToColVec<D> for CopiedColVec<'a,I,T,D> where T: Copy {
         type Item = T;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1135,268 +1173,47 @@ pub mod col_vec_iterators {
         }
     }
 
-    impl<'a,T1,T2: 'a,const D: usize> ColumnVec<T1,D> where [T1; D]: IntoIterator<Item = &'a T2> { 
-        #[inline]
-        pub fn cloned(self) -> EvalColVec<ClonedColVec<'a,<[T1; D] as IntoIterator>::IntoIter,T2,D>,D> where T2: Clone{
-            EvalColVec(ClonedColVec(
-                self.0.into_iter()
-            ))
-        }
 
-        #[inline]
-        pub fn copied(self) -> EvalColVec<CopiedColVec<'a,<[T1; D] as IntoIterator>::IntoIter,T2,D>,D> where T2: Copy{
-            EvalColVec(CopiedColVec(
-                self.0.into_iter()
-            ))
-        }
-    }
-    
-    //Duplicate
-    struct DuplicatedColVec<I: Iterator,const D: usize> where I::Item: Clone {
-        iterator: I,
-        buffer: Option<Option<I::Item>>,
-    }
-
-    pub struct FirstDuplicateColVec<I: Iterator,const D: usize>(std::rc::Rc<std::cell::RefCell<DuplicatedColVec<I,D>>>) where I::Item: Clone;
-
-    pub struct SecondDuplicateColVec<I: Iterator,const D: usize>(std::rc::Rc<std::cell::RefCell<DuplicatedColVec<I,D>>>) where I::Item: Clone;
-
-    impl<I: Iterator,const D: usize> Iterator for FirstDuplicateColVec<I,D> where I::Item: Clone {
-        type Item = I::Item;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            let val = self.0.borrow_mut().iterator.next();
-            if self.0.borrow().buffer.is_some() {
-                panic!("math_vector: Error, FirstDuplicateColVec<...> must be read before SecondDuplicateColVec<...> for each item within\n\nThe FirstDuplicateColVec is likely being fully read before the other (ie finding the dot product with one)")
-            }
-            self.0.borrow_mut().buffer = Some(val.clone());
-            val
-        }
-    }
-
-    impl<I: Iterator,const D: usize> Iterator for SecondDuplicateColVec<I,D> where I::Item: Clone {
-        type Item = I::Item;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.0.borrow_mut().buffer.take() {
-                Some(inner_val) => inner_val,
-                None => {panic!("math_vector: Error, FirstDuplicateColVec<...> must be read before SecondDuplicateColVec<...> for each item within\n\nEither you need to switch around the order of these 2 or \none of these 2 is being fully read before the other (ie finding the dot product with one)")}
-            }
-        }
-    }
-
-
-    impl<I: Iterator,const D: usize> EvalColVec<I,D> where I::Item: Clone {
-        #[inline]
-        pub fn duplicate(self) -> (EvalColVec<FirstDuplicateColVec<I,D>,D>,EvalColVec<SecondDuplicateColVec<I,D>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
-                iterator: self.0,
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondDuplicateColVec(shared_iter))
-            )
-        }
-    }
-
-    impl<T,const D: usize> ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Clone {
-        #[inline]
-        pub fn duplicate(self) -> (EvalColVec<FirstDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
-                iterator: self.0.into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondDuplicateColVec(shared_iter))
-            )
-        }
-        
-        #[inline]
-        pub fn duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>) 
-        where <&'a [T; D] as IntoIterator>::Item: Clone {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
-                iterator: (&self.0).into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondDuplicateColVec(shared_iter))
-            )
-        }
-
-        #[inline]
-        pub fn duplicate_mut_ref<'a>(&'a mut self) -> (EvalColVec<FirstDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>) 
-        where <&'a mut [T; D] as IntoIterator>::Item: Clone {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(DuplicatedColVec{
-                iterator: (&mut self.0).into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondDuplicateColVec(shared_iter))
-            )
-        }
-    }
-    
-    //Unchecked Duplicate
-    struct UncheckedDuplicatedColVec<I: Iterator,const D: usize> where I::Item: Clone {
-        iterator: I,
-        buffer: Option<I::Item>
-    }
-
-    pub struct FirstUncheckedDuplicateColVec<I: Iterator,const D: usize>(std::rc::Rc<utils::UncheckedCell<UncheckedDuplicatedColVec<I,D>>>) where I::Item: Clone;
-
-    pub struct SecondUncheckedDuplicateColVec<I: Iterator,const D: usize>(std::rc::Rc<utils::UncheckedCell<UncheckedDuplicatedColVec<I,D>>>) where I::Item: Clone;
-
-    impl<I: Iterator,const D: usize> Iterator for FirstUncheckedDuplicateColVec<I,D> where I::Item: Clone {
-        type Item = I::Item;
-        
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            let val = unsafe { self.0.borrow_mut().iterator.next() };
-            unsafe { self.0.borrow_mut().buffer = val.clone() };
-            val
-        }
-    }
-
-    impl<I: Iterator,const D: usize> Iterator for SecondUncheckedDuplicateColVec<I,D> where I::Item: Clone {
-        type Item = I::Item;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            unsafe { &mut self.0.borrow_mut().buffer }.take()
-        }
-    }
-
-
-    impl<I: Iterator,const D: usize> EvalColVec<I,D> where I::Item: Clone {
-        #[inline]
-        /// # Safety
-        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
-        /// 
-        /// In general, if duplicate works here, unchecked_duplicate should also work
-        pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<I,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<I,D>,D>) {
-            let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
-                iterator: self.0,
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstUncheckedDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
-            )
-        }
-    }
-
-    impl<T,const D: usize> ColumnVec<T,D> where <[T; D] as IntoIterator>::Item: Clone {
-        #[inline]
-        /// # Safety
-        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
-        /// 
-        /// In general, if duplicate works here, unchecked_duplicate should also work
-        pub unsafe fn unchecked_duplicate(self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<[T; D] as IntoIterator>::IntoIter,D>,D>) {
-            let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
-                iterator: self.0.into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstUncheckedDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
-            )
-        }
-        
-        #[inline]
-        /// # Safety
-        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
-        /// 
-        /// In general, if duplicate works here, unchecked_duplicate should also work
-        pub unsafe fn unchecked_duplicate_ref<'a>(&'a self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a [T; D] as IntoIterator>::IntoIter,D>,D>) 
-        where <&'a [T; D] as IntoIterator>::Item: Clone {
-            let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
-                iterator: (&self.0).into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstUncheckedDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
-            )
-        }
-
-        #[inline]
-        /// # Safety
-        /// FirstUncheckedDuplicateColVec must be called before SecondUncheckedDuplicateColVec for each element
-        /// 
-        /// In general, if duplicate_mut_ref works here, unchecked_duplicate_mut_ref should also work
-        pub unsafe fn unchecked_duplicate_mut_ref<'a>(&'a mut self) -> (EvalColVec<FirstUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>,EvalColVec<SecondUncheckedDuplicateColVec<<&'a mut [T; D] as IntoIterator>::IntoIter,D>,D>) 
-        where <&'a mut [T; D] as IntoIterator>::Item: Clone {
-            let shared_iter = std::rc::Rc::new(utils::UncheckedCell::new(UncheckedDuplicatedColVec{
-                iterator: (&mut self.0).into_iter(),
-                buffer: None
-            }));
-            (
-                EvalColVec(FirstUncheckedDuplicateColVec(shared_iter.clone())),
-                EvalColVec(SecondUncheckedDuplicateColVec(shared_iter))
-            )
-        }
-    }
- 
     //buffer ops (clone_to_buffer,copy_to_buffer)
-    pub struct BufferedColVec<T,const D: usize>(utils::IterInitArray<T,D>);
+    pub struct BufferedColVec<T,const D: usize>{buf: utils::IterInitArray<T,D>, is_unlinked: bool}
 
     impl<T,const D: usize> EvalsToColVec<D> for BufferedColVec<T,D> {
         type Item = T;
 
         #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            eprintln!("\n\tmath_vector: Warning, BufferedColVec's leaky_eval is equivilent to its eval. \n\tUse LeakyUncheckedBufferedColVec for that instead");
-            self.eval()
-        }
-
-        #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
-            if self.0.last_index == Some(D-1) {
-                ColumnVec(unsafe { self.0.assume_init() })
-            } else if self.0.last_index == Some(0) {
-                panic!("\n\tmath_vector: Error, A BufferedColVec must be written to before being evaluated");
+            if self.buf.last_index == D {
+                ColumnVec(unsafe { self.buf.assume_init() })
             } else {
-                panic!("\n\tmath_vector: Error, A BufferedColVec must be written to only once");
+                panic!("\n\tmath_vector: Error, A BufferedColVec was not fully written to before being evaluated, only {} elements written",self.buf.last_index);
             }
         }
     }
     
     pub fn get_col_vec_buffer<T,const D: usize>() -> EvalColVec<BufferedColVec<T,D>,D> {
-        EvalColVec(BufferedColVec(utils::IterInitArray{array: unsafe {std::mem::MaybeUninit::uninit().assume_init()},last_index: None}))
+        EvalColVec(BufferedColVec{
+            buf: utils::IterInitArray::new(),
+            is_unlinked: true
+        })
     }
     
         //Clone
-    pub struct CloneToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Clone {iter: I, buffer: &'a mut BufferedColVec<I::Item,D>}
+    pub struct CloneToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Clone {iter: std::iter::Enumerate<I>, buffer: &'a mut BufferedColVec<I::Item,D>}
 
     impl<'a,I: Iterator,const D: usize> Iterator for CloneToBufferColVec<'a,I,D> where I::Item: Clone {
         type Item = I::Item;
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let val = self.iter.next();
-            if let Some(inner_val) = val.clone() {
-                match self.buffer.0.last_index {
-                    None => {self.buffer.0[0] = std::mem::MaybeUninit::new(inner_val)}
-                    Some(innerer_val) => {self.buffer.0[innerer_val+1] = std::mem::MaybeUninit::new(inner_val)}
-                }
-            }
-            val
+            self.iter.next().map(|(idx,val)| {
+                self.buffer.buf[idx] = std::mem::MaybeUninit::new(val.clone());
+                val
+            })
         }
     }
             //No reason not to implement this but its kinda dumb
     impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CloneToBufferColVec<'a,I,D> where I::Item: Clone {
         type Item = I::Item;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1405,31 +1222,22 @@ pub mod col_vec_iterators {
     }
     
         //Copy
-    pub struct CopyToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Copy {iter: I, buffer: &'a mut BufferedColVec<I::Item,D>}
+    pub struct CopyToBufferColVec<'a,I: Iterator,const D: usize> where I::Item: Copy {iter: std::iter::Enumerate<I>, buffer: &'a mut BufferedColVec<I::Item,D>}
 
     impl<'a,I: Iterator,const D: usize> Iterator for CopyToBufferColVec<'a,I,D> where I::Item: Copy {
         type Item = I::Item;
 
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let val = self.iter.next();
-            if let Some(inner_val) = val {
-                match self.buffer.0.last_index {
-                    None => {self.buffer.0[0] = std::mem::MaybeUninit::new(inner_val)}
-                    Some(innerer_val) => {self.buffer.0[innerer_val+1] = std::mem::MaybeUninit::new(inner_val)}
-                }
-            }
-            val
+            self.iter.next().map(|(idx,val)| {
+                self.buffer.buf[idx] = std::mem::MaybeUninit::new(val);
+                val
+            })
         }
     }
             //No reason not to implement this but its kinda dumb
     impl<'a,I: Iterator,const D: usize> EvalsToColVec<D> for CopyToBufferColVec<'a,I,D> where I::Item: Copy {
         type Item = I::Item;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1440,15 +1248,89 @@ pub mod col_vec_iterators {
 
     impl<I: Iterator,const D: usize> EvalColVec<I,D> {
         pub fn clone_to_buffer(self,buf: &mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CloneToBufferColVec<'_,I,D>,D> where I::Item: Clone {
+            assert!(buf.0.is_unlinked);
+            buf.0.is_unlinked = false;
             EvalColVec(CloneToBufferColVec{
-                iter: self.0,
+                iter: self.0.enumerate(),
                 buffer: &mut buf.0
             })
         }
 
         pub fn copy_to_buffer(self,buf: &mut EvalColVec<BufferedColVec<I::Item,D>,D>) -> EvalColVec<CopyToBufferColVec<'_,I,D>,D> where I::Item: Copy {
+            assert!(buf.0.is_unlinked);
+            buf.0.is_unlinked = false;
             EvalColVec(CopyToBufferColVec{
-                iter: self.0,
+                iter: self.0.enumerate(),
+                buffer: &mut buf.0
+            })
+        }
+    }
+
+        //MapBuf
+    pub struct ColVecMapBuf<'a,I: Iterator,F: FnMut(I::Item) -> (O1,O2),O1,O2,const D: usize> {
+        iter: std::iter::Enumerate<I>,
+        func: F,
+        buffer: &'a mut BufferedColVec<O1,D>
+    }
+
+    impl<'a,I: Iterator,F: FnMut(I::Item) -> (O1,O2),O1,O2,const D: usize> Iterator for ColVecMapBuf<'a,I,F,O1,O2,D> {
+        type Item = O2;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.iter.next().map(|(idx,x)| {
+                let (y1,y2) = (self.func)(x); 
+                self.buffer.buf[idx] = std::mem::MaybeUninit::new(y1);
+                y2
+            })
+        }
+    }
+
+    impl<'a,I: Iterator,F: FnMut(I::Item) -> (O1,O2),O1,O2,const D: usize> EvalsToColVec<D> for ColVecMapBuf<'a,I,F,O1,O2,D> {
+        type Item = O2;
+
+        #[inline]
+        fn eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
+        }
+    }
+
+    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
+        pub fn map_buf<F: FnMut(I::Item) -> (O1,O2),O1,O2>(self,buf: &mut EvalColVec<BufferedColVec<O1,D>,D>,func: F) -> EvalColVec<ColVecMapBuf<'_,I,F,O1,O2,D>,D> {
+            EvalColVec(ColVecMapBuf{
+                iter: self.0.enumerate(),
+                func,
+                buffer: &mut buf.0
+            })
+        }
+    }
+
+    impl<T,const D: usize> ColumnVec<T,D> {
+        pub fn map_buf<F: FnMut(T) -> (O1,O2),O1,O2>(self,buf: &mut EvalColVec<BufferedColVec<O1,D>,D>,func: F) -> EvalColVec<ColVecMapBuf<'_,<[T; D] as IntoIterator>::IntoIter,F,O1,O2,D>,D> {
+            assert!(buf.0.is_unlinked);
+            buf.0.is_unlinked = false;
+            EvalColVec(ColVecMapBuf{
+                iter: self.0.into_iter().enumerate(),
+                func,
+                buffer: &mut buf.0
+            })
+        }
+
+        pub fn map_buf_ref<'a,F: FnMut(&'a T) -> (O1,O2),O1,O2>(&'a self,buf: &'a mut EvalColVec<BufferedColVec<O1,D>,D>,func: F) -> EvalColVec<ColVecMapBuf<'a,<&'a [T; D] as IntoIterator>::IntoIter,F,O1,O2,D>,D> {
+            assert!(buf.0.is_unlinked);
+            buf.0.is_unlinked = false;
+            EvalColVec(ColVecMapBuf{
+                iter: self.0.iter().enumerate(),
+                func,
+                buffer: &mut buf.0
+            })
+        }
+
+        pub fn map_buf_ref_mut<'a,F: FnMut(&'a mut T) -> (O1,O2),O1,O2>(&'a mut self,buf: &'a mut EvalColVec<BufferedColVec<O1,D>,D>,func: F) -> EvalColVec<ColVecMapBuf<'a,<&'a mut [T; D] as IntoIterator>::IntoIter,F,O1,O2,D>,D> {
+            assert!(buf.0.is_unlinked);
+            buf.0.is_unlinked = false;
+            EvalColVec(ColVecMapBuf{
+                iter: self.0.iter_mut().enumerate(),
+                func,
                 buffer: &mut buf.0
             })
         }
@@ -1472,11 +1354,6 @@ pub mod col_vec_iterators {
 
     impl<I: Iterator,F: FnMut(I::Item) -> O,O,const D: usize> EvalsToColVec<D> for ColVecMap<I,F,O,D> {
         type Item = O;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1509,100 +1386,7 @@ pub mod col_vec_iterators {
         }
     }
     
-    //Map_and_store
-    pub struct ColVecMapAndStore<'a,I: Iterator,F,O,const D: usize> where for<'b> F: FnMut(&'b I::Item) -> O {iter: I, f: F, buffer: &'a mut BufferedColVec<I::Item,D> }
-
-    impl<'a,I: Iterator,F,O,const D: usize> Iterator for ColVecMapAndStore<'a,I,F,O,D> where for<'b> F: FnMut(&'b I::Item) -> O {
-        type Item = O;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.iter.next() {
-                Some(val) => {
-                    let out = (self.f)(&val); 
-                    match self.buffer.0.last_index {
-                        None => {self.buffer.0[0] = std::mem::MaybeUninit::new(val)}
-                        Some(innerer_val) => {self.buffer.0[innerer_val+1] = std::mem::MaybeUninit::new(val)}
-                    }
-                    Some(out)
-                }
-                None => None
-            }
-        }
-    }
-
-    impl<'a,I: Iterator,F,O,const D: usize> EvalsToColVec<D> for ColVecMapAndStore<'a,I,F,O,D> where for<'b> F: FnMut(&'b I::Item) -> O {
-        type Item = O;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
-
-        #[inline]
-        fn eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::iterator_to_array(self) })
-        }
-    }
-
-
-    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
-        pub fn map_and_store<F,O>(self,f: F,buffer: &mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMapAndStore<'_,I,F,O,D>,D> where for<'b> F: FnMut(&'b I::Item) -> O {
-            EvalColVec(ColVecMapAndStore{
-                iter: self.0,
-                f,
-                buffer
-            })
-        }
-    }
-
-    //mut map_and_store
-    pub struct ColVecMutMapAndStore<'a,I: Iterator,F,O,const D: usize> where for<'b> F: FnMut(&'b mut I::Item) -> O {iter: I, f: F, buffer: &'a mut BufferedColVec<I::Item,D> }
-
-    impl<'a,I: Iterator,F,O,const D: usize> Iterator for ColVecMutMapAndStore<'a,I,F,O,D> where for<'b> F: FnMut(&'b mut I::Item) -> O {
-        type Item = O;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.iter.next() {
-                Some(mut val) => {
-                    let out = (self.f)(&mut val); 
-                    match self.buffer.0.last_index {
-                        None => {self.buffer.0[0] = std::mem::MaybeUninit::new(val)}
-                        Some(innerer_val) => {self.buffer.0[innerer_val+1] = std::mem::MaybeUninit::new(val)}
-                    }
-                    Some(out)
-                }
-                None => None
-            }
-        }
-    }
-
-    impl<'a,I: Iterator,F,O,const D: usize> EvalsToColVec<D> for ColVecMutMapAndStore<'a,I,F,O,D> where for<'b> F: FnMut(&'b mut I::Item) -> O {
-        type Item = O;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
-
-        #[inline]
-        fn eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::iterator_to_array(self) })
-        }
-    }
-
-
-    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
-        pub fn mut_map_and_store<F,O>(self,f: F,buffer: &mut BufferedColVec<I::Item,D>) -> EvalColVec<ColVecMutMapAndStore<'_,I,F,O,D>,D> where for<'b> F: FnMut(&'b mut I::Item) -> O {
-            EvalColVec(ColVecMutMapAndStore{
-                iter: self.0,
-                f,
-                buffer
-            })
-        }
-    }
-
+    
     //neg
     pub struct NegatedColVec<I: Iterator,const D: usize>(I) where I::Item: Neg;
 
@@ -1617,11 +1401,6 @@ pub mod col_vec_iterators {
 
     impl<I: Iterator,const D: usize> EvalsToColVec<D> for NegatedColVec<I,D> where I::Item: Neg {
         type Item = <I::Item as Neg>::Output;
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1675,11 +1454,6 @@ pub mod col_vec_iterators {
 
     impl<I1: Iterator,I2: Iterator,const D: usize> EvalsToColVec<D> for ZippedColVec<I1,I2,D> {
         type Item = (I1::Item,I2::Item);
-
-        #[inline]
-        fn leaky_eval(self) -> ColumnVec<Self::Item,D> {
-            ColumnVec(unsafe { utils::leaky_iterator_to_array(self) })
-        }
 
         #[inline]
         fn eval(self) -> ColumnVec<Self::Item,D> {
@@ -1885,133 +1659,132 @@ pub mod col_vec_iterators {
         }
     }
 
-    //Unzip
-    struct UnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>{iter: I,buffer_val: Option<Option<T2>>}
+    //unzip 
+    pub struct UnzippedColVec<'a,I: Iterator<Item=(T1,T2)>,T1,T2,const D: usize> {
+        iter: I,
+        buffer: &'a mut BufferedColVec<T1,D>
+    }
 
-    pub struct FirstUnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedColVec<I,T1,T2>>>);
+    impl<'a,I: Iterator<Item=(T1,T2)>,T1,T2,const D: usize> Iterator for UnzippedColVec<'a,I,T1,T2,D> {
+        type Item = T2;
 
-    pub struct SecondUnzippedColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedColVec<I,T1,T2>>>);
-
-    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for FirstUnzippedColVec<I,T1,T2> {
-        type Item = T1;
-
-        #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            let mut mut_self = self.0.borrow_mut();
-            if mut_self.buffer_val.is_some() {
-                panic!("math_vector: Error, FirstUnzippedColVec was called upon twice in a row, it is possible that it is being fully evaluated before SecondUnzippedColVec \nthis cant be used while that is the case");
-            }
-            match mut_self.iter.next() {
-                Some((val1,val2)) => {mut_self.buffer_val = Some(Some(val2)); Some(val1)}
-                None => {mut_self.buffer_val = Some(None); None}
-            }
+            self.iter.next().map(|(y1,y2)| {
+                self.buffer.buf.assign_next(y1);
+                y2
+            })
         }
     }
 
-    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for SecondUnzippedColVec<I,T1,T2> {
+    impl<'a,I: Iterator<Item=(T1,T2)>,T1,T2,const D: usize> EvalsToColVec<D> for UnzippedColVec<'a,I,T1,T2,D> {
         type Item = T2;
 
         #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.0.borrow_mut().buffer_val.take() {
-                Some(val) => val,
-                None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
-            }
+        fn eval(self) -> ColumnVec<Self::Item,D> {
+            ColumnVec(unsafe { utils::iterator_to_array(self) })
         }
     }
 
-
-    struct UnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>{iter: I,buffer_val: Option<Option<T1>>}
-
-    pub struct FirstUnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedRevColVec<I,T1,T2>>>);
-
-    pub struct SecondUnzippedRevColVec<I: Iterator<Item = (T1,T2)>,T1,T2>(std::rc::Rc<std::cell::RefCell<UnzippedRevColVec<I,T1,T2>>>);
-
-    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for SecondUnzippedRevColVec<I,T1,T2> {
-        type Item = T2;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            let mut mut_self = self.0.borrow_mut();
-            if mut_self.buffer_val.is_some() {
-                panic!("math_vector: Error, SecondUnzippedRevColVec was called upon twice in a row, it is possible that it is being fully evaluated before FirstUnzippedRevColVec \nthis cant be used while that is the case");
-            }
-            match mut_self.iter.next() {
-                Some((val1,val2)) => {mut_self.buffer_val = Some(Some(val1)); Some(val2)}
-                None => {mut_self.buffer_val = Some(None); None}
-            }
+    impl<I: Iterator + EvalsToColVec<D>,const D: usize> Unzippable<EvalColVec<I,D>> for ColumnVec<<I as EvalsToColVec<D>>::Item,D> {
+        fn unzip(data: EvalColVec<I,D>) -> Self {
+            data.eval()
         }
     }
 
-    impl<I: Iterator<Item = (T1,T2)>,T1,T2> Iterator for FirstUnzippedRevColVec<I,T1,T2> {
-        type Item = T1;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            match self.0.borrow_mut().buffer_val.take() {
-                Some(val) => val,
-                None => panic!("math_vector: Error, SecondUnzippedColVec was called upon either before FirstUnzippedColVec or was called upon twice in a row\nIf it is the former and there is no other problem, then you should use unzip_rev instead of unzip")
-            }
+    impl<I: Iterator<Item=(T1,T2)> + EvalsToColVec<D>,T1,T2,O2,const D: usize> Unzippable<EvalColVec<I,D>> for (ColumnVec<T1,D>,O2)
+    where for<'a> O2: Unzippable<EvalColVec<UnzippedColVec<'a,I,T1,T2,D>,D>> {
+        fn unzip(data: EvalColVec<I,D>) -> Self {
+            let mut buffer = get_col_vec_buffer();
+            let right_output = <O2>::unzip(EvalColVec(UnzippedColVec{iter: data.0,buffer: &mut buffer.0}));
+            (buffer.eval(),right_output)
         }
     }
 
-
-    impl<I: Iterator<Item = (T1,T2)>,T1,T2,const D: usize> EvalColVec<I,D> {
-        #[inline]
-        pub fn unzip(self) -> (EvalColVec<FirstUnzippedColVec<I,T1,T2>,D>,EvalColVec<SecondUnzippedColVec<I,T1,T2>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedColVec{
-                iter: self.0,
-                buffer_val: None
-            }));
-            (
-                EvalColVec(FirstUnzippedColVec(shared_iter.clone())),
-                EvalColVec(SecondUnzippedColVec(shared_iter))
-            )
-        }
-
-        #[inline]
-        pub fn unzip_rev(self) -> (EvalColVec<FirstUnzippedRevColVec<I,T1,T2>,D>,EvalColVec<SecondUnzippedRevColVec<I,T1,T2>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedRevColVec{
-                iter: self.0,
-                buffer_val: None
-            }));
-            (
-                EvalColVec(FirstUnzippedRevColVec(shared_iter.clone())),
-                EvalColVec(SecondUnzippedRevColVec(shared_iter))
-            )
+    impl<I: Iterator + EvalsToColVec<D>,const D: usize> EvalColVec<I,D> {
+        pub fn unzip_eval<O>(self) -> O where O: Unzippable<EvalColVec<I,D>> {
+            <O as Unzippable<Self>>::unzip(self)
         }
     }
 
     impl<T1,T2,const D: usize> ColumnVec<(T1,T2),D> {
-        #[inline]
-        pub fn unzip(self) -> (EvalColVec<FirstUnzippedColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>,EvalColVec<SecondUnzippedColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedColVec{
-                iter: self.0.into_iter(),
-                buffer_val: None
-            }));
-            (
-                EvalColVec(FirstUnzippedColVec(shared_iter.clone())),
-                EvalColVec(SecondUnzippedColVec(shared_iter))
-            )
+        pub fn unzip<O>(self) -> (ColumnVec<T1,D>,O) where for<'a> O: Unzippable<EvalColVec<UnzippedColVec<'a,<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2,D>,D>> {
+            let mut buffer = get_col_vec_buffer();
+            let right_output = <O as Unzippable<EvalColVec<UnzippedColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2,D>,D>>>::unzip(EvalColVec(UnzippedColVec{iter: self.0.into_iter(),buffer: &mut buffer.0}));
+            (buffer.eval(),right_output)
+        }
+    }
+
+    //fold
+    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
+        pub fn fold<T,F: FnMut(T,I::Item) -> T>(self,mut init: T,mut f: F) -> T {
+            for item in self.0 {
+                init = (f)(init,item)
+            }
+            init
+        }
+    }
+
+    impl<T,const D: usize> ColumnVec<T,D> {
+        pub fn fold<O,F: FnMut(O,<[T;D] as IntoIterator>::Item) -> O>(self,mut init: O,mut f: F) -> O {
+            for item in self.0 {
+                init = (f)(init,item)
+            }
+            init
         }
 
-        #[inline]
-        pub fn unzip_rev(self) -> (EvalColVec<FirstUnzippedRevColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>,EvalColVec<SecondUnzippedRevColVec<<[(T1,T2); D] as IntoIterator>::IntoIter,T1,T2>,D>) {
-            let shared_iter = std::rc::Rc::new(std::cell::RefCell::new(UnzippedRevColVec{
-                iter: self.0.into_iter(),
-                buffer_val: None
-            }));
-            (
-                EvalColVec(FirstUnzippedRevColVec(shared_iter.clone())),
-                EvalColVec(SecondUnzippedRevColVec(shared_iter))
-            )
+        pub fn fold_ref<'a,O,F: FnMut(O,<&'a [T;D] as IntoIterator>::Item) -> O>(&'a self,mut init: O, mut f: F) -> O {
+            for item in &self.0 {
+                init = (f)(init,item)
+            }
+            init
+        }
+
+        pub fn fold_ref_mut<'a,O,F: FnMut(O,<&'a mut [T;D] as IntoIterator>::Item) -> O>(&'a mut self,mut init: O, mut f: F) -> O {
+            for item in &mut self.0 {
+                init = (f)(init,item)
+            }
+            init
+        }
+    }
+
+    //sum
+    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
+        pub fn sum<O>(self) -> O where O: std::iter::Sum<I::Item> {
+            <O>::sum(self.0)
+        }
+    }
+
+    impl<T,const D: usize> ColumnVec<T,D> {
+        pub fn sum<O>(self) -> O where O: std::iter::Sum<<[T; D] as IntoIterator>::Item> {
+            <O>::sum(self.0.into_iter())
+        }
+
+        pub fn sum_ref<'a,O>(&'a self) -> O where O: std::iter::Sum<<&'a [T; D] as IntoIterator>::Item> {
+            <O>::sum(self.0.iter())
+        }
+    }
+
+    //sqr_mag
+    impl<I: Iterator,const D: usize> EvalColVec<I,D> {
+        pub fn sqr_mag<O>(self) -> O where I::Item: Mul<I::Item> + Copy, O: std::iter::Sum<<I::Item as Mul<I::Item>>::Output> {
+            self.map(|x| x*x).sum()
+        }
+    }
+
+    impl<T,const D: usize> ColumnVec<T,D> {
+        pub fn sqr_mag<O>(self) -> O where T: Mul<T> + Copy, O: std::iter::Sum<<T as Mul<T>>::Output> {
+            self.map(|x| x*x).sum()
+        }
+
+        pub fn sqr_mag_ref<'a,O>(&'a self) -> O where &'a T: Mul<&'a T>, O: std::iter::Sum<<&'a T as Mul<&'a T>>::Output> {
+            self.map_ref(|x| x*x).sum()
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::col_vec_iterators::{get_col_vec_buffer, SyncEvalsToColVec};
+    use crate::col_vec_iterators::get_col_vec_buffer;
 
     use super::*;
     use super::col_vec_iterators::EvalsToColVec;
@@ -2092,41 +1865,16 @@ mod test {
         let y = ColumnVec::from([2; 5]);
         assert_eq!(Scalar(30),Dot::<ColumnVec<i32,5>>::dot(x,y));
 
+        /*
         let x = ColumnVec::from([&3; 5]);
         assert_eq!(ColumnVec::from([3; 5]),x.cloned().eval());
 
         let x = ColumnVec::from([&3; 5]);
         assert_eq!(ColumnVec::from([3; 5]),x.copied().eval());
+        */
 
         let x = ColumnVec::from([3; 5]);
         assert_eq!(ColumnVec::from([4; 5]),x.map(|val| {val + 1}).eval())
-    }
-
-    #[test]
-    fn duplicate_test() {
-        let (x,y) = ColumnVec::from([1,2,3,4,5]).duplicate();
-
-        assert_eq!(ColumnVec::from([2,4,6,8,10]),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
-    }
-
-    #[test]
-    fn unchecked_duplicate_test() {
-        let (x,y) = unsafe { ColumnVec::from([1,2,3,4,5]).unchecked_duplicate() };
-
-        assert_eq!(ColumnVec::from([2,4,6,8,10]),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondUncheckedDuplicateColVec<std::array::IntoIter<i32,5>,5>,5>>::add(x,y).eval());
-    }
-
-    #[test]
-    fn synchronize_test() {
-        let (a,b) = (ColumnVec::from([1,2,3,4,5,6,7,8,9,10]) * Scalar(2)).duplicate();
-        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_leaky_eval();
-        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),c);
-        assert_eq!(ColumnVec::from([6,12,18,24,30,36,42,48,54,60]),d);
-
-        let (a,b) = (ColumnVec::from([1,2,3,4,5,6,7,8,9,10]) * Scalar(2)).duplicate();
-        let (c,d) = (a*Scalar(2),b*Scalar(3)).sync_eval();
-        assert_eq!(ColumnVec::from([4,8,12,16,20,24,28,32,36,40]),c);
-        assert_eq!(ColumnVec::from([6,12,18,24,30,36,42,48,54,60]),d);
     }
 
     //Doesnt check leaky-ness
@@ -2134,9 +1882,6 @@ mod test {
     fn eval_test() {
         let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
         assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).eval());
-
-        let vec = ColumnVec::from([1,2,3,4,5,6,7,8,9,10]);
-        assert_eq!(ColumnVec::from([2,4,6,8,10,12,14,16,18,20]),(vec*Scalar(2)).leaky_eval());
     }
 
     #[test]
@@ -2159,58 +1904,9 @@ mod test {
         let z = x.zip(y).eval();
         assert_eq!(ColumnVec::from([(1,10),(2,9),(3,8),(4,7),(5,6),(6,5),(7,4),(8,3),(9,2),(10,1)]),z);
 
-        let (x_iter,y_iter) = z.clone().unzip();
-        let (x,y) = (x_iter,y_iter).sync_eval();
+        let (x,y) = z.clone().unzip();
         assert_eq!(ColumnVec::from([1,2,3,4,5,6,7,8,9,10]),x);
         assert_eq!(ColumnVec::from([10,9,8,7,6,5,4,3,2,1]),y);
-
-        let (x_iter,y_iter) = z.unzip_rev();
-        let (y,x) = (y_iter,x_iter).sync_eval();
-        assert_eq!(ColumnVec::from([1,2,3,4,5,6,7,8,9,10]),x);
-        assert_eq!(ColumnVec::from([10,9,8,7,6,5,4,3,2,1]),y);
-    }
-
-
-    #[test]
-    fn duplicate_stress_test() {
-        let mut rng = rand::thread_rng();
-        for _ in 0..1000000 {
-            let original: ColumnVec<u32, 10> = ColumnVec::from([
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000)
-            ]);
-            let (clone_a,clone_b) = original.clone().duplicate();
-            assert_eq!((original*Scalar(2)).eval(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondDuplicateColVec<std::array::IntoIter<u32,10>,10>,10>>::add(clone_a,clone_b).eval());
-        }
-    }
-
-    #[test]
-    fn unchecked_duplicate_stress_test() {
-        let mut rng = rand::thread_rng();
-        for _ in 0..1000000 {
-            let original: ColumnVec<u32, 10> = ColumnVec::from([
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000)
-            ]);
-            let (clone_a,clone_b) = unsafe { original.clone().unchecked_duplicate() };
-            assert_eq!((original*Scalar(2)).eval(),std::ops::Add::<col_vec_iterators::EvalColVec<col_vec_iterators::SecondUncheckedDuplicateColVec<std::array::IntoIter<u32,10>,10>,10>>::add(clone_a,clone_b).eval());
-        }
     }
 
     #[test]
@@ -2232,72 +1928,6 @@ mod test {
             let vec1 = ColumnVec::from(<[u32;10]>::from(vec_nums));
             let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
             assert_eq!(vec2,(vec1 * Scalar(2)).eval());
-        }
-    }
-
-    #[test]
-    fn leaky_eval_stress_test() {
-        let mut rng = rand::thread_rng();
-        for _ in 0..1000000 {
-            let vec_nums = (
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000),
-                rng.gen_range(1..1000000000)
-            );
-            let vec1 = ColumnVec::from(<[u32;10]>::from(vec_nums));
-            let vec2 = ColumnVec::from([vec_nums.0 * 2,vec_nums.1 * 2,vec_nums.2 * 2,vec_nums.3 * 2,vec_nums.4 * 2,vec_nums.5 * 2,vec_nums.6 * 2,vec_nums.7 * 2,vec_nums.8 * 2,vec_nums.9 * 2]);
-            assert_eq!(vec2,(vec1 * Scalar(2)).leaky_eval());
-        }
-    }
-
-    #[test]
-    fn synchronize_stress_test() {
-        let mut rng = rand::thread_rng();
-        for _ in 0..1000000 {
-            let original: ColumnVec<u32, 10> = ColumnVec::from([
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000),
-                rng.gen_range(1..100000000)
-            ]);
-            let copy1 = original.clone();
-            let copy2 = original.clone();
-            let copy3 = original.clone();
-            let copy4 = original.clone();
-            let copy5 = original.clone();
-            let (dupe1,dupe2) = original.duplicate();
-            let (dupe2,dupe3) = dupe2.duplicate();
-            let (dupe3,dupe4) = dupe3.duplicate();
-            let (dupe4,dupe5) = dupe4.duplicate();
-            assert_eq!(
-                (
-                    (copy1 * Scalar(2)).eval(),
-                    (copy2 * Scalar(3)).eval(),
-                    (copy3 * Scalar(4)).eval(),
-                    (copy4 * Scalar(5)).eval(),
-                    (copy5 * Scalar(6)).eval()
-                ),
-                (
-                    dupe1 * Scalar(2),
-                    dupe2 * Scalar(3),
-                    dupe3 * Scalar(4),
-                    dupe4 * Scalar(5),
-                    dupe5 * Scalar(6)
-                ).sync_eval()
-            );
         }
     }
 
@@ -2330,12 +1960,11 @@ mod test {
                 rng.gen_range(1..1000000000)
             ]);
 
-            let (x_prime,y_prime) = x.clone().zip(y.clone()).unzip().sync_eval();
+            let (x_prime,y_prime): (_,ColumnVec<u32, 10>) = x.clone().zip(y.clone()).unzip_eval();
             assert_eq!(x_prime,x);
             assert_eq!(y_prime,y);
         }
     }
-
 
     #[ignore]
     #[test]
@@ -2371,24 +2000,54 @@ mod test {
         let mut custom = std::time::Duration::new(0,0);
         let mut builtin = std::time::Duration::new(0,0);
         for _ in 0..1000000 {
-            let now = std::time::Instant::now();
             let x = ColumnVec::from([15; 1000]);
             let y = ColumnVec::from([15; 1000]);
-            let _z = (x+y).eval();
+            let now = std::time::Instant::now();
+            let z = (x+y).eval();
             let next_time = now.elapsed();
+            assert_eq!(z,ColumnVec::from([30; 1000]));
             custom += next_time;
 
-            let now = std::time::Instant::now();
+            
             let x = vec![15;1000];
             let y = vec![15;1000];
+            let now = std::time::Instant::now();
             let mut z = Vec::with_capacity(1000);
             for (x_val,y_val) in x.into_iter().zip(y.into_iter()) {
                 z.push(x_val + y_val);
             }
             let next_time = now.elapsed();
+            assert_eq!(z,vec![30; 1000]);
             builtin += next_time;
         }
-        println!("{}",custom.as_nanos());
-        println!("{}",builtin.as_nanos());
+        println!("{}",custom.as_nanos() as f64/1000000.0);
+        println!("{}",builtin.as_nanos() as f64/1000000.0);
     }
+
+    #[ignore]
+    #[test]
+    fn new_buffer_vs_reused_buffer() {
+        let mut reuse = std::time::Duration::new(0,0);
+        let mut new = std::time::Duration::new(0,0);
+        for _ in 0..1000000 {
+            let x = ColumnVec::from([15; 10000]);
+            let y = ColumnVec::from([15; 10000]);
+            let now = std::time::Instant::now();
+            let _z = (x+y).eval();
+            let next_time = now.elapsed();
+            new += next_time;
+
+            let mut x = [15; 10000];
+            let y = [15; 10000];
+            let now = std::time::Instant::now();
+            for (x_val,y_val) in x.iter_mut().zip(y.into_iter()) {
+                *x_val = *x_val+y_val;
+            }
+            let next_time = now.elapsed();
+            reuse += next_time;
+        }
+        println!("{}",new.as_nanos() as f64/1000000.0);
+        println!("{}",reuse.as_nanos() as f64/1000000.0);
+    }
+    
 }
