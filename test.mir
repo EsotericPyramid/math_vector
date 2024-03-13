@@ -1,0 +1,157 @@
+// WARNING: This output format is intended for human consumers only
+// and is subject to change without notice. Knock yourself out.
+ArrayIter::arr::{constant#0}: usize = {
+    let mut _0: usize;
+
+    bb0: {
+        _0 = const 10000_usize;
+        return;
+    }
+}
+
+fn main() -> () {
+    let mut _0: ();
+    let mut _1: ArrayIter;
+    let mut _2: [i32; 10000];
+    let mut _5: bool;
+    let mut _6: usize;
+    let mut _8: i32;
+    let mut _9: bool;
+    let mut _10: bool;
+    let mut _11: &[i32; 10000];
+    let mut _12: bool;
+    let _13: !;
+    let mut _14: std::option::Option<std::fmt::Arguments<'_>>;
+    scope 1 {
+        debug array_iter => _1;
+        let _3: &mut [i32; 10000];
+        scope 2 {
+            debug arr_ref => _3;
+            let _4: &mut usize;
+            scope 3 {
+                debug start_ref => _4;
+                let _7: usize;
+                let mut _15: &[i32; 10000];
+                scope 4 {
+                    debug index => _7;
+                }
+                scope 5 {
+                    debug left_val => _11;
+                    debug right_val => const _;
+                    scope 6 {
+                        debug kind => const core::panicking::AssertKind::Eq;
+                    }
+                    scope 7 (inlined array::equality::<impl PartialEq for [i32; 10000]>::eq) {
+                        debug self => _11;
+                        debug other => const _;
+                        scope 8 (inlined <i32 as array::equality::SpecArrayEq<i32, 10000>>::spec_eq) {
+                            debug a => _11;
+                            debug b => const _;
+                            scope 9 {
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    bb0: {
+        StorageLive(_1);
+        StorageLive(_2);
+        _2 = [const 10_i32; 10000];
+        _1 = ArrayIter { arr: move _2, start: const 0_usize };
+        StorageDead(_2);
+        StorageLive(_3);
+        _3 = &mut (_1.0: [i32; 10000]);
+        StorageLive(_4);
+        _4 = &mut (_1.1: usize);
+        goto -> bb1;
+    }
+
+    bb1: {
+        StorageLive(_5);
+        StorageLive(_6);
+        _6 = (_1.1: usize);
+        _5 = Lt(move _6, const 10000_usize);
+        switchInt(move _5) -> [0: bb5, otherwise: bb2];
+    }
+
+    bb2: {
+        StorageDead(_6);
+        _7 = (_1.1: usize);
+        (_1.1: usize) = Add((_1.1: usize), const 1_usize);
+        StorageLive(_8);
+        _9 = Lt(_7, const 10000_usize);
+        assert(move _9, "index out of bounds: the length is {} but the index is {}", const 10000_usize, _7) -> [success: bb3, unwind continue];
+    }
+
+    bb3: {
+        _8 = (_1.0: [i32; 10000])[_7];
+        _10 = Lt(_7, const 10000_usize);
+        assert(move _10, "index out of bounds: the length is {} but the index is {}", const 10000_usize, _7) -> [success: bb4, unwind continue];
+    }
+
+    bb4: {
+        (_1.0: [i32; 10000])[_7] = Mul(const 100_i32, move _8);
+        StorageDead(_8);
+        StorageDead(_5);
+        goto -> bb1;
+    }
+
+    bb5: {
+        StorageDead(_6);
+        StorageDead(_5);
+        _11 = &(_1.0: [i32; 10000]);
+        _15 = const _;
+        StorageLive(_12);
+        _12 = raw_eq::<[i32; 10000]>(_11, _15) -> [return: bb8, unwind unreachable];
+    }
+
+    bb6: {
+        StorageDead(_12);
+        StorageDead(_4);
+        StorageDead(_3);
+        StorageDead(_1);
+        return;
+    }
+
+    bb7: {
+        StorageLive(_14);
+        _14 = Option::<Arguments<'_>>::None;
+        _13 = core::panicking::assert_failed::<[i32; 10000], [i32; 10000]>(const core::panicking::AssertKind::Eq, move _11, move _15, move _14) -> unwind continue;
+    }
+
+    bb8: {
+        switchInt(move _12) -> [0: bb7, otherwise: bb6];
+    }
+}
+
+promoted[0] in main: &[i32; 10000] = {
+    let mut _0: &[i32; 10000];
+    let mut _1: [i32; 10000];
+
+    bb0: {
+        _1 = [const 1000_i32; 10000];
+        _0 = &_1;
+        return;
+    }
+}
+
+main::{constant#0}: usize = {
+    let mut _0: usize;
+
+    bb0: {
+        _0 = const 10000_usize;
+        return;
+    }
+}
+
+main::{constant#1}: usize = {
+    let mut _0: usize;
+
+    bb0: {
+        _0 = const 10000_usize;
+        return;
+    }
+}
