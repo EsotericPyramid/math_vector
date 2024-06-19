@@ -1,4 +1,6 @@
 pub mod trait_specialization_utils {
+    use std::mem::transmute_copy;
+
     pub trait TyBool {type Neg: TyBool; fn as_bool() -> bool;}
     pub struct Y;
     pub struct N;
@@ -31,20 +33,42 @@ pub mod trait_specialization_utils {
         type Filtered<T1,T2>;
 
         fn filter<T1,T2>(x1: T1, x2: T2) -> Self::Filtered<T1,T2>;
+        unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2);
     }
 
     impl Filter for N {type Filtered<T> = (); #[inline] fn filter<T>(_: T) -> Self::Filtered<T> {}}
     impl Filter for Y {type Filtered<T> = T; #[inline] fn filter<T>(x: T) -> Self::Filtered<T> {x}}
     
-    impl FilterPair for (N,N) {type Filtered<T1,T2> = (); #[inline] fn filter<T1,T2>(_: T1, _: T2) -> Self::Filtered<T1,T2> {}}
-    impl FilterPair for (N,Y) {type Filtered<T1,T2> = T2; #[inline] fn filter<T1,T2>(_: T1, x: T2) -> Self::Filtered<T1,T2> {x}}
-    impl FilterPair for (Y,N) {type Filtered<T1,T2> = T1; #[inline] fn filter<T1,T2>(x: T1, _: T2) -> Self::Filtered<T1,T2> {x}}
-    impl FilterPair for (Y,Y) {type Filtered<T1,T2> = (T1,T2); #[inline] fn filter<T1,T2>(x1: T1, x2: T2) -> Self::Filtered<T1,T2> {(x1,x2)}}
+    impl FilterPair for (N,N) {
+        type Filtered<T1,T2> = (); 
+        
+        #[inline] fn filter<T1,T2>(_: T1, _: T2) -> Self::Filtered<T1,T2> {}
+        #[inline] unsafe fn defilter<T1,T2>(_: Self::Filtered<T1,T2>) -> (T1,T2) {(transmute_copy(&()),transmute_copy(&()))}
+    }
+    impl FilterPair for (N,Y) {
+        type Filtered<T1,T2> = T2; 
+        
+        #[inline] fn filter<T1,T2>(_: T1, x: T2) -> Self::Filtered<T1,T2> {x}
+        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) {(transmute_copy(&()),filtered)}
+    }
+    impl FilterPair for (Y,N) {
+        type Filtered<T1,T2> = T1;
+        
+        #[inline] fn filter<T1,T2>(x: T1, _: T2) -> Self::Filtered<T1,T2> {x}
+        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) {(filtered,transmute_copy(&()))}
+    }
+    impl FilterPair for (Y,Y) {
+        type Filtered<T1,T2> = (T1,T2); 
+        
+        #[inline] fn filter<T1,T2>(x1: T1, x2: T2) -> Self::Filtered<T1,T2> {(x1,x2)}
+        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) {filtered}
+    }
 
     pub trait SelectPair: TyBoolPair { //A more specific version of filter where at most 1 of the inputs is outputted
         type Selected<T1,T2>;
 
         fn select<T1,T2>(x1: T1, x2: T2) -> Self::Selected<T1,T2>;
+        unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2);
         fn select_ref<'a,T1,T2>(x1: &'a T1, x2: &'a T2) -> &'a Self::Selected<T1,T2>;
         fn select_ref_mut<'a,T1,T2>(x1: &'a mut T1, x2: &'a mut T2) -> &'a mut Self::Selected<T1,T2>;
     }
@@ -53,6 +77,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = ();
 
         #[inline] fn select<T1,T2>(_: T1, _: T2) -> Self::Selected<T1,T2> {}
+        #[inline] unsafe fn deselect<T1,T2>(_: Self::Selected<T1,T2>) -> (T1,T2) {(transmute_copy(&()),transmute_copy(&()))}
         #[inline] fn select_ref<'a,T1,T2>(_: &'a T1, _: &'a T2) -> &'a Self::Selected<T1,T2> {Box::leak(Box::new(()))} //oh no, leaking a (), a type of size 0, whatever will we do...
         #[inline] fn select_ref_mut<'a,T1,T2>(_: &'a mut T1, _: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {Box::leak(Box::new(()))} //although this does assume Rust will realize that the & is useless and elides it
     }
@@ -61,6 +86,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = T2;
 
         #[inline] fn select<T1,T2>(_: T1, x: T2) -> Self::Selected<T1,T2> {x} 
+        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) {(transmute_copy(&()),filtered)}
         #[inline] fn select_ref<'a,T1,T2>(_: &'a T1, x: &'a T2) -> &'a Self::Selected<T1,T2> {x}
         #[inline] fn select_ref_mut<'a,T1,T2>(_: &'a mut T1, x: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {x}
     }
@@ -69,6 +95,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = T1;
 
         #[inline] fn select<T1,T2>(x: T1, _: T2) -> Self::Selected<T1,T2> {x} 
+        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) {(filtered,transmute_copy(&()))}
         #[inline] fn select_ref<'a,T1,T2>(x: &'a T1, _: &'a T2) -> &'a Self::Selected<T1,T2> {x}
         #[inline] fn select_ref_mut<'a,T1,T2>(x: &'a mut T1, _: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {x}
     }
@@ -162,7 +189,7 @@ pub mod util_traits {
 }
 
 pub(crate) mod util_structs {
-    pub struct NoneIter<T>(std::marker::PhantomData<T>); // used to abuse Sum and Product
+    pub struct NoneIter<T>(std::marker::PhantomData<T>); // used to abuse Sum and Product to get the additive & multiplicative identity values
 
     impl<T> NoneIter<T> {
         #[inline] pub fn new() -> NoneIter<T> {NoneIter(std::marker::PhantomData)} 
@@ -184,7 +211,7 @@ mod test {
     use rand::Rng;
 
     use crate::vector::{vector_gen, VectorVectorOps, MathVector, VectorOps};
-    use crate::matrix::{MathMatrix,MatrixOps,VectorizableMatrixOps,EqDimMatrixMatrixOps,matrix_gen};
+    use crate::matrix::{MathMatrix,matrix_gen};
     use std::time::*;
 
 

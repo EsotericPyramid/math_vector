@@ -1,5 +1,5 @@
 use self::{vec_util_traits::{Get, HasReuseBuf, VectorLike}, vector_structs::OwnedArray};
-use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::{Assign,HasOutput}};
+use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::HasOutput};
 use std::ops::*;
 
 pub mod vec_util_traits {
@@ -39,13 +39,13 @@ pub mod vec_util_traits {
         type SndOwnedBufferBool: TyBool;
         type FstOwnedBuffer;
         type SndOwnedBuffer;
-        type FstHandle<'a> where Self: 'a;
-        type SndHandle<'a> where Self: 'a;
-        type BoundHandles<'a> where Self: 'a;
+        type FstType;
+        type SndType;
+        type BoundTypes;
 
-        unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a>; 
-        unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a>;
-        unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a>;
+        unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType); 
+        unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType);
+        unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes);
         unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer;
         unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer;
         unsafe fn drop_1st_buf_index(&mut self, index: usize);
@@ -68,7 +68,7 @@ pub struct VectorExpr<T: VectorLike,const D: usize>(pub(crate) T); // note: Vect
 
 impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     #[inline] 
-    pub fn consume<'a>(self) -> T::Output where Self: 'a, T::BoundHandles<'a>: Assign<Val = T::BoundItems> {
+    pub fn consume(self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
         VectorIter::<T,D>{
             vec: unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) },
             live_input_start: 0,
@@ -77,29 +77,27 @@ impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     }
 
     #[inline]
-    pub fn eval<'a>(self) -> <VecBind<VecMaybeCreateBuf<T,T::Item,D>> as HasOutput>::Output 
+    pub fn eval(self) -> <VecBind<VecMaybeCreateBuf<T,T::Item,D>> as HasOutput>::Output 
     where 
         <T::FstHandleBool as TyBool>::Neg: Filter,
         (T::FstHandleBool, <T::FstHandleBool as TyBool>::Neg): SelectPair,
         (T::FstOwnedBufferBool,<T::FstHandleBool as TyBool>::Neg): TyBoolPair,
         (T::OutputBool,<(T::FstOwnedBufferBool,<T::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
         (T::BoundHandlesBool,Y): FilterPair,
-        Self: 'a,
-        <VecBind<VecMaybeCreateBuf<T,T::Item,D>> as HasReuseBuf>::BoundHandles<'a>: Assign<Val = <VecBind<VecMaybeCreateBuf<T,T::Item,D>> as Get>::BoundItems>
+        VecBind<VecMaybeCreateBuf<T,T::Item,D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateBuf<T,T::Item,D>> as Get>::BoundItems>
     {
         self.maybe_create_buf().bind().consume()
     }
 
     #[inline]
-    pub fn heap_eval<'a>(self) -> <VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>> as HasOutput>::Output 
+    pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>> as HasOutput>::Output 
     where 
         <T::FstHandleBool as TyBool>::Neg: Filter,
         (T::FstHandleBool, <T::FstHandleBool as TyBool>::Neg): SelectPair,
         (T::FstOwnedBufferBool,<T::FstHandleBool as TyBool>::Neg): TyBoolPair,
         (T::OutputBool,<(T::FstOwnedBufferBool,<T::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
         (T::BoundHandlesBool,Y): FilterPair,
-        Self: 'a,
-        <VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>> as HasReuseBuf>::BoundHandles<'a>: Assign<Val = <VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>> as Get>::BoundItems>
+        VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateHeapBuf<T,T::Item,D>> as Get>::BoundItems>
     {
         self.maybe_create_heap_buf().bind().consume()
     }
@@ -117,7 +115,7 @@ impl<T: VectorLike,const D: usize> Drop for VectorExpr<T,D> {
     }
 }
 
-impl<T: VectorLike,const D: usize> IntoIterator for VectorExpr<T,D> where for<'a> T::BoundHandles<'a>: Assign<Val = T::BoundItems> {
+impl<T: VectorLike,const D: usize> IntoIterator for VectorExpr<T,D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {
     type IntoIter = VectorIter<T,D>;
     type Item = <T as Get>::Item;
 
@@ -136,12 +134,12 @@ pub struct VectorIter<T: VectorLike,const D: usize>{vec: T, live_input_start: us
 
 impl<T: VectorLike,const D: usize> VectorIter<T,D> {
     #[inline]
-    pub unsafe fn next_unchecked<'a>(&'a mut self) -> T::Item where T::BoundHandles<'a>: Assign<Val = T::BoundItems>{
+    pub unsafe fn next_unchecked(&mut self) -> T::Item where T: HasReuseBuf<BoundTypes = T::BoundItems> {
         let index = self.live_input_start;
         self.live_input_start += 1;
         let inputs = self.vec.get_inputs(index);
         let (item,bound_items) = self.vec.process(inputs);
-        self.vec.get_bound_handles(index).assign(bound_items);
+        self.vec.assign_bound_bufs(index,bound_items);
         self.dead_output_start += 1;
         item
     }
@@ -162,19 +160,9 @@ impl<T: VectorLike,const D: usize> VectorIter<T,D> {
     }
 
     #[inline]
-    pub fn consume<'a>(mut self) -> T::Output where Self: 'a, T::BoundHandles<'a>: Assign<Val = T::BoundItems> {
-        let vec = &mut self.vec;
-        let live_input_start = &mut self.live_input_start;
-        let dead_output_start = &mut self.dead_output_start;
-        while *live_input_start < D {
-            unsafe {
-                let index = *live_input_start;
-                *live_input_start += 1;
-                let inputs = vec.get_inputs(index);
-                let (_,bound_items) = vec.process(inputs);
-                std::mem::transmute::<&mut T, &'a mut T>(vec).get_bound_handles(index).assign(bound_items); // FIXME: lifetime jank, the lifetime which is used here immediately dies, but Rust must consider an (impossible) lifetime also being used it for generics
-                *dead_output_start += 1;
-            }
+    pub fn consume(mut self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
+        while self.live_input_start < D {
+            unsafe { let _ = self.next_unchecked(); }
         }
         unsafe {self.unchecked_output()} // safety: VectorIter was fully used
     }
@@ -196,7 +184,7 @@ impl<T: VectorLike,const D: usize> Drop for VectorIter<T,D> {
     }
 }
 
-impl<T: VectorLike,const D: usize> Iterator for VectorIter<T,D> where for<'a> T::BoundHandles<'a>: Assign<Val = T::BoundItems> {
+impl<T: VectorLike,const D: usize> Iterator for VectorIter<T,D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {
     type Item = T::Item;
 
     #[inline]
@@ -215,9 +203,9 @@ impl<T: VectorLike,const D: usize> Iterator for VectorIter<T,D> where for<'a> T:
     }
 }
 
-impl<T: VectorLike,const D: usize> ExactSizeIterator for VectorIter<T,D> where for<'a> T::BoundHandles<'a>: Assign<Val = T::BoundItems> {}
+impl<T: VectorLike,const D: usize> ExactSizeIterator for VectorIter<T,D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {}
 
-impl<T: VectorLike,const D: usize> std::iter::FusedIterator for VectorIter<T,D> where for<'a> T::BoundHandles<'a>: Assign<Val = T::BoundItems> {}
+impl<T: VectorLike,const D: usize> std::iter::FusedIterator for VectorIter<T,D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {}
 
 
 pub type MathVector<T,const D: usize> = VectorExpr<OwnedArray<T,D>,D>;
@@ -384,15 +372,17 @@ pub trait VectorOps {
     unsafe fn wrap<T: VectorLike>(vec: T) -> Self::Wrapped<T>;
 
     #[inline] 
-    fn bind<'a>(self) -> Self::Wrapped<VecBind<Self::Unwrapped>> where 
+    fn bind(self) -> Self::Wrapped<VecBind<Self::Unwrapped>> where 
         Self::Unwrapped:  VectorLike<FstHandleBool = Y>,
         (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): FilterPair,
         (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,Y): FilterPair,
-        <VecBind<Self::Unwrapped> as HasReuseBuf>::BoundHandles<'a>: Assign<Val = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
-        Self: 'a + Sized
+        VecBind<Self::Unwrapped>: HasReuseBuf<BoundTypes = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
+        Self: Sized
     {
         unsafe { Self::wrap(VecBind{vec: self.unwrap()}) }
     }
+
+    // TODO: add map_bind
 
     #[inline] fn buf_swap(self) -> Self::Wrapped<VecBufSwap<Self::Unwrapped>> where Self: Sized {
         unsafe { Self::wrap(VecBufSwap{vec: self.unwrap()}) }
