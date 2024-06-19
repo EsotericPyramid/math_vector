@@ -60,13 +60,13 @@ unsafe impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -95,7 +95,7 @@ impl<'a,T,const D: usize> HasOutput for &'a [T; D] {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<'b,T,const D: usize> HasReuseBuf for &'b [T; D] {
+unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -103,13 +103,13 @@ unsafe impl<'b,T,const D: usize> HasReuseBuf for &'b [T; D] {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -139,7 +139,7 @@ impl<'a,T,const D: usize> HasOutput for &'a mut [T; D] {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<'b,T,const D: usize> HasReuseBuf for &'b mut [T; D] {
+unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a mut [T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -147,13 +147,13 @@ unsafe impl<'b,T,const D: usize> HasReuseBuf for &'b mut [T; D] {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -184,13 +184,13 @@ unsafe impl<V: VectorLike> HasReuseBuf for Box<V> {
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = V::FstOwnedBuffer;
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = V::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = V::FstType;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {(debox(self)).get_1st_handle(index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {(debox(self)).get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {(debox(self)).get_bound_handles(index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {(debox(self)).assign_1st_buf(index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {(debox(self)).assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {(debox(self)).assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(debox(self)).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(debox(self)).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {(debox(self)).drop_1st_buf_index(index)}
@@ -242,13 +242,13 @@ unsafe impl<T,const D: usize> HasReuseBuf for ReplaceArray<T,D> {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = MathVector<T,D>;
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = NoDropHandle<'a,T> where Self: 'a ;
-    type SndHandle<'a> = () where Self: 'a ;
-    type BoundHandles<'a> = () where Self: 'a ;
+    type FstType = T;
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {NoDropHandle(std::mem::transmute::<&mut T,&mut ManuallyDrop<T>>(self.0.get_unchecked_mut(index)))}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {std::ptr::write(self.0.get_unchecked_mut(index), val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         VectorExpr(OwnedArray(std::ptr::read(&self.0)))
     }
@@ -302,13 +302,13 @@ unsafe impl<T,const D: usize> HasReuseBuf for ReplaceHeapArray<T,D> {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = Box<MathVector<T,D>>;
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = NoDropHandle<'a,T> where Self: 'a ;
-    type SndHandle<'a> = () where Self: 'a ;
-    type BoundHandles<'a> = () where Self: 'a ;
+    type FstType = T;
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {NoDropHandle(std::mem::transmute::<&mut T,&mut ManuallyDrop<T>>(self.0.get_unchecked_mut(index)))}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {std::ptr::write(self.0.get_unchecked_mut(index), val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         //  safety, equivilent types in order:
         //      ManuallyDrop<Box<[T; D]>>
@@ -356,13 +356,13 @@ unsafe impl<F: FnMut() -> O,O> HasReuseBuf for VecGenerator<F,O> {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -401,13 +401,13 @@ unsafe impl<F: FnMut(usize) -> O,O> HasReuseBuf for VecIndexGenerator<F,O> {
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -448,13 +448,13 @@ unsafe impl<'b,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf fo
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = &'a mut T where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {*self.buf.get_unchecked_mut(index) = val}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -495,13 +495,13 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for V
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = MathVector<T,D>;
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = *mut T where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(index).as_mut_ptr()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {std::ptr::write(self.buf.get_unchecked_mut(index),std::mem::MaybeUninit::new(val))}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         VectorExpr(OwnedArray(std::mem::transmute_copy::<[std::mem::MaybeUninit<T>; D],ManuallyDrop<[T; D]>>(&self.buf)))
     }
@@ -544,13 +544,13 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for V
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = Box<MathVector<T,D>>;
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = *mut T where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(index).as_mut_ptr()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {std::ptr::write(self.buf.get_unchecked_mut(index),std::mem::MaybeUninit::new(val))}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         std::mem::transmute_copy::<Box<[std::mem::MaybeUninit<T>; D]>,Box<MathVector<T,D>>>(&self.buf)
     }
@@ -598,18 +598,17 @@ where
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = <(V::FstHandleBool,<V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstOwnedBuffer, MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>,D>>;
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstHandle<'a>,*mut <<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>> where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstType,<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {
-        <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(self.vec.get_1st_handle(index),self.buf.get_unchecked_mut(index).as_mut_ptr())
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
+        let (init_val,attached_val) = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::deselect(val);
+        self.vec.assign_1st_buf(index, init_val);
+        std::ptr::write(self.buf.get_unchecked_mut(index),std::mem::MaybeUninit::new(attached_val));
     }
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {
-        self.vec.drop_1st_buf_index(index);
-        // assuming that its safe to drop () even if we never properlly "initiallized" them
-        self.buf.get_unchecked_mut(index).assume_init_drop();
-    }
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(V::FstHandleBool,<V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
             self.vec.get_1st_buffer(),
@@ -617,9 +616,12 @@ where
         )
     }
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {
+        self.vec.drop_1st_buf_index(index);
+        // assuming that its safe to drop () even if we never properlly "initiallized" them
+        self.buf.get_unchecked_mut(index).assume_init_drop();
+    }
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) {self.vec.drop_2nd_buf_index(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {self.vec.drop_bound_bufs_index(index)}
 }
 
@@ -661,18 +663,17 @@ where
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
     type FstOwnedBuffer = <(V::FstHandleBool,<V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstOwnedBuffer, Box<MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>,D>>>;
     type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstHandle<'a> = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstHandle<'a>,*mut <<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>> where Self: 'a;
-    type SndHandle<'a> = V::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = V::BoundHandles<'a> where Self: 'a;
+    type FstType = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<V::FstType,<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {
-        <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(self.vec.get_1st_handle(index),self.buf.get_unchecked_mut(index).as_mut_ptr())
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
+        let (init_val,attached_val) = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::deselect(val);
+        self.vec.assign_1st_buf(index, init_val);
+        std::ptr::write(self.buf.get_unchecked_mut(index),std::mem::MaybeUninit::new(attached_val));
     }
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {
-        self.vec.drop_1st_buf_index(index);
-        // assuming that its safe to drop () even if we never properlly "initiallized" them
-        self.buf.get_unchecked_mut(index).assume_init_drop();
-    }
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(V::FstHandleBool,<V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
             self.vec.get_1st_buffer(),
@@ -680,9 +681,12 @@ where
         )
     }
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {
+        self.vec.drop_1st_buf_index(index);
+        // assuming that its safe to drop () even if we never properlly "initiallized" them
+        self.buf.get_unchecked_mut(index).assume_init_drop();
+    }
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) {self.vec.drop_2nd_buf_index(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {self.vec.drop_bound_bufs_index(index)}
 }
 
@@ -736,20 +740,16 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<T> where (
     type SndOwnedBufferBool = T::SndOwnedBufferBool;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = T::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundHandles<'a>,T::FstHandle<'a>> where Self: 'a;
+    type FstType = ();
+    type SndType = T::SndType;
+    type BoundTypes = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundTypes,T::FstType>;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {
-        // Safety:
-        //  This should be safe as fst_handle shouldn't alias with the already bound handles
-        //  all the transmute should do is screw with the lifetimes involved to line up with reality
-        //  
-        //  T::FstHandle<'_> -Transmute-> T::FstHandle<'a>
-        let fst_handle: T::FstHandle<'a> = std::mem::transmute(self.vec.get_1st_handle(index));
-        <(T::BoundHandlesBool,Y) as FilterPair>::filter(self.vec.get_bound_handles(index),fst_handle) 
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
+        let (bounded_vals,new_bound_val) = <(T::BoundHandlesBool,Y) as FilterPair>::defilter(val);
+        self.vec.assign_bound_bufs(index, bounded_vals);
+        self.vec.assign_1st_buf(index, new_bound_val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
@@ -812,20 +812,16 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> Has
     type SndOwnedBufferBool = T::SndOwnedBufferBool;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = T::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundHandles<'a>,T::FstHandle<'a>> where Self: 'a;
+    type FstType = ();
+    type SndType = T::SndType;
+    type BoundTypes = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundTypes,T::FstType>;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {
-        // Safety:
-        //  This should be safe as fst_handle shouldn't alias with the already bound handles
-        //  all the transmute should do is screw with the lifetimes involved to line up with reality
-        //  
-        //  T::FstHandle<'_> -Transmute-> T::FstHandle<'a>
-        let fst_handle: T::FstHandle<'a> = std::mem::transmute(self.vec.get_1st_handle(index));
-        <(T::BoundHandlesBool,Y) as FilterPair>::filter(self.vec.get_bound_handles(index),fst_handle) 
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
+        let (bounded_vals,new_bound_val) = <(T::BoundHandlesBool,Y) as FilterPair>::defilter(val);
+        self.vec.assign_bound_bufs(index, bounded_vals);
+        self.vec.assign_1st_buf(index, new_bound_val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
@@ -868,13 +864,13 @@ unsafe impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     type SndOwnedBufferBool = T::FstOwnedBufferBool;
     type FstOwnedBuffer = T::SndOwnedBuffer;
     type SndOwnedBuffer = T::FstOwnedBuffer;
-    type FstHandle<'a> = T::SndHandle<'a> where Self: 'a;
-    type SndHandle<'a> = T::FstHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = T::BoundHandles<'a> where Self: 'a;
+    type FstType = T::SndType;
+    type SndType = T::FstType;
+    type BoundTypes = T::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, index: usize) -> Self::FstHandle<'a> {self.vec.get_2nd_handle(index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, index: usize) -> Self::SndHandle<'a> {self.vec.get_1st_handle(index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {self.vec.assign_2nd_buf(index, val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_1st_buf(index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index, val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_2nd_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_1st_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {self.vec.drop_2nd_buf_index(index)}
@@ -928,13 +924,13 @@ unsafe impl<T: VectorLike,const D: usize> HasReuseBuf for VecOffset<T,D> {
     type SndOwnedBufferBool = T::SndOwnedBufferBool;
     type FstOwnedBuffer = T::FstOwnedBuffer;
     type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstHandle<'a> = T::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = T::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = T::BoundHandles<'a> where Self: 'a;
+    type FstType = T::FstType;
+    type SndType = T::SndType;
+    type BoundTypes = T::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {self.vec.get_1st_handle(self.offset_index(index))}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(self.offset_index(index))}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(self.offset_index(index))}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {self.vec.assign_1st_buf(self.offset_index(index),val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {self.vec.assign_2nd_buf(self.offset_index(index),val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {self.vec.assign_bound_bufs(self.offset_index(index),val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.vec.drop_1st_buf_index(self.offset_index(index))}
@@ -982,25 +978,25 @@ impl<T: VectorLike> HasOutput for RuntimeVecOffset<T> {
 }
 
 unsafe impl<T: VectorLike> HasReuseBuf for RuntimeVecOffset<T> {
-        type FstHandleBool = T::FstHandleBool;
-        type SndHandleBool = T::SndHandleBool;
-        type BoundHandlesBool = T::BoundHandlesBool;
-        type FstOwnedBufferBool = T::FstOwnedBufferBool;
-        type SndOwnedBufferBool = T::SndOwnedBufferBool;
-        type FstOwnedBuffer = T::FstOwnedBuffer;
-        type SndOwnedBuffer = T::SndOwnedBuffer;
-        type FstHandle<'a> = T::FstHandle<'a> where Self: 'a;
-        type SndHandle<'a> = T::SndHandle<'a> where Self: 'a;
-        type BoundHandles<'a> = T::BoundHandles<'a> where Self: 'a;
+    type FstHandleBool = T::FstHandleBool;
+    type SndHandleBool = T::SndHandleBool;
+    type BoundHandlesBool = T::BoundHandlesBool;
+    type FstOwnedBufferBool = T::FstOwnedBufferBool;
+    type SndOwnedBufferBool = T::SndOwnedBufferBool;
+    type FstOwnedBuffer = T::FstOwnedBuffer;
+    type SndOwnedBuffer = T::SndOwnedBuffer;
+    type FstType = T::FstType;
+    type SndType = T::SndType;
+    type BoundTypes = T::BoundTypes;
 
-        #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {self.vec.get_1st_handle(self.offset_index(index))}
-        #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {self.vec.get_2nd_handle(self.offset_index(index))}
-        #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {self.vec.get_bound_handles(self.offset_index(index))}
-        #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_1st_buffer()}
-        #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
-        #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.vec.drop_1st_buf_index(self.offset_index(index))}
-        #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {self.vec.drop_2nd_buf_index(self.offset_index(index))}
-        #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {self.vec.drop_bound_bufs_index(self.offset_index(index))}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {self.vec.assign_1st_buf(self.offset_index(index),val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {self.vec.assign_2nd_buf(self.offset_index(index),val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {self.vec.assign_bound_bufs(self.offset_index(index),val)}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_1st_buffer()}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.vec.drop_1st_buf_index(self.offset_index(index))}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {self.vec.drop_2nd_buf_index(self.offset_index(index))}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {self.vec.drop_bound_bufs_index(self.offset_index(index))}
 }
 
 /// SAFETY: it is expected that the used_vec field is safe to output in addition to normal correct implementation
@@ -1052,18 +1048,24 @@ where
     type SndOwnedBufferBool = <(V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool) as TyBoolPair>::Xor; 
     type FstOwnedBuffer = <(V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool) as SelectPair>::Selected<V::FstOwnedBuffer,USEDV::FstOwnedBuffer>;
     type SndOwnedBuffer = <(V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool) as SelectPair>::Selected<V::SndOwnedBuffer,USEDV::SndOwnedBuffer>;
-    type FstHandle<'z> = <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::Selected<V::FstHandle<'z>,USEDV::FstHandle<'z>> where Self: 'z;
-    type SndHandle<'z> = <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::Selected<V::SndHandle<'z>,USEDV::SndHandle<'z>> where Self: 'z;
-    type BoundHandles<'z> = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::Filtered<V::BoundHandles<'z>,USEDV::BoundHandles<'z>> where Self: 'z;
+    type FstType = <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::Selected<V::FstType,USEDV::FstType>;
+    type SndType = <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::Selected<V::SndType,USEDV::SndType>;
+    type BoundTypes = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::Filtered<V::BoundTypes,USEDV::BoundTypes>;
 
-    #[inline] unsafe fn get_1st_handle<'z>(&'z mut self,index: usize) -> Self::FstHandle<'z> {
-        <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::select(self.vec.get_1st_handle(index),self.used_vec.get_1st_handle(index))
+    #[inline] unsafe fn assign_1st_buf<'z>(&'z mut self,index: usize,val: Self::FstType) {
+        let (l_val,r_val) = <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::deselect(val);
+        self.vec.assign_1st_buf(index,l_val);
+        self.used_vec.assign_1st_buf(index,r_val);
     }
-    #[inline] unsafe fn get_2nd_handle<'z>(&'z mut self,index: usize) -> Self::SndHandle<'z> {
-        <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::select(self.vec.get_2nd_handle(index),self.used_vec.get_2nd_handle(index))
+    #[inline] unsafe fn assign_2nd_buf<'z>(&'z mut self,index: usize,val: Self::SndType) {
+        let (l_val,r_val) = <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::deselect(val);
+        self.vec.assign_2nd_buf(index,l_val);
+        self.used_vec.assign_2nd_buf(index,r_val);
     }
-    #[inline] unsafe fn get_bound_handles<'z>(&'z mut self,index: usize) -> Self::BoundHandles<'z> {
-        <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::filter(self.vec.get_bound_handles(index),self.used_vec.get_bound_handles(index))
+    #[inline] unsafe fn assign_bound_bufs<'z>(&'z mut self,index: usize,val: Self::BoundTypes) {
+        let (l_val,r_val) = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::defilter(val);
+        self.vec.assign_bound_bufs(index,l_val);
+        self.used_vec.assign_bound_bufs(index,r_val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool) as SelectPair>::select(self.vec.get_1st_buffer(),self.used_vec.get_1st_buffer())
@@ -1186,13 +1188,13 @@ macro_rules! vec_struct {
             type SndOwnedBufferBool = <$vec_generic as HasReuseBuf>::SndOwnedBufferBool;
             type FstOwnedBuffer = <$vec_generic as HasReuseBuf>::FstOwnedBuffer;
             type SndOwnedBuffer = <$vec_generic as HasReuseBuf>::SndOwnedBuffer;
-            type FstHandle<'z> = <$vec_generic as HasReuseBuf>::FstHandle<'z> where Self: 'z;
-            type SndHandle<'z> = <$vec_generic as HasReuseBuf>::SndHandle<'z> where Self: 'z;
-            type BoundHandles<'z> = <$vec_generic as HasReuseBuf>::BoundHandles<'z> where Self: 'z;
+            type FstType = <$vec_generic as HasReuseBuf>::FstType;
+            type SndType = <$vec_generic as HasReuseBuf>::SndType;
+            type BoundTypes = <$vec_generic as HasReuseBuf>::BoundTypes;
 
-            #[inline] unsafe fn get_1st_handle<'z>(&'z mut self,index: usize) -> Self::FstHandle<'z> {self.$vec.get_1st_handle(index)}
-            #[inline] unsafe fn get_2nd_handle<'z>(&'z mut self,index: usize) -> Self::SndHandle<'z> {self.$vec.get_2nd_handle(index)}
-            #[inline] unsafe fn get_bound_handles<'z>(&'z mut self,index: usize) -> Self::BoundHandles<'z> {self.$vec.get_bound_handles(index)}
+            #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {self.$vec.assign_1st_buf(index,val)}
+            #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.$vec.assign_2nd_buf(index,val)}
+            #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.$vec.assign_bound_bufs(index,val)}
             #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.$vec.get_1st_buffer()}
             #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.$vec.get_2nd_buffer()}
             #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.$vec.drop_1st_buf_index(index)}
@@ -1268,18 +1270,24 @@ macro_rules! vec_struct {
             type SndOwnedBufferBool = <(<$l_vec_generic as HasReuseBuf>::SndOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::SndOwnedBufferBool) as TyBoolPair>::Xor; 
             type FstOwnedBuffer = <(<$l_vec_generic as HasReuseBuf>::FstOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::FstOwnedBufferBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::FstOwnedBuffer,<$r_vec_generic as HasReuseBuf>::FstOwnedBuffer>;
             type SndOwnedBuffer = <(<$l_vec_generic as HasReuseBuf>::SndOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::SndOwnedBufferBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::SndOwnedBuffer,<$r_vec_generic as HasReuseBuf>::SndOwnedBuffer>;
-            type FstHandle<'z> = <(<$l_vec_generic as HasReuseBuf>::FstHandleBool, <$r_vec_generic as HasReuseBuf>::FstHandleBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::FstHandle<'z>,<$r_vec_generic as HasReuseBuf>::FstHandle<'z>> where Self: 'z;
-            type SndHandle<'z> = <(<$l_vec_generic as HasReuseBuf>::SndHandleBool, <$r_vec_generic as HasReuseBuf>::SndHandleBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::SndHandle<'z>,<$r_vec_generic as HasReuseBuf>::SndHandle<'z>> where Self: 'z;
-            type BoundHandles<'z> = <(<$l_vec_generic as HasReuseBuf>::BoundHandlesBool, <$r_vec_generic as HasReuseBuf>::BoundHandlesBool) as FilterPair>::Filtered<<$l_vec_generic as HasReuseBuf>::BoundHandles<'z>,<$r_vec_generic as HasReuseBuf>::BoundHandles<'z>> where Self: 'z;
+            type FstType = <(<$l_vec_generic as HasReuseBuf>::FstHandleBool, <$r_vec_generic as HasReuseBuf>::FstHandleBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::FstType,<$r_vec_generic as HasReuseBuf>::FstType>;
+            type SndType = <(<$l_vec_generic as HasReuseBuf>::SndHandleBool, <$r_vec_generic as HasReuseBuf>::SndHandleBool) as SelectPair>::Selected<<$l_vec_generic as HasReuseBuf>::SndType,<$r_vec_generic as HasReuseBuf>::SndType>;
+            type BoundTypes = <(<$l_vec_generic as HasReuseBuf>::BoundHandlesBool, <$r_vec_generic as HasReuseBuf>::BoundHandlesBool) as FilterPair>::Filtered<<$l_vec_generic as HasReuseBuf>::BoundTypes,<$r_vec_generic as HasReuseBuf>::BoundTypes>;
         
-            #[inline] unsafe fn get_1st_handle<'z>(&'z mut self,index: usize) -> Self::FstHandle<'z> {
-                <(<$l_vec_generic as HasReuseBuf>::FstHandleBool, <$r_vec_generic as HasReuseBuf>::FstHandleBool) as SelectPair>::select(self.$l_vec.get_1st_handle(index),self.$r_vec.get_1st_handle(index))
+            #[inline] unsafe fn assign_1st_buf<'z>(&'z mut self,index: usize,val: Self::FstType) {
+                let (l_val,r_val) = <(<$l_vec_generic as HasReuseBuf>::FstHandleBool, <$r_vec_generic as HasReuseBuf>::FstHandleBool) as SelectPair>::deselect(val);
+                self.$l_vec.assign_1st_buf(index,l_val);
+                self.$r_vec.assign_1st_buf(index,r_val);
             }
-            #[inline] unsafe fn get_2nd_handle<'z>(&'z mut self,index: usize) -> Self::SndHandle<'z> {
-                <(<$l_vec_generic as HasReuseBuf>::SndHandleBool, <$r_vec_generic as HasReuseBuf>::SndHandleBool) as SelectPair>::select(self.$l_vec.get_2nd_handle(index),self.$r_vec.get_2nd_handle(index))
+            #[inline] unsafe fn assign_2nd_buf<'z>(&'z mut self,index: usize,val: Self::SndType) {
+                let (l_val,r_val) = <(<$l_vec_generic as HasReuseBuf>::SndHandleBool, <$r_vec_generic as HasReuseBuf>::SndHandleBool) as SelectPair>::deselect(val);
+                self.$l_vec.assign_2nd_buf(index,l_val);
+                self.$r_vec.assign_2nd_buf(index,r_val);
             }
-            #[inline] unsafe fn get_bound_handles<'z>(&'z mut self,index: usize) -> Self::BoundHandles<'z> {
-                <(<$l_vec_generic as HasReuseBuf>::BoundHandlesBool, <$r_vec_generic as HasReuseBuf>::BoundHandlesBool) as FilterPair>::filter(self.$l_vec.get_bound_handles(index),self.$r_vec.get_bound_handles(index))
+            #[inline] unsafe fn assign_bound_bufs<'z>(&'z mut self,index: usize,val: Self::BoundTypes) {
+                let (l_val,r_val) = <(<$l_vec_generic as HasReuseBuf>::BoundHandlesBool, <$r_vec_generic as HasReuseBuf>::BoundHandlesBool) as FilterPair>::defilter(val);
+                self.$l_vec.assign_bound_bufs(index,l_val);
+                self.$r_vec.assign_bound_bufs(index,r_val);
             }
             #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
                 <(<$l_vec_generic as HasReuseBuf>::FstOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::FstOwnedBufferBool) as SelectPair>::select(self.$l_vec.get_1st_buffer(),self.$r_vec.get_1st_buffer())

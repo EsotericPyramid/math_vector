@@ -1,4 +1,4 @@
-use crate::{util_traits::{Assign, HasOutput}, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
+use crate::{util_traits::HasOutput, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
 use self::mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike};
 use crate::trait_specialization_utils::*;
 use std::ops::*;
@@ -38,15 +38,15 @@ pub mod mat_util_traits {
         type IsFstBufferTransposed: TyBool;
         type IsSndBufferTransposed: TyBool;
         type AreBoundBuffersTransposed: TyBool;
-        type FstHandle<'a> where Self: 'a;
-        type SndHandle<'a> where Self: 'a;
-        type BoundHandles<'a> where Self: 'a;
         type FstOwnedBuffer;
         type SndOwnedBuffer;
+        type FstType;
+        type SndType;
+        type BoundTypes;
 
-        unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a>; 
-        unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a>;
-        unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a>;
+        unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType); 
+        unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType);
+        unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes);
         unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize);
         unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize);
         unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize);
@@ -71,12 +71,12 @@ pub struct MatrixExpr<M: MatrixLike,const D1: usize,const D2: usize>(M);
 
 impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixExpr<M,D1,D2> {
     #[inline] 
-    pub fn consume<'a>(self) -> M::Output where Self: 'a, M::BoundHandles<'a>: Assign<Val = M::BoundItems> {
+    pub fn consume(self) -> M::Output where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
         self.into_entry_iter().consume()
     }
 
     #[inline]
-    pub fn eval<'a>(self) -> <MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>> as HasOutput>::Output 
+    pub fn eval(self) -> <MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>> as HasOutput>::Output 
     where
         (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair,
         (M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg): TyBoolPair,
@@ -84,14 +84,13 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixExpr<M,D1,D2> {
         <M::FstHandleBool as TyBool>::Neg: Filter,
         (M::BoundHandlesBool,Y): FilterPair,
         (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair,
-        <MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>> as Has2DReuseBuf>::BoundHandles<'a>: Assign<Val = <MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>> as Get2D>::BoundItems>,
-        Self: 'a
+        MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>> as Get2D>::BoundItems>
     {
         self.maybe_create_2d_buf().bind().consume()
     }
 
     #[inline]
-    pub fn heap_eval<'a>(self) -> <MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>> as HasOutput>::Output 
+    pub fn heap_eval(self) -> <MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>> as HasOutput>::Output 
     where
         (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair,
         (M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg): TyBoolPair,
@@ -99,8 +98,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixExpr<M,D1,D2> {
         <M::FstHandleBool as TyBool>::Neg: Filter,
         (M::BoundHandlesBool,Y): FilterPair,
         (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair,
-        <MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>> as Has2DReuseBuf>::BoundHandles<'a>: Assign<Val = <MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>> as Get2D>::BoundItems>,
-        Self: 'a
+        MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DHeapBuf<M,M::Item,D1,D2>> as Get2D>::BoundItems>
     {
         self.maybe_create_2d_heap_buf().bind().consume()
     }
@@ -163,14 +161,14 @@ pub struct MatrixEntryIter<M: MatrixLike,const D1: usize,const D2: usize>{mat: M
 
 impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
     #[inline]
-    pub fn raw_next<'a>(&'a mut self) -> Option<M::Item> where M::BoundHandles<'a>: Assign<Val = M::BoundItems> {
+    pub fn raw_next(&mut self) -> Option<M::Item> where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
         unsafe {
             if self.live_input_row_start < D1 { //current vector isn't done
                 let row_index = self.live_input_row_start;
                 self.live_input_row_start += 1;
                 let inputs = self.mat.get_inputs(self.current_col, row_index);
                 let (item,bound_items) = self.mat.process(inputs);
-                self.mat.get_bound_handles(self.current_col,row_index).assign(bound_items);
+                self.mat.assign_bound_bufs(self.current_col,row_index,bound_items);
                 self.dead_output_row_start += 1;
                 Some(item)
             } else if self.current_col < D2-1 {
@@ -179,7 +177,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
                 self.dead_output_row_start = 0;
                 let inputs = self.mat.get_inputs(self.current_col, 0);
                 let (item,bound_items) = self.mat.process(inputs);
-                self.mat.get_bound_handles(self.current_col,0).assign(bound_items);
+                self.mat.assign_bound_bufs(self.current_col,0,bound_items);
                 self.dead_output_row_start += 1;
                 Some(item)
             } else {
@@ -204,7 +202,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
     }
 
     #[inline]
-    pub fn consume<'a>(mut self) -> M::Output where Self: 'a, M::BoundHandles<'a>: Assign<Val = M::BoundItems>{
+    pub fn consume(mut self) -> M::Output where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
         let mat = &mut self.mat;
         let current_col = &mut self.current_col;
         let live_input_row_start = &mut self.live_input_row_start;
@@ -216,7 +214,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
                     *live_input_row_start += 1;
                     let inputs = mat.get_inputs(*current_col, row_index);
                     let (_,bound_items) = mat.process(inputs);
-                    std::mem::transmute::<&mut M, &'a mut M>(mat).get_bound_handles(*current_col,row_index).assign(bound_items);
+                    mat.assign_bound_bufs(*current_col,row_index,bound_items);
                     *dead_output_row_start += 1;
                 }
                 *live_input_row_start = 0;
@@ -228,7 +226,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
                 *live_input_row_start += 1;
                 let inputs = mat.get_inputs(*current_col, row_index);
                 let (_,bound_items) = mat.process(inputs);
-                std::mem::transmute::<&mut M, &'a mut M>(mat).get_bound_handles(*current_col,row_index).assign(bound_items);
+                mat.assign_bound_bufs(*current_col,row_index,bound_items);
                 *dead_output_row_start += 1;
             }
             self.unchecked_output()
@@ -261,7 +259,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> Drop for MatrixEntryIter<M,D
     }
 }
 
-impl<M: MatrixLike,const D1: usize,const D2: usize> Iterator for MatrixEntryIter<M,D1,D2> where for<'a> M::BoundHandles<'a>: Assign<Val = M::BoundItems> {
+impl<M: MatrixLike,const D1: usize,const D2: usize> Iterator for MatrixEntryIter<M,D1,D2> where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
     type Item = M::Item;
 
     #[inline]

@@ -77,13 +77,13 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
@@ -105,7 +105,7 @@ impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'b,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'b [[T; D1]; D2] {
+unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -116,13 +116,13 @@ unsafe impl<'b,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'b [[T; D1]
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
@@ -144,7 +144,7 @@ impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a mut [[T; D1]; D2] {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'b,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'b mut [[T; D1]; D2] {
+unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -155,13 +155,13 @@ unsafe impl<'b,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'b mut [[T;
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
@@ -196,13 +196,13 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for Box<M> {
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {(debox(self)).get_1st_handle(col_index,row_index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {(debox(self)).get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {(debox(self)).get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {(debox(self)).assign_1st_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {(debox(self)).assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {(debox(self)).assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(debox(self)).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(debox(self)).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {(debox(self)).drop_1st_buf_index(col_index,row_index)}
@@ -258,15 +258,15 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DArray<
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = MathMatrix<T,D1,D2>;
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = NoDropHandle<'a,T> where Self: 'a ;
-    type SndHandle<'a> = () where Self: 'a ;
-    type BoundHandles<'a> = () where Self: 'a ;
+    type FstType = T;
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {
-        NoDropHandle(std::mem::transmute::<&mut T,&mut ManuallyDrop<T>>(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index)))
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {
+        std::ptr::write(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index), val)
     }
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         MatrixExpr(Owned2DArray(std::ptr::read(&self.0)))
     }
@@ -326,15 +326,15 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DHeapAr
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = Box<MathMatrix<T,D1,D2>>;
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = NoDropHandle<'a,T> where Self: 'a ;
-    type SndHandle<'a> = () where Self: 'a ;
-    type BoundHandles<'a> = () where Self: 'a ;
+    type FstType = T;
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {
-        NoDropHandle(std::mem::transmute::<&mut T,&mut ManuallyDrop<T>>(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index)))
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {
+        std::ptr::write(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index), val)
     }
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         //  safety, equivilent types in order:
         //      ManuallyDrop<Box<[[T; D1]; D2]>>
@@ -388,13 +388,13 @@ unsafe impl<F: FnMut() -> O,O> Has2DReuseBuf for MatGenerator<F,O> {
     type AreBoundBuffersTransposed = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
@@ -437,13 +437,13 @@ unsafe impl<'b,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usiz
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = &'a mut T where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {*self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index) = val}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
@@ -486,13 +486,13 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = MathMatrix<T,D1,D2>;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = *mut T where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index).as_mut_ptr()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {std::ptr::write(self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index),std::mem::MaybeUninit::new(val))}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         MatrixExpr(Owned2DArray(std::mem::transmute_copy::<[[std::mem::MaybeUninit<T>; D1]; D2],ManuallyDrop<[[T; D1]; D2]>>(&self.buf)))
     }
@@ -537,13 +537,13 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = MathMatrix<T,D1,D2>;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = *mut T where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = T;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index).as_mut_ptr()}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {std::ptr::write(self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index),std::mem::MaybeUninit::new(val))}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         MatrixExpr(Owned2DArray(std::mem::transmute_copy::<[[std::mem::MaybeUninit<T>; D1]; D2],ManuallyDrop<[[T; D1]; D2]>>(&self.buf)))
     }
@@ -593,18 +593,17 @@ where
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = <(M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstOwnedBuffer, MathMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>,D1,D2>>;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstHandle<'a>,*mut <<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstType,<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {
-        <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
-            self.mat.get_1st_handle(col_index,row_index),
-            self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index).as_mut_ptr()
-        )
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {
+        let (init_val,attached_val) = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::deselect(val);
+        self.mat.assign_1st_buf(col_index,row_index,init_val);
+        std::ptr::write(self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index),std::mem::MaybeUninit::new(attached_val));
     }
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
             self.mat.get_1st_buffer(),
@@ -657,18 +656,17 @@ where
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = <(M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstOwnedBuffer, Box<MathMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>,D1,D2>>>;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstHandle<'a>,*mut <<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<M::FstType,<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {
-        <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
-            self.mat.get_1st_handle(col_index,row_index),
-            self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index).as_mut_ptr()
-        )
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {
+        let (init_val,attached_val) = <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::deselect(val);
+        self.mat.assign_1st_buf(col_index,row_index,init_val);
+        std::ptr::write(self.buf.get_unchecked_mut(col_index).get_unchecked_mut(row_index),std::mem::MaybeUninit::new(attached_val));
     }
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
             self.mat.get_1st_buffer(),
@@ -735,20 +733,16 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where
     type AreBoundBuffersTransposed = <(M::IsFstBufferTransposed,M::AreBoundBuffersTransposed) as TyBoolPair>::And;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundHandles<'a>,M::FstHandle<'a>> where Self: 'a;
+    type FstType = ();
+    type SndType = M::SndType;
+    type BoundTypes = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundTypes,M::FstType>;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index, row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {
-        // Safety:
-        //  This should be safe as fst_handle shouldn't alias with the already bound handles
-        //  all the transmute should do is screw with the lifetimes involved to line up with reality
-        //  
-        //  T::FstHandle<'_> -Transmute-> T::FstHandle<'a>
-        let fst_handle: M::FstHandle<'a> = std::mem::transmute(self.mat.get_1st_handle(col_index, row_index));
-        <(M::BoundHandlesBool,Y) as FilterPair>::filter(self.mat.get_bound_handles(col_index, row_index),fst_handle) 
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index, row_index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {
+        let (bounded_vals,new_bound_val) = <(M::BoundHandlesBool,Y) as FilterPair>::defilter(val);
+        self.mat.assign_bound_bufs(col_index, row_index, bounded_vals);
+        self.mat.assign_1st_buf(col_index, row_index, new_bound_val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
@@ -815,20 +809,16 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Has
     type AreBoundBuffersTransposed = <(M::IsFstBufferTransposed,M::AreBoundBuffersTransposed) as TyBoolPair>::And;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundHandles<'a>,M::FstHandle<'a>> where Self: 'a;
+    type FstType = ();
+    type SndType = M::SndType;
+    type BoundTypes = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundTypes,M::FstType>;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index, row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {
-        // Safety:
-        //  This should be safe as fst_handle shouldn't alias with the already bound handles
-        //  all the transmute should do is screw with the lifetimes involved to line up with reality
-        //  
-        //  T::FstHandle<'_> -Transmute-> T::FstHandle<'a>
-        let fst_handle: M::FstHandle<'a> = std::mem::transmute(self.mat.get_1st_handle(col_index, row_index));
-        <(M::BoundHandlesBool,Y) as FilterPair>::filter(self.mat.get_bound_handles(col_index, row_index),fst_handle) 
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index, row_index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {
+        let (bounded_vals,new_bound_val) = <(M::BoundHandlesBool,Y) as FilterPair>::defilter(val);
+        self.mat.assign_bound_bufs(col_index, row_index, bounded_vals);
+        self.mat.assign_1st_buf(col_index, row_index, new_bound_val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
@@ -875,13 +865,13 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::SndOwnedBuffer;
     type SndOwnedBuffer = M::FstOwnedBuffer;
-    type FstHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::SndType;
+    type SndType = M::FstType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.mat.get_2nd_handle(col_index,row_index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_1st_handle(col_index,row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_2nd_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_1st_buf(col_index,row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_1st_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_2nd_buf_index(col_index,row_index)}
@@ -940,13 +930,13 @@ unsafe impl<M: MatrixLike, const D2: usize> Has2DReuseBuf for MatColOffset<M,D2>
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.mat.get_1st_handle(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(self.offset_index(col_index),row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(self.offset_index(col_index),row_index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(self.offset_index(col_index),row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(self.offset_index(col_index),row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(self.offset_index(col_index),row_index)}
@@ -1004,13 +994,13 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatColOffset<M> {
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.mat.get_1st_handle(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(self.offset_index(col_index),row_index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(self.offset_index(col_index),row_index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(self.offset_index(col_index),row_index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(self.offset_index(col_index),row_index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(self.offset_index(col_index),row_index)}
@@ -1068,13 +1058,13 @@ unsafe impl<M: MatrixLike, const D1: usize> Has2DReuseBuf for MatRowOffset<M,D1>
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.mat.get_1st_handle(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,self.offset_index(row_index))}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(col_index,self.offset_index(row_index),val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,self.offset_index(row_index),val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,self.offset_index(row_index),val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(col_index,self.offset_index(row_index))}
@@ -1132,13 +1122,13 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatRowOffset<M> {
     type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::FstHandle<'a> {self.mat.get_1st_handle(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::SndHandle<'a> {self.mat.get_2nd_handle(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, col_index: usize, row_index: usize) -> Self::BoundHandles<'a> {self.mat.get_bound_handles(col_index,self.offset_index(row_index))}
+    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(col_index,self.offset_index(row_index),val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,self.offset_index(row_index),val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,self.offset_index(row_index),val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(col_index,self.offset_index(row_index))}
@@ -1146,6 +1136,7 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatRowOffset<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(col_index,self.offset_index(row_index))}
 }
 
+// FIXME: you shouldn't be able to get the bufs from the individual columns/rows
 // doesn't support matrices with outputs properly
 pub struct MatrixColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column_num: usize}
 
@@ -1182,13 +1173,13 @@ unsafe impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
     type SndOwnedBufferBool = M::SndOwnedBufferBool;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {(*self.mat).get_1st_handle(self.column_num, index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {(*self.mat).get_2nd_handle(self.column_num, index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {(*self.mat).get_bound_handles(self.column_num, index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(self.column_num, index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(self.column_num, index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(self.column_num, index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(self.column_num, index)}
@@ -1227,13 +1218,13 @@ unsafe impl<M: MatrixLike,const D1: usize> HasReuseBuf for MatColVectorExprs<M,D
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -1278,13 +1269,13 @@ unsafe impl<M: MatrixLike> HasReuseBuf for MatrixOutputColumn<M> {
     type SndOwnedBufferBool = M::SndOwnedBufferBool;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {(*self.mat).get_1st_handle(self.column_num, index)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {(*self.mat).get_2nd_handle(self.column_num, index)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {(*self.mat).get_bound_handles(self.column_num, index)}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(self.column_num, index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(self.column_num, index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(self.column_num, index,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(self.column_num, index)}
@@ -1326,13 +1317,13 @@ unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatOu
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -1377,13 +1368,13 @@ unsafe impl<M: MatrixLike> HasReuseBuf for MatrixRow<M> {
     type SndOwnedBufferBool = M::SndOwnedBufferBool;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {(*self.mat).get_1st_handle(index, self.row_num)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {(*self.mat).get_2nd_handle(index, self.row_num)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {(*self.mat).get_bound_handles(index, self.row_num)}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(index, self.row_num,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index, self.row_num)}
@@ -1422,13 +1413,13 @@ unsafe impl<M: MatrixLike,const D2: usize> HasReuseBuf for MatRowVectorExprs<M,D
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -1473,13 +1464,13 @@ unsafe impl<M: MatrixLike> HasReuseBuf for MatrixOutputRow<M> {
     type SndOwnedBufferBool = M::SndOwnedBufferBool;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstHandle<'a> = M::FstHandle<'a> where Self: 'a;
-    type SndHandle<'a> = M::SndHandle<'a> where Self: 'a;
-    type BoundHandles<'a> = M::BoundHandles<'a> where Self: 'a;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self,index: usize) -> Self::FstHandle<'a> {(*self.mat).get_1st_handle(index,self.row_num)}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self,index: usize) -> Self::SndHandle<'a> {(*self.mat).get_2nd_handle(index,self.row_num)}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self,index: usize) -> Self::BoundHandles<'a> {(*self.mat).get_bound_handles(index,self.row_num)}
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(index, self.row_num,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
     #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index,self.row_num)}
@@ -1521,13 +1512,13 @@ unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatOu
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
-    type FstHandle<'a> = () where Self: 'a;
-    type SndHandle<'a> = () where Self: 'a;
-    type BoundHandles<'a> = () where Self: 'a;
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
-    #[inline] unsafe fn get_1st_handle<'a>(&'a mut self, _: usize) -> Self::FstHandle<'a> {}
-    #[inline] unsafe fn get_2nd_handle<'a>(&'a mut self, _: usize) -> Self::SndHandle<'a> {}
-    #[inline] unsafe fn get_bound_handles<'a>(&'a mut self, _: usize) -> Self::BoundHandles<'a> {}
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
@@ -1643,13 +1634,13 @@ macro_rules! mat_struct {
             type AreBoundBuffersTransposed = <$mat_generic as Has2DReuseBuf>::AreBoundBuffersTransposed;
             type FstOwnedBuffer = <$mat_generic as Has2DReuseBuf>::FstOwnedBuffer;
             type SndOwnedBuffer = <$mat_generic as Has2DReuseBuf>::SndOwnedBuffer;
-            type FstHandle<'z> = <$mat_generic as Has2DReuseBuf>::FstHandle<'z> where Self: 'z;
-            type SndHandle<'z> = <$mat_generic as Has2DReuseBuf>::SndHandle<'z> where Self: 'z;
-            type BoundHandles<'z> = <$mat_generic as Has2DReuseBuf>::BoundHandles<'z> where Self: 'z;
+            type FstType = <$mat_generic as Has2DReuseBuf>::FstType;
+            type SndType = <$mat_generic as Has2DReuseBuf>::SndType;
+            type BoundTypes = <$mat_generic as Has2DReuseBuf>::BoundTypes;
 
-            #[inline] unsafe fn get_1st_handle<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::FstHandle<'z> {self.$mat.get_1st_handle(col_index,row_index)}
-            #[inline] unsafe fn get_2nd_handle<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::SndHandle<'z> {self.$mat.get_2nd_handle(col_index,row_index)}
-            #[inline] unsafe fn get_bound_handles<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::BoundHandles<'z> {self.$mat.get_bound_handles(col_index,row_index)}
+            #[inline] unsafe fn assign_1st_buf(&mut self,col_index: usize,row_index: usize, val: Self::FstType) {self.$mat.assign_1st_buf(col_index,row_index,val)}
+            #[inline] unsafe fn assign_2nd_buf(&mut self,col_index: usize,row_index: usize, val: Self::SndType) {self.$mat.assign_2nd_buf(col_index,row_index,val)}
+            #[inline] unsafe fn assign_bound_bufs(&mut self,col_index: usize,row_index: usize, val: Self::BoundTypes) {self.$mat.assign_bound_bufs(col_index,row_index,val)}
             #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.$mat.get_1st_buffer()}
             #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.$mat.get_2nd_buffer()}
             #[inline] unsafe fn drop_1st_buf_index(&mut self,col_index: usize,row_index: usize) {self.$mat.drop_1st_buf_index(col_index,row_index)}
@@ -1732,18 +1723,24 @@ macro_rules! mat_struct {
             type AreBoundBuffersTransposed = <(<$l_mat_generic as Has2DReuseBuf>::AreBoundBuffersTransposed, <$r_mat_generic as Has2DReuseBuf>::AreBoundBuffersTransposed) as TyBoolPair>::Xor;
             type FstOwnedBuffer = <(<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::FstOwnedBuffer,<$r_mat_generic as Has2DReuseBuf>::FstOwnedBuffer>;
             type SndOwnedBuffer = <(<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::SndOwnedBuffer,<$r_mat_generic as Has2DReuseBuf>::SndOwnedBuffer>;
-            type FstHandle<'z> = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::FstHandle<'z>,<$r_mat_generic as Has2DReuseBuf>::FstHandle<'z>> where Self: 'z;
-            type SndHandle<'z> = <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::SndHandle<'z>,<$r_mat_generic as Has2DReuseBuf>::SndHandle<'z>> where Self: 'z;
-            type BoundHandles<'z> = <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as FilterPair>::Filtered<<$l_mat_generic as Has2DReuseBuf>::BoundHandles<'z>,<$r_mat_generic as Has2DReuseBuf>::BoundHandles<'z>> where Self: 'z;
+            type FstType = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::FstType,<$r_mat_generic as Has2DReuseBuf>::FstType>;
+            type SndType = <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::SndType,<$r_mat_generic as Has2DReuseBuf>::SndType>;
+            type BoundTypes = <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as FilterPair>::Filtered<<$l_mat_generic as Has2DReuseBuf>::BoundTypes,<$r_mat_generic as Has2DReuseBuf>::BoundTypes>;
         
-            #[inline] unsafe fn get_1st_handle<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::FstHandle<'z> {
-                <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::select(self.$l_mat.get_1st_handle(col_index,row_index),self.$r_mat.get_1st_handle(col_index,row_index))
+            #[inline] unsafe fn assign_1st_buf(&mut self,col_index: usize,row_index: usize,val: Self::FstType) {
+                let (l_val,r_val) = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::deselect(val);
+                self.$l_mat.assign_1st_buf(col_index,row_index,l_val);
+                self.$r_mat.assign_1st_buf(col_index,row_index,r_val);
             }
-            #[inline] unsafe fn get_2nd_handle<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::SndHandle<'z> {
-                <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as SelectPair>::select(self.$l_mat.get_2nd_handle(col_index,row_index),self.$r_mat.get_2nd_handle(col_index,row_index))
+            #[inline] unsafe fn assign_2nd_buf(&mut self,col_index: usize,row_index: usize,val: Self::SndType) {
+                let (l_val,r_val) = <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as SelectPair>::deselect(val);
+                self.$l_mat.assign_2nd_buf(col_index,row_index,l_val);
+                self.$r_mat.assign_2nd_buf(col_index,row_index,r_val);
             }
-            #[inline] unsafe fn get_bound_handles<'z>(&'z mut self,col_index: usize,row_index: usize) -> Self::BoundHandles<'z> {
-                <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as FilterPair>::filter(self.$l_mat.get_bound_handles(col_index,row_index),self.$r_mat.get_bound_handles(col_index,row_index))
+            #[inline] unsafe fn assign_bound_bufs(&mut self,col_index: usize,row_index: usize,val: Self::BoundTypes) {
+                let (l_val,r_val) = <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as FilterPair>::defilter(val);
+                self.$l_mat.assign_bound_bufs(col_index,row_index,l_val);
+                self.$r_mat.assign_bound_bufs(col_index,row_index,r_val);
             }
             #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
                 <(<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool) as SelectPair>::select(self.$l_mat.get_1st_buffer(),self.$r_mat.get_1st_buffer())
