@@ -74,6 +74,50 @@ unsafe impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+pub struct ReferringOwnedArray<'a,T: 'a,const D: usize>(pub(crate) ManuallyDrop<[T; D]>, pub(crate) std::marker::PhantomData<&'a T>);
+
+impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
+    type GetBool = Y;
+    type IsRepeatable = Y;
+    type Inputs = &'a T;
+    type Item = &'a T;
+    type BoundItems = ();
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {&*(self.0.get_unchecked(index) as *const T)}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
+    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
+}
+
+impl<'a,T: 'a,const D: usize> HasOutput for ReferringOwnedArray<'a,T,D> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+unsafe impl<'a,T: 'a,const D: usize> HasReuseBuf for ReferringOwnedArray<'a,T,D> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
 
 impl<'a,T,const D: usize> Get for &'a [T; D] {
     type GetBool = Y;
@@ -120,7 +164,7 @@ unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
 
 impl<'a,T,const D: usize> Get for &'a mut [T; D] {
     type GetBool = Y;
-    type IsRepeatable = Y;
+    type IsRepeatable = N;
     type Inputs = &'a mut T;
     type Item = &'a mut T;
     type BoundItems = ();
@@ -833,6 +877,82 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> Has
     }
 }
 
+pub struct VecHalfBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T} 
+
+impl<T: VectorLike<FstHandleBool = Y>> VecHalfBind<T> {
+    pub(crate) unsafe fn get_bound_buf(&mut self) -> T::FstOwnedBuffer {
+        self.vec.get_1st_buffer()
+    }
+}
+
+impl<T: VectorLike<FstHandleBool = Y>> Get for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+    type GetBool = N;
+    type IsRepeatable = N;
+    type Inputs = T::Inputs;
+    type Item = ();
+    type BoundItems = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundItems,T::Item>;
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+        self.vec.get_inputs(index)
+    }
+
+    #[inline]
+    unsafe fn drop_inputs(&mut self, index: usize) {
+        self.vec.drop_inputs(index)
+    }
+
+    #[inline]
+    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item,bound) = self.vec.process(inputs);
+        ((),<(T::BoundHandlesBool,Y) as FilterPair>::filter(bound,item))
+    }
+}
+
+impl<T: VectorLike<FstHandleBool = Y>> HasOutput for VecHalfBind<T> where (T::OutputBool,T::FstOwnedBufferBool): TyBoolPair {
+    type OutputBool = <(T::OutputBool,T::FstOwnedBufferBool) as TyBoolPair>::Or;
+    type Output = T::Output;
+    
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {
+        self.vec.output()
+    }
+
+    #[inline]
+    unsafe fn drop_output(&mut self) {
+        self.vec.drop_output(); // buffer dropped through HasReuseBuf
+    }
+}
+
+unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+    type FstHandleBool = N;
+    type SndHandleBool = T::SndHandleBool;
+    type BoundHandlesBool = <(T::BoundHandlesBool,Y) as TyBoolPair>::Or;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = T::SndOwnedBufferBool;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = T::SndOwnedBuffer;
+    type FstType = ();
+    type SndType = T::SndType;
+    type BoundTypes = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundTypes,T::FstType>;
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index, val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
+        let (bounded_vals,new_bound_val) = <(T::BoundHandlesBool,Y) as FilterPair>::defilter(val);
+        self.vec.assign_bound_bufs(index, bounded_vals);
+        self.vec.assign_1st_buf(index, new_bound_val);
+    }
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) {self.vec.drop_2nd_buf_index(index)}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {
+        self.vec.drop_1st_buf_index(index);
+        self.vec.drop_bound_bufs_index(index);
+    }
+}
+
 
 pub struct VecBufSwap<T: VectorLike> {pub(crate) vec: T}
 
@@ -1000,7 +1120,7 @@ unsafe impl<T: VectorLike> HasReuseBuf for RuntimeVecOffset<T> {
 }
 
 /// SAFETY: it is expected that the used_vec field is safe to output in addition to normal correct implementation
-pub struct VecAttachUsedVec<V: VectorLike,USEDV: VectorLike>{vec: V, used_vec: USEDV}
+pub struct VecAttachUsedVec<V: VectorLike,USEDV: VectorLike>{pub(crate) vec: V, pub(crate) used_vec: USEDV}
 
 impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
     type GetBool = V::GetBool;
