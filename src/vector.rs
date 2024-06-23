@@ -368,6 +368,34 @@ pub fn vector_index_gen<F: FnMut(usize) -> O,O,const D: usize>(f: F) -> VectorEx
 }
 
 
+impl<V: VectorLike<IsRepeatable = Y>,const D: usize> VectorExpr<V,D> {
+    /// Note:   This method does NOT fill any buffers bound to the vector, if you need that, see binding_get
+    pub fn get(&mut self,index: usize) -> V::Item {
+        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        unsafe {
+            let inputs = self.0.get_inputs(index);
+            let (item,_) = self.0.process(inputs);
+            item
+        }
+    }
+
+    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
+    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
+    ///         Additionally, if the buffer is owned by the vector, the vector expr is also responsible for dropping filled indices
+    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
+    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
+    /// Note TLDR: this method is extremely prone to causing memory leaks
+    pub fn binding_get(&mut self,index: usize) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        unsafe {
+            let inputs = self.0.get_inputs(index);
+            let (item,bound_items) = self.0.process(inputs);
+            self.0.assign_bound_bufs(index, bound_items); // NOTE: all current things which have IsRepeatable don't have any bound items, however, it is not restricted by the definition
+            item
+        }
+    }
+}
+
 pub trait VectorOps {
     type Unwrapped: VectorLike;
     type Wrapped<T: VectorLike>;
@@ -708,7 +736,6 @@ where
     }
 }
 
-
 overload_operators!(<V: VectorLike,{D}>, VectorExpr<V,D>, vector: V, item: V::Item);
 
 impl<V: VectorLike,const D: usize> VectorOps for Box<VectorExpr<V,D>> {
@@ -728,8 +755,46 @@ impl<V: VectorLike,const D: usize> VectorOps for Box<VectorExpr<V,D>> {
     #[inline] unsafe fn wrap<T: VectorLike>(vec: T) -> Self::Wrapped<T> {VectorExpr(vec)} // this struct creation is technically usafe due to assumptions made by VectorExpr's Drop impl
 }
 impl<V: VectorLike,const D: usize> ArrayVectorOps<D> for Box<VectorExpr<V,D>> {}
+
+impl<V: VectorLike,const D: usize> RepeatableVectorOps for Box<VectorExpr<V,D>>
+where 
+    <V::FstHandleBool as TyBool>::Neg: Filter,
+    (V::BoundHandlesBool,Y): FilterPair,
+    (V::FstHandleBool,<V::FstHandleBool as TyBool>::Neg): SelectPair<
+    Selected<V::FstOwnedBuffer, MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>> = MathVector<V::Item,D>>,
+    (V::FstOwnedBufferBool,<V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<V::FstHandleBool as TyBool>::Neg,V::FstOwnedBufferBool): TyBoolPair,
+    (V::OutputBool,<(V::FstOwnedBufferBool,<V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    VecHalfBind<VecMaybeCreateBuf<Box<V>,V::Item,D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool,Y) as FilterPair>::Filtered<V::BoundItems,V::Item>>
+{
+    type RepeatableVector<'a> = ReferringOwnedArray<'a,V::Item,D> where Self: 'a;
+    type UsedVector = VecHalfBind<VecMaybeCreateBuf<Box<V>,V::Item,D>>;
+
+    fn make_repeatable<'a>(self) -> Self::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
+    where
+        Self: 'a,
+        (<Self::RepeatableVector<'a> as HasOutput>::OutputBool,<Self::UsedVector as HasOutput>::OutputBool): FilterPair,
+        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstHandleBool,<Self::UsedVector as HasReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndHandleBool,<Self::UsedVector as HasReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::RepeatableVector<'a> as HasReuseBuf>::BoundHandlesBool,<Self::UsedVector as HasReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstOwnedBufferBool,<Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndOwnedBufferBool,<Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): TyBoolPair,
+        <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
+    {
+        let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
+        unsafe {
+            while vec_iter.live_input_start < D {
+                let _ = vec_iter.next_unchecked();
+            }
+            Self::wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
+        }
+    }
+}
+
 overload_operators!(<V: VectorLike,{D}>, Box<VectorExpr<V,D>>, vector: V, item: V::Item);
 
+//already repeatable / can't truly be made repeatable so not implemented
 impl<'a,T,const D: usize> VectorOps for &'a MathVector<T,D> {
     type Unwrapped = &'a [T; D];
     type Wrapped<V: VectorLike> = VectorExpr<V,D>;
