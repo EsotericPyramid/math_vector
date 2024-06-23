@@ -1135,7 +1135,7 @@ impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
 }
 
 impl<V: VectorLike,USEDV: VectorLike> HasOutput for VecAttachUsedVec<V,USEDV> where (V::OutputBool,USEDV::OutputBool): FilterPair {
-    type OutputBool = <(V::OutputBool,USEDV::OutputBool) as TyBoolPair>::And;
+    type OutputBool = <(V::OutputBool,USEDV::OutputBool) as TyBoolPair>::Or;
     type Output = <(V::OutputBool,USEDV::OutputBool) as FilterPair>::Filtered<V::Output,USEDV::Output>;
 
     #[inline] 
@@ -1163,14 +1163,14 @@ where
 {
     type FstHandleBool = <(V::FstHandleBool, USEDV::FstHandleBool) as TyBoolPair>::Xor;
     type SndHandleBool = <(V::SndHandleBool, USEDV::SndHandleBool) as TyBoolPair>::Xor;
-    type BoundHandlesBool = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as TyBoolPair>::Or;
+    type BoundHandlesBool = V::BoundHandlesBool;
     type FstOwnedBufferBool = <(V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool) as TyBoolPair>::Xor; 
     type SndOwnedBufferBool = <(V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool) as TyBoolPair>::Xor; 
     type FstOwnedBuffer = <(V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool) as SelectPair>::Selected<V::FstOwnedBuffer,USEDV::FstOwnedBuffer>;
     type SndOwnedBuffer = <(V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool) as SelectPair>::Selected<V::SndOwnedBuffer,USEDV::SndOwnedBuffer>;
     type FstType = <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::Selected<V::FstType,USEDV::FstType>;
     type SndType = <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::Selected<V::SndType,USEDV::SndType>;
-    type BoundTypes = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::Filtered<V::BoundTypes,USEDV::BoundTypes>;
+    type BoundTypes = V::BoundTypes;
 
     #[inline] unsafe fn assign_1st_buf<'z>(&'z mut self,index: usize,val: Self::FstType) {
         let (l_val,r_val) = <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::deselect(val);
@@ -1183,9 +1183,7 @@ where
         self.used_vec.assign_2nd_buf(index,r_val);
     }
     #[inline] unsafe fn assign_bound_bufs<'z>(&'z mut self,index: usize,val: Self::BoundTypes) {
-        let (l_val,r_val) = <(V::BoundHandlesBool, USEDV::BoundHandlesBool) as FilterPair>::defilter(val);
-        self.vec.assign_bound_bufs(index,l_val);
-        self.used_vec.assign_bound_bufs(index,r_val);
+        self.vec.assign_bound_bufs(index,val);
     }
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         <(V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool) as SelectPair>::select(self.vec.get_1st_buffer(),self.used_vec.get_1st_buffer())
@@ -1258,13 +1256,13 @@ macro_rules! vec_struct {
         $struct:ident<$($($lifetime:lifetime),+,)? {$vec_generic:ident} $(,$($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$vec:ident $(,$($field:ident: $field_ty:ty),+)?}
         $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
         $(output: $outputted_field:ident: $output_ty:ty,)?
-        get: $item:ty, |$self:ident,$(($is_mut:tt))? $input:ident| $get_expr:expr
+        get: $item:ty, |$self:ident,$(($is_mut:tt))? $input:ident| $get_expr:expr $(, $is_repeatable:ty)?
     ) => {
         pub struct $struct<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $vec: $vec_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
         impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = N;
+            type IsRepeatable = is_present!($($is_repeatable)?);
             type Inputs = <$vec_generic as Get>::Inputs;
             type Item = $item;
             type BoundItems = <$vec_generic as Get>::BoundItems;
@@ -1326,13 +1324,13 @@ macro_rules! vec_struct {
         $struct:ident<$($($lifetime:lifetime),+,)? {$l_vec_generic:ident,$r_vec_generic:ident} $(,$($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_vec:ident, $r_vec:ident $(,$($field:ident: $field_ty:ty),+)?}
         $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
         $(output: $outputted_field:ident: $output_ty:ty,)?
-        get: $item:ty, |$self:ident,$(($l_is_mut:tt))? $l_input:ident,$(($r_is_mut:tt))? $r_input:ident| $get_expr:expr
+        get: $item:ty, |$self:ident,$(($l_is_mut:tt))? $l_input:ident,$(($r_is_mut:tt))? $r_input:ident| $get_expr:expr $(, $is_repeatable:ty)?
     ) => {
         pub struct $struct<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_vec: $l_vec_generic, pub(crate) $r_vec: $r_vec_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
         impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> where ($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = N; 
+            type IsRepeatable = is_present!($($is_repeatable)?); 
             type Inputs = ($l_vec_generic::Inputs,$r_vec_generic::Inputs);
             type Item = $item;
             type BoundItems = <($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool) as FilterPair>::Filtered<$l_vec_generic::BoundItems,$r_vec_generic::BoundItems>;
@@ -1438,7 +1436,7 @@ vec_struct!(VecFoldRef<{T},F: FnMut(&mut O,T::Item),O>{vec, f: F, cell: Manually
 vec_struct!(VecCopiedFold<{T},F: FnMut(O,T::Item) -> O,O>{vec, f: F, cell: Option<O>} where T::Item: Copy; output: cell: O, get: T::Item, |self,input| {self.cell = Some((self.f)(self.cell.take().unwrap(),input)); input});
 vec_struct!(VecCopiedFoldRef<{T},F: FnMut(&mut O,T::Item),O>{vec, f: F, cell: ManuallyDrop<O>} where T::Item: Copy; output: cell: O, get: T::Item, |self,input| {(self.f)(&mut self.cell,input); input}); // note: use of this is preferred to VecFold
 
-vec_struct!(VecCopy<'a,{T},I: 'a | Copy>{vec} where T: Get<Item = &'a I>; get: I, |self,input| *input);
+vec_struct!(VecCopy<'a,{T},I: 'a | Copy>{vec} where T: Get<Item = &'a I>; get: I, |self,input| *input, Y);
 vec_struct!(VecClone<'a,{T},I: 'a | Clone>{vec} where T: Get<Item = &'a I>; get: I, |self,input| input.clone());
 
 vec_struct!(VecNeg<{T}>{vec} where T::Item: Neg; get: <T::Item as Neg>::Output, |self,input| -input);
@@ -1463,7 +1461,7 @@ vec_struct!(VecCopiedProduct<{T},S>{vec,scalar: ManuallyDrop<S>} where T::Item: 
 vec_struct!(VecCopiedSqrMag<{T},S>{vec,scalar: ManuallyDrop<S>} where T::Item: Copy | Mul, S: AddAssign<<T::Item as Mul>::Output>; output: scalar: S, get: T::Item, |self,input| {*self.scalar += input*input; input});
 
 
-vec_struct!(VecZip<{T1,T2}>{l_vec,r_vec}; get: (T1::Item,T2::Item), |self,l_input,r_input| (l_input,r_input));
+vec_struct!(VecZip<{T1,T2}>{l_vec,r_vec}; get: (T1::Item,T2::Item), |self,l_input,r_input| (l_input,r_input), Y);
 
 vec_struct!(VecAdd<{T1,T2}>{l_vec,r_vec} where T1::Item: Add<T2::Item>; get: <T1::Item as Add<T2::Item>>::Output, |self,l_input,r_input| l_input + r_input);
 vec_struct!(VecSub<{T1,T2}>{l_vec,r_vec} where T1::Item: Sub<T2::Item>; get: <T1::Item as Sub<T2::Item>>::Output, |self,l_input,r_input| l_input - r_input);

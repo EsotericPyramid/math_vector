@@ -210,7 +210,7 @@ pub mod matrix;
 mod test {
     use rand::Rng;
 
-    use crate::vector::{vector_gen, VectorVectorOps, MathVector, VectorOps};
+    use crate::vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, VectorVectorOps};
     use crate::matrix::{MathMatrix,matrix_gen};
     use std::time::*;
 
@@ -257,6 +257,20 @@ mod test {
         }
         println!("{}",total);
         println!("Elapsed: {}",time.as_nanos());
+    }
+
+    #[test]
+    fn repeatable_vectors_test() {
+        // although IsRepeatable would likely mostly be only used internally, it has minimal external use
+        let mut rng = rand::thread_rng();
+        let vec1: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
+        let vec2: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
+        let mut vec3 = (vec1.comp_mul(vec2)).copied_sum::<f64>().make_repeatable().copied();
+        for _ in 0..200 { // enabled by IsRepeatable
+            println!("{}",vec3.get(rng.gen_range(0..10000)));
+        }
+        let (sum,product) = vec3.product::<f64>().consume();
+        println!("sum: {}, product: {}",sum,product);
     }
 
     #[test]
