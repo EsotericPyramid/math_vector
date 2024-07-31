@@ -655,13 +655,88 @@ pub trait ArrayMatrixOps<const D1: usize,const D2: usize>: MatrixOps {
 pub trait VectorizableMatrixOps: MatrixOps {
     type Columns<M: MatrixLike>: VectorLike;
     type OutputtingColumns<M: MatrixLike>: VectorLike;
+    type BindingColumns<M: MatrixLike>: VectorLike where (M::OutputBool,M::FstOwnedBufferBool): FilterPair;
+    type FullBindingColumns<M: MatrixLike>: VectorLike where 
+        (M::OutputBool,M::FstOwnedBufferBool): FilterPair,
+        (<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool): FilterPair
+    ;
     type Rows<M: MatrixLike>: VectorLike;
     type OutputtingRows<M: MatrixLike>: VectorLike;
+    type BindingRows<M: MatrixLike>: VectorLike where (M::OutputBool,M::FstOwnedBufferBool): FilterPair;
+    type FullBindingRows<M: MatrixLike>: VectorLike where 
+        (M::OutputBool,M::FstOwnedBufferBool): FilterPair,
+        (<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool): FilterPair
+    ;
 
     fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>>;
     fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>>;
+    fn binding_columns(self) -> Self::VectorWrapped<Self::BindingColumns<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair;
+    fn full_binding_columns(self) -> Self::VectorWrapped<Self::FullBindingColumns<Self::Unwrapped>> where 
+        (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or, <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): FilterPair
+    ;
     fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>>;
     fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>>;
+    fn binding_rows(self) -> Self::TransposedVectorWrapped<Self::BindingRows<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair;
+    fn full_binding_rows(self) -> Self::TransposedVectorWrapped<Self::FullBindingRows<Self::Unwrapped>> where 
+        (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or, <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): FilterPair
+    ;
+}
+
+macro_rules! impl_const_sized_vectorizable_matrix_ops {
+    (
+        <$($($lifetime:lifetime),+,)? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+,{$d1:ident,$d2:ident}>,
+        $ty:ty
+    ) => {
+        impl<$($($lifetime),+,)? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, const $d1: usize, const $d2: usize> VectorizableMatrixOps for $ty {
+            type Columns<Z: MatrixLike> = MatColVectorExprs<Z,$d1>;
+            type OutputtingColumns<Z: MatrixLike> = MatOutputColVectorExprs<Z,$d1,$d2>;
+            type BindingColumns<Z: MatrixLike> = MatBindColVectorExprs<Z,$d1,$d2> where (<Z as HasOutput>::OutputBool,<Z as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair;
+            type FullBindingColumns<Z: MatrixLike> = MatFullBindColVectorExprs<Z,$d1,$d2> where 
+                (Z::OutputBool,Z::FstOwnedBufferBool): FilterPair,
+                (<(Z::OutputBool,Z::FstOwnedBufferBool) as TyBoolPair>::Or, Z::SndOwnedBufferBool): FilterPair
+            ;
+            type Rows<Z: MatrixLike> = MatRowVectorExprs<Z,$d2>;
+            type OutputtingRows<Z: MatrixLike> = MatOutputRowVectorExprs<Z,$d1,$d2>;
+            type BindingRows<Z: MatrixLike> = MatBindRowVectorExprs<Z,$d1,$d2> where (<Z as HasOutput>::OutputBool,<Z as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair;
+            type FullBindingRows<Z: MatrixLike> = MatFullBindRowVectorExprs<Z,$d1,$d2> where 
+                (Z::OutputBool,Z::FstOwnedBufferBool): FilterPair,
+                (<(Z::OutputBool,Z::FstOwnedBufferBool) as TyBoolPair>::Or, Z::SndOwnedBufferBool): FilterPair
+            ;
+
+            fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
+                unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
+            }
+            fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
+                unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
+            }
+            fn binding_columns(self) -> Self::VectorWrapped<Self::BindingColumns<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair {
+                unsafe { Self::wrap_vec(MatBindColVectorExprs{mat: self.unwrap(),bind_flag: 0}) }
+            }
+            fn full_binding_columns(self) -> Self::VectorWrapped<Self::FullBindingColumns<Self::Unwrapped>> where 
+                (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+                (<(<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or, <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): FilterPair
+            {
+                unsafe { Self::wrap_vec(MatFullBindColVectorExprs{mat: self.unwrap(),bind_flag: 0}) }
+            }
+            fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
+                unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
+            }
+            fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
+                unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
+            }
+            fn binding_rows(self) -> Self::TransposedVectorWrapped<Self::BindingRows<Self::Unwrapped>>  where (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair {
+                unsafe { Self::wrap_trans_vec(MatBindRowVectorExprs{mat: self.unwrap(),bind_flag: 0}) }
+            }
+            fn full_binding_rows(self) -> Self::TransposedVectorWrapped<Self::FullBindingRows<Self::Unwrapped>> where
+                (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+                (<(<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or, <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): FilterPair
+            {
+                unsafe { Self::wrap_trans_vec(MatFullBindRowVectorExprs{mat: self.unwrap(),bind_flag: 0}) }
+            }
+        }
+    };
 }
 
 macro_rules! overload_operators {
@@ -725,25 +800,7 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for MatrixExpr<M,D
     #[inline] unsafe fn wrap_trans_vec<T: VectorLike>(vec: T) -> Self::TransposedVectorWrapped<T> {VectorExpr(vec)}
 }
 impl<M: MatrixLike,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for MatrixExpr<M,D1,D2> {}
-impl<M: MatrixLike,const D1: usize,const D2: usize> VectorizableMatrixOps for MatrixExpr<M,D1,D2> {
-    type Columns<T: MatrixLike> = MatColVectorExprs<T,D1>;
-    type OutputtingColumns<T: MatrixLike> = MatOutputColVectorExprs<T,D1,D2>;
-    type Rows<T: MatrixLike> = MatRowVectorExprs<T,D2>;
-    type OutputtingRows<T: MatrixLike> = MatOutputRowVectorExprs<T,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+//impl_const_sized_vectorizable_matrix_ops!(<M: MatrixLike,{D1,D2}>, MatrixExpr<M,D1,D2>); // macro don't work here, see rust issue #123173
 overload_operators!(<M: MatrixLike,{D1,D2}>, MatrixExpr<M,D1,D2>, matrix: M, item: M::Item);
 
 impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for Box<MatrixExpr<M,D1,D2>> {
@@ -772,26 +829,12 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for Box<MatrixExpr
     #[inline] unsafe fn wrap_trans_vec<T: VectorLike>(vec: T) -> Self::TransposedVectorWrapped<T> {VectorExpr(vec)}
 }
 impl<M: MatrixLike,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for Box<MatrixExpr<M,D1,D2>> {}
-impl<M: MatrixLike,const D1: usize,const D2: usize> VectorizableMatrixOps for Box<MatrixExpr<M,D1,D2>> {
-    type Columns<T: MatrixLike> = MatColVectorExprs<T,D1>;
-    type OutputtingColumns<T: MatrixLike> = MatOutputColVectorExprs<T,D1,D2>;
-    type Rows<T: MatrixLike> = MatRowVectorExprs<T,D2>;
-    type OutputtingRows<T: MatrixLike> = MatOutputRowVectorExprs<T,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+//impl_const_sized_vectorizable_matrix_ops!(<M: MatrixLike,{D1,D2}>, Box<MatrixExpr<M,D1,D2>>); // macro don't work here, see rust issue #123173
 overload_operators!(<M: MatrixLike,{D1,D2}>, Box<MatrixExpr<M,D1,D2>>, matrix: Box<M>, item: M::Item);
+
+// TEMP
+impl_const_sized_vectorizable_matrix_ops!(<T,{D1,D2}>, MathMatrix<T,D1,D2>);
+impl_const_sized_vectorizable_matrix_ops!(<T,{D1,D2}>, Box<MathMatrix<T,D1,D2>>);
 
 impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a MathMatrix<T,D1,D2> {
     type Unwrapped = &'a [[T; D1]; D2];
@@ -807,25 +850,7 @@ impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a MathMatrix<T,D1,D2>
     #[inline] unsafe fn wrap_trans_vec<U: VectorLike>(vec: U) -> Self::TransposedVectorWrapped<U> {VectorExpr(vec)}
 }
 impl<'a,T,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for &'a MathMatrix<T,D1,D2> {}
-impl<'a,T,const D1: usize,const D2: usize> VectorizableMatrixOps for &'a MathMatrix<T,D1,D2> {
-    type Columns<U: MatrixLike> = MatColVectorExprs<U,D1>;
-    type OutputtingColumns<U: MatrixLike> = MatOutputColVectorExprs<U,D1,D2>;
-    type Rows<U: MatrixLike> = MatRowVectorExprs<U,D2>;
-    type OutputtingRows<U: MatrixLike> = MatOutputRowVectorExprs<U,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+impl_const_sized_vectorizable_matrix_ops!(<'a,T,{D1,D2}>, &'a MathMatrix<T,D1,D2>);
 overload_operators!(<'a,T,{D1,D2}>, &'a MathMatrix<T,D1,D2>, matrix: &'a [[T; D1]; D2], item: &'a T);
 
 impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a mut MathMatrix<T,D1,D2> {
@@ -842,25 +867,7 @@ impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a mut MathMatrix<T,D1
     #[inline] unsafe fn wrap_trans_vec<U: VectorLike>(vec: U) -> Self::TransposedVectorWrapped<U> {VectorExpr(vec)}
 }
 impl<'a,T,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for &'a mut MathMatrix<T,D1,D2> {}
-impl<'a,T,const D1: usize,const D2: usize> VectorizableMatrixOps for &'a mut MathMatrix<T,D1,D2> {
-    type Columns<U: MatrixLike> = MatColVectorExprs<U,D1>;
-    type OutputtingColumns<U: MatrixLike> = MatOutputColVectorExprs<U,D1,D2>;
-    type Rows<U: MatrixLike> = MatRowVectorExprs<U,D2>;
-    type OutputtingRows<U: MatrixLike> = MatOutputRowVectorExprs<U,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+impl_const_sized_vectorizable_matrix_ops!(<'a,T,{D1,D2}>, &'a mut MathMatrix<T,D1,D2>);
 overload_operators!(<'a,T,{D1,D2}>, &'a mut MathMatrix<T,D1,D2>, matrix: &'a mut [[T; D1]; D2], item: &'a mut T);
 
 impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a Box<MathMatrix<T,D1,D2>> {
@@ -877,25 +884,7 @@ impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a Box<MathMatrix<T,D1
     #[inline] unsafe fn wrap_trans_vec<U: VectorLike>(vec: U) -> Self::TransposedVectorWrapped<U> {VectorExpr(vec)}
 }
 impl<'a,T,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for &'a Box<MathMatrix<T,D1,D2>> {}
-impl<'a,T,const D1: usize,const D2: usize> VectorizableMatrixOps for &'a Box<MathMatrix<T,D1,D2>> {
-    type Columns<U: MatrixLike> = MatColVectorExprs<U,D1>;
-    type OutputtingColumns<U: MatrixLike> = MatOutputColVectorExprs<U,D1,D2>;
-    type Rows<U: MatrixLike> = MatRowVectorExprs<U,D2>;
-    type OutputtingRows<U: MatrixLike> = MatOutputRowVectorExprs<U,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+impl_const_sized_vectorizable_matrix_ops!(<'a,T,{D1,D2}>, &'a Box<MathMatrix<T,D1,D2>>);
 overload_operators!(<'a,T,{D1,D2}>, &'a Box<MathMatrix<T,D1,D2>>, matrix: &'a [[T; D1]; D2], item: &'a T);
 
 impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a mut Box<MathMatrix<T,D1,D2>> {
@@ -912,25 +901,7 @@ impl<'a,T,const D1: usize,const D2: usize> MatrixOps for &'a mut Box<MathMatrix<
     #[inline] unsafe fn wrap_trans_vec<U: VectorLike>(vec: U) -> Self::TransposedVectorWrapped<U> {VectorExpr(vec)}
 }
 impl<'a,T,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for &'a mut Box<MathMatrix<T,D1,D2>> {}
-impl<'a,T,const D1: usize,const D2: usize> VectorizableMatrixOps for &'a mut Box<MathMatrix<T,D1,D2>> {
-    type Columns<U: MatrixLike> = MatColVectorExprs<U,D1>;
-    type OutputtingColumns<U: MatrixLike> = MatOutputColVectorExprs<U,D1,D2>;
-    type Rows<U: MatrixLike> = MatRowVectorExprs<U,D2>;
-    type OutputtingRows<U: MatrixLike> = MatOutputRowVectorExprs<U,D1,D2>;
-
-    fn columns(self) -> Self::VectorWrapped<Self::Columns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatColVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_columns(self) -> Self::VectorWrapped<Self::OutputtingColumns<Self::Unwrapped>> {
-        unsafe { Self::wrap_vec(MatOutputColVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-    fn rows(self) -> Self::TransposedVectorWrapped<Self::Rows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatRowVectorExprs{mat: self.unwrap()}) }
-    }
-    fn outputting_rows(self) -> Self::TransposedVectorWrapped<Self::OutputtingRows<Self::Unwrapped>> {
-        unsafe { Self::wrap_trans_vec(MatOutputRowVectorExprs{mat: self.unwrap(),output_flag: 0}) }
-    }
-}
+impl_const_sized_vectorizable_matrix_ops!(<'a,T,{D1,D2}>, &'a mut Box<MathMatrix<T,D1,D2>>);
 overload_operators!(<'a,T,{D1,D2}>, &'a mut Box<MathMatrix<T,D1,D2>>, matrix: &'a mut [[T; D1]; D2], item: &'a mut T);
 
 
