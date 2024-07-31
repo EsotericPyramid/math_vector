@@ -211,7 +211,7 @@ mod test {
     use rand::Rng;
 
     use crate::vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, VectorVectorOps};
-    use crate::matrix::{MathMatrix,matrix_gen};
+    use crate::matrix::{MathMatrix, matrix_gen, EqDimMatrixMatrixOps, VectorizableMatrixOps};
     use std::time::*;
 
 
@@ -279,7 +279,14 @@ mod test {
         let mat1: Box<MathMatrix<f64,10000,10000>> = matrix_gen(|| rng.gen()).heap_eval();
         let mat2: Box<MathMatrix<f64,10000,10000>> = matrix_gen(|| rng.gen()).heap_eval();
         let now = Instant::now();
-        let out = (mat1.heap_reuse() + mat2).heap_eval();
+        let out = mat1
+            .zip(mat2)
+            .heap_eval()
+            .columns()
+            .map(
+                |v| {v.map(|(x1,x2)| x1+x2).eval()}
+            )
+            .heap_eval();
         let elapsed = now.elapsed();
         println!("{}",out[0][0]);
         println!("Elapsed: {}",elapsed.as_nanos());
