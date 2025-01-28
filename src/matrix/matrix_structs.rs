@@ -3,8 +3,8 @@ use crate::util_traits::*;
 use super::mat_util_traits::*;
 use super::MathMatrix;
 use super::MatrixExpr;
+use super::VectorizedMatrix;
 use crate::vector::vec_util_traits::*;
-use crate::vector::VectorExpr;
 use std::ops::*;
 use std::mem::ManuallyDrop;
 
@@ -35,7 +35,7 @@ impl<T,const D1: usize,const D2: usize> DerefMut for Owned2DArray<T,D1,D2> {
     }
 }
 
-impl<T,const D1: usize,const D2: usize> Get2D for Owned2DArray<T,D1,D2> {
+unsafe impl<T,const D1: usize,const D2: usize> Get2D for Owned2DArray<T,D1,D2> {
     type GetBool = Y;
     type IsRepeatable = N;
     type AreInputsTransposed = N;
@@ -66,7 +66,7 @@ impl<T,const D1: usize,const D2: usize> HasOutput for Owned2DArray<T,D1,D2> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,D1,D2> {
+impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,D1,D2> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -92,7 +92,7 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,
 }
 
 
-impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
+unsafe impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
     type GetBool = Y;
     type IsRepeatable = Y;
     type AreInputsTransposed = N;
@@ -105,7 +105,7 @@ impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
+impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -131,7 +131,7 @@ unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a [[T; D1]
 }
 
 
-impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a mut [[T; D1]; D2] {
+unsafe impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a mut [[T; D1]; D2] {
     type GetBool = Y;
     type IsRepeatable = Y;
     type AreInputsTransposed = N;
@@ -144,7 +144,7 @@ impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a mut [[T; D1]; D2] {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D2] {
+impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -172,7 +172,7 @@ unsafe impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a mut [[T;
 
 #[inline] fn debox<T: Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
 
-impl<M: MatrixLike> Get2D for Box<M> {
+unsafe impl<M: MatrixLike> Get2D for Box<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -185,7 +185,7 @@ impl<M: MatrixLike> Get2D for Box<M> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
 }
 
-unsafe impl<M: MatrixLike> Has2DReuseBuf for Box<M> {
+impl<M: MatrixLike> Has2DReuseBuf for Box<M> {
     type FstHandleBool = M::FstHandleBool;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -213,7 +213,7 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for Box<M> {
 
 pub struct Replace2DArray<T,const D1: usize,const D2: usize>(pub(crate) ManuallyDrop<[[T; D1]; D2]>);
 
-impl<T,const D1: usize,const D2: usize> Get2D for Replace2DArray<T,D1,D2> {
+unsafe impl<T,const D1: usize,const D2: usize> Get2D for Replace2DArray<T,D1,D2> {
     type GetBool = Y;
     type IsRepeatable = N;
     type AreInputsTransposed = N;
@@ -247,7 +247,7 @@ impl<T: Sized,const D1: usize,const D2: usize> HasOutput for Replace2DArray<T,D1
     unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
 }
 
-unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DArray<T,D1,D2> {
+impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DArray<T,D1,D2> {
     type FstHandleBool = Y;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -281,7 +281,7 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DArray<
 
 pub struct Replace2DHeapArray<T,const D1: usize,const D2: usize>(pub(crate) ManuallyDrop<Box<[[T; D1]; D2]>>);
 
-impl<T,const D1: usize,const D2: usize> Get2D for Replace2DHeapArray<T,D1,D2> {
+unsafe impl<T,const D1: usize,const D2: usize> Get2D for Replace2DHeapArray<T,D1,D2> {
     type GetBool = Y;
     type IsRepeatable = N;
     type AreInputsTransposed = N;
@@ -315,7 +315,7 @@ impl<T: Sized,const D1: usize,const D2: usize> HasOutput for Replace2DHeapArray<
     unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
 }
 
-unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DHeapArray<T,D1,D2> {
+impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DHeapArray<T,D1,D2> {
     type FstHandleBool = Y;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -356,7 +356,7 @@ unsafe impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Replace2DHeapAr
 
 pub struct MatGenerator<F: FnMut() -> O,O>(pub(crate) F);
 
-impl<F: FnMut() -> O,O> Get2D for MatGenerator<F,O> {
+unsafe impl<F: FnMut() -> O,O> Get2D for MatGenerator<F,O> {
     type GetBool = Y;
     type IsRepeatable = N;
     type AreInputsTransposed = N;
@@ -377,7 +377,7 @@ impl<F: FnMut() -> O,O> HasOutput for MatGenerator<F,O> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<F: FnMut() -> O,O> Has2DReuseBuf for MatGenerator<F,O> {
+impl<F: FnMut() -> O,O> Has2DReuseBuf for MatGenerator<F,O> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -405,7 +405,7 @@ unsafe impl<F: FnMut() -> O,O> Has2DReuseBuf for MatGenerator<F,O> {
 
 pub struct MatAttach2DBuf<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize>{pub(crate) mat: M,pub(crate) buf: &'a mut [[T; D1]; D2]}
 
-impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatAttach2DBuf<'a,M,T,D1,D2> {
+unsafe impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatAttach2DBuf<'a,M,T,D1,D2> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -426,7 +426,7 @@ impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasO
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<'b,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatAttach2DBuf<'b,M,T,D1,D2> {
+impl<'b,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatAttach2DBuf<'b,M,T,D1,D2> {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -454,7 +454,7 @@ unsafe impl<'b,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usiz
 
 pub struct MatCreate2DBuf<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize>{pub(crate) mat: M,pub(crate) buf: [[std::mem::MaybeUninit<T>; D1]; D2]}
 
-impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DBuf<M,T,D1,D2> {
+unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DBuf<M,T,D1,D2> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -475,7 +475,7 @@ impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasOutp
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatCreate2DBuf<M,T,D1,D2> {
+impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatCreate2DBuf<M,T,D1,D2> {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -505,7 +505,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
 
 pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize>{pub(crate) mat: M,pub(crate) buf: ManuallyDrop<Box<[[std::mem::MaybeUninit<T>; D1]; D2]>>}
 
-impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DHeapBuf<M,T,D1,D2> {
+unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DHeapBuf<M,T,D1,D2> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -526,7 +526,7 @@ impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasOutp
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatCreate2DHeapBuf<M,T,D1,D2> {
+impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatCreate2DHeapBuf<M,T,D1,D2> {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -556,7 +556,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
 
 pub struct MatMaybeCreate2DBuf<M: MatrixLike,T,const D1: usize,const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M,pub(crate) buf: [[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]}
 
-impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -577,7 +577,7 @@ impl<M: MatrixLike,T,const D1: usize,const D2: usize> HasOutput for MatMaybeCrea
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatMaybeCreate2DBuf<M,T,D1,D2> 
+impl<M: MatrixLike,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatMaybeCreate2DBuf<M,T,D1,D2> 
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
     (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -619,7 +619,7 @@ where
 
 pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike,T,const D1: usize,const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M,pub(crate) buf: ManuallyDrop<Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>>}
 
-impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -640,7 +640,7 @@ impl<M: MatrixLike,T,const D1: usize,const D2: usize> HasOutput for MatMaybeCrea
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatMaybeCreate2DHeapBuf<M,T,D1,D2> 
+impl<M: MatrixLike,T,const D1: usize,const D2: usize> Has2DReuseBuf for MatMaybeCreate2DHeapBuf<M,T,D1,D2> 
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
     (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -682,7 +682,7 @@ where
 
 pub struct MatBind<M: MatrixLike<FstHandleBool = Y>>{pub(crate) mat: M}
 
-impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatBind<M> where (M::BoundHandlesBool,Y): FilterPair {
+unsafe impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatBind<M> where (M::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
     type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -722,7 +722,7 @@ impl<M: MatrixLike<FstHandleBool = Y>> HasOutput for MatBind<M> where (M::Output
     }
 }
 
-unsafe impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where (M::BoundHandlesBool,Y): FilterPair, (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair {
+impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where (M::BoundHandlesBool,Y): FilterPair, (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair {
     type FstHandleBool = N;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = <(M::BoundHandlesBool,Y) as TyBoolPair>::Or;
@@ -757,7 +757,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where
 
 pub struct MatMapBind<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B>{pub(crate) mat: M,pub(crate) f: F}
 
-impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Get2D for MatMapBind<M,F,I,B> where (M::BoundHandlesBool,Y): FilterPair {
+unsafe impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Get2D for MatMapBind<M,F,I,B> where (M::BoundHandlesBool,Y): FilterPair {
     type GetBool = Y;
     type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -798,7 +798,7 @@ impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> HasOutput 
     }
 }
 
-unsafe impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Has2DReuseBuf for MatMapBind<M,F,I,B> where (M::BoundHandlesBool,Y): FilterPair, (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair {
+impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Has2DReuseBuf for MatMapBind<M,F,I,B> where (M::BoundHandlesBool,Y): FilterPair, (M::IsFstBufferTransposed,M::AreBoundBuffersTransposed): TyBoolPair {
     type FstHandleBool = N;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = <(M::BoundHandlesBool,Y) as TyBoolPair>::Or;
@@ -833,7 +833,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Has
 
 pub struct MatBufSwap<M: MatrixLike>{pub(crate) mat: M} 
 
-impl<M: MatrixLike> Get2D for MatBufSwap<M> {
+unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -854,7 +854,7 @@ impl<M: MatrixLike> HasOutput for MatBufSwap<M> {
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
+impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
     type FstHandleBool = M::SndHandleBool;
     type SndHandleBool = M::FstHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -879,74 +879,9 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(col_index,row_index)}
 }
 
+pub struct MatColOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_columns: usize}
 
-pub struct MatColOffset<M: MatrixLike,const D2: usize>{pub(crate) mat: M, pub(crate) offset: usize}
-
-impl<M: MatrixLike, const D2: usize> MatColOffset<M,D2> {
-    #[inline]
-    fn offset_index(&self,index: usize) -> usize {
-        let mut offset_index = index + self.offset;
-        if offset_index >= index { 
-            offset_index %= D2;
-        } else { //index overflowed, LLVM should be able to elid this most of the time
-            //if the index overflowed, (usize::MAX) + 1 was subtracted from it, add (usize::MAX)+1 mod D2 to recover
-            offset_index %= D2;
-            offset_index += ((usize::MAX % D2) + 1) % D2; // 2 modulos to prevent overflow
-            offset_index %= D2;
-        }
-        offset_index
-    }
-}
-
-impl<M: MatrixLike, const D2: usize> Get2D for MatColOffset<M,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type AreInputsTransposed = M::AreInputsTransposed;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {self.mat.get_inputs(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) {self.mat.drop_inputs(self.offset_index(col_index),row_index)}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
-}
-
-impl<M: MatrixLike, const D2: usize> HasOutput for MatColOffset<M,D2> {
-    type OutputBool = M::OutputBool;
-    type Output = M::Output;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {self.mat.output()}
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike, const D2: usize> Has2DReuseBuf for MatColOffset<M,D2> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = M::FstOwnedBufferBool;
-    type SndOwnedBufferBool = M::SndOwnedBufferBool;
-    type IsFstBufferTransposed = M::IsFstBufferTransposed;
-    type IsSndBufferTransposed = M::IsSndBufferTransposed;
-    type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
-    type FstOwnedBuffer = M::FstOwnedBuffer;
-    type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstType = M::FstType;
-    type SndType = M::SndType;
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(self.offset_index(col_index),row_index,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(self.offset_index(col_index),row_index,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(self.offset_index(col_index),row_index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_2nd_buf_index(self.offset_index(col_index),row_index)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(self.offset_index(col_index),row_index)}
-}
-
-pub struct RuntimeMatColOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_columns: usize}
-
-impl<M: MatrixLike> RuntimeMatColOffset<M> {
+impl<M: MatrixLike> MatColOffset<M> {
     #[inline]
     fn offset_index(&self,index: usize) -> usize {
         let mut offset_index = index + self.offset;
@@ -962,7 +897,7 @@ impl<M: MatrixLike> RuntimeMatColOffset<M> {
     }
 }
 
-impl<M: MatrixLike> Get2D for RuntimeMatColOffset<M> {
+unsafe impl<M: MatrixLike> Get2D for MatColOffset<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -975,7 +910,7 @@ impl<M: MatrixLike> Get2D for RuntimeMatColOffset<M> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-impl<M: MatrixLike> HasOutput for RuntimeMatColOffset<M> {
+impl<M: MatrixLike> HasOutput for MatColOffset<M> {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
@@ -983,7 +918,7 @@ impl<M: MatrixLike> HasOutput for RuntimeMatColOffset<M> {
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatColOffset<M> {
+impl<M: MatrixLike> Has2DReuseBuf for MatColOffset<M> {
     type FstHandleBool = M::FstHandleBool;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -1008,73 +943,9 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatColOffset<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(self.offset_index(col_index),row_index)}
 }
 
-pub struct MatRowOffset<M: MatrixLike,const D1: usize>{pub(crate) mat: M, pub(crate) offset: usize}
+pub struct MatRowOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_rows: usize}
 
-impl<M: MatrixLike, const D1: usize> MatRowOffset<M,D1> {
-    #[inline]
-    fn offset_index(&self,index: usize) -> usize {
-        let mut offset_index = index + self.offset;
-        if offset_index >= index { 
-            offset_index %= D1;
-        } else { //index overflowed, LLVM should be able to elid this most of the time
-            //if the index overflowed, (usize::MAX) + 1 was subtracted from it, add (usize::MAX)+1 mod D1 to recover
-            offset_index %= D1;
-            offset_index += ((usize::MAX % D1) + 1) % D1; // 2 modulos to prevent overflow
-            offset_index %= D1;
-        }
-        offset_index
-    }
-}
-
-impl<M: MatrixLike, const D1: usize> Get2D for MatRowOffset<M,D1> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type AreInputsTransposed = M::AreInputsTransposed;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {self.mat.get_inputs(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) {self.mat.drop_inputs(col_index,self.offset_index(row_index))}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
-}
-
-impl<M: MatrixLike, const D1: usize> HasOutput for MatRowOffset<M,D1> {
-    type OutputBool = M::OutputBool;
-    type Output = M::Output;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {self.mat.output()}
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike, const D1: usize> Has2DReuseBuf for MatRowOffset<M,D1> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = M::FstOwnedBufferBool;
-    type SndOwnedBufferBool = M::SndOwnedBufferBool;
-    type IsFstBufferTransposed = M::IsFstBufferTransposed;
-    type IsSndBufferTransposed = M::IsSndBufferTransposed;
-    type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
-    type FstOwnedBuffer = M::FstOwnedBuffer;
-    type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstType = M::FstType;
-    type SndType = M::SndType;
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) {self.mat.assign_1st_buf(col_index,self.offset_index(row_index),val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {self.mat.assign_2nd_buf(col_index,self.offset_index(row_index),val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) {self.mat.assign_bound_bufs(col_index,self.offset_index(row_index),val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_1st_buf_index(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_2nd_buf_index(col_index,self.offset_index(row_index))}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(col_index,self.offset_index(row_index))}
-}
-
-pub struct RuntimeMatRowOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_rows: usize}
-
-impl<M: MatrixLike> RuntimeMatRowOffset<M> {
+impl<M: MatrixLike> MatRowOffset<M> {
     #[inline]
     fn offset_index(&self,index: usize) -> usize {
         let mut offset_index = index + self.offset;
@@ -1090,7 +961,7 @@ impl<M: MatrixLike> RuntimeMatRowOffset<M> {
     }
 }
 
-impl<M: MatrixLike> Get2D for RuntimeMatRowOffset<M> {
+unsafe impl<M: MatrixLike> Get2D for MatRowOffset<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -1103,7 +974,7 @@ impl<M: MatrixLike> Get2D for RuntimeMatRowOffset<M> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-impl<M: MatrixLike> HasOutput for RuntimeMatRowOffset<M> {
+impl<M: MatrixLike> HasOutput for MatRowOffset<M> {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
@@ -1111,7 +982,7 @@ impl<M: MatrixLike> HasOutput for RuntimeMatRowOffset<M> {
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatRowOffset<M> {
+impl<M: MatrixLike> Has2DReuseBuf for MatRowOffset<M> {
     type FstHandleBool = M::FstHandleBool;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -1136,9 +1007,11 @@ unsafe impl<M: MatrixLike> Has2DReuseBuf for RuntimeMatRowOffset<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {self.mat.drop_bound_bufs_index(col_index,self.offset_index(row_index))}
 }
 
+
+
 pub struct MatrixColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column_num: usize}
 
-impl<M: MatrixLike> Get for MatrixColumn<M> {
+unsafe impl<M: MatrixLike> Get for MatrixColumn<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
@@ -1163,7 +1036,7 @@ impl<M: MatrixLike> HasOutput for MatrixColumn<M> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
+impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -1186,21 +1059,21 @@ unsafe impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
 }
 
 
-pub struct MatColVectorExprs<M: MatrixLike,const D1: usize>{pub(crate) mat: M}
+pub struct MatColVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
-impl<M: MatrixLike,const D1: usize> Get for MatColVectorExprs<M,D1> {
+unsafe impl<M: MatrixLike> Get for MatColVectorExprs<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = N;
+    type IsRepeatable = M::IsRepeatable;
     type Inputs = usize;
-    type Item = VectorExpr<MatrixColumn<M>,D1>;
+    type Item = MatrixColumn<M>;
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixColumn{mat: &mut self.mat as *mut M, column_num: inputs}),())}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixColumn{mat: &mut self.mat as *mut M, column_num: inputs},())}
 }
 
-impl<M: MatrixLike,const D1: usize> HasOutput for MatColVectorExprs<M,D1> {
+impl<M: MatrixLike> HasOutput for MatColVectorExprs<M> {
     type OutputBool = N;
     type Output = ();
 
@@ -1208,7 +1081,7 @@ impl<M: MatrixLike,const D1: usize> HasOutput for MatColVectorExprs<M,D1> {
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike,const D1: usize> HasReuseBuf for MatColVectorExprs<M,D1> {
+impl<M: MatrixLike> HasReuseBuf for MatColVectorExprs<M> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -1230,316 +1103,11 @@ unsafe impl<M: MatrixLike,const D1: usize> HasReuseBuf for MatColVectorExprs<M,D
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+unsafe impl<M: MatrixLike> VectorizedMatrix for MatColVectorExprs<M> {type Vector = Self::Item;}
 
-// dumb name
-pub struct MatrixOutputColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column_num: usize, pub(crate) output_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixOutputColumn<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(self.column_num, index)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(self.column_num, index)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixOutputColumn<M> {
-    type OutputBool = N; // this indicates whether it actually outputs a type, not that output does nothing
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {*self.output_flag_handle += 1}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixOutputColumn<M> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,_: usize,_: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,_: usize,_: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(self.column_num, index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,_: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,_: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(self.column_num, index)}
-}
-
-
-pub struct MatOutputColVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) output_flag: usize}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatOutputColVectorExprs<M,D1,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixOutputColumn<M>,D1>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixOutputColumn{mat: &mut self.mat as *mut M, column_num: inputs, output_flag_handle: &mut self.output_flag as *mut usize}),())}
-}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatOutputColVectorExprs<M,D1,D2> {
-    type OutputBool = M::OutputBool;
-    type Output = M::Output;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.output_flag,D2,"math_vector Error: All vectors of a MatrixOutputColVectorExprs must output before the MatrixOutputColumnIter can output");
-        self.mat.output()
-    }
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatOutputColVectorExprs<M,D1,D2> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-
-pub struct MatrixBindColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column_num: usize, pub(crate) bind_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixBindColumn<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(self.column_num, index)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(self.column_num, index)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixBindColumn<M> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixBindColumn<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = N;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = M::FstType;
-    type SndType = ();
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(self.column_num,index,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,_: usize,_: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(self.column_num, index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {*self.bind_flag_handle += 1;}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(self.column_num,index)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,_: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(self.column_num, index)}
-}
-
-
-pub struct MatBindColVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) bind_flag: usize}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatBindColVectorExprs<M,D1,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixBindColumn<M>,D1>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixBindColumn{mat: &mut self.mat as *mut M, column_num: inputs, bind_flag_handle: &mut self.bind_flag as *mut usize}),())}
-}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatBindColVectorExprs<M,D1,D2> where (M::OutputBool,M::FstOwnedBufferBool): FilterPair {
-    type OutputBool = <(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or;
-    type Output = <(M::OutputBool,M::FstOwnedBufferBool) as FilterPair>::Filtered<M::Output,M::FstOwnedBuffer>;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.bind_flag,D2,"math_vector Error: All vectors of a MatrixBindColVectorExprs must bind the fst buffer and output before the MatrixBindColumnIter can output");
-        <(M::OutputBool,M::FstOwnedBufferBool)>::filter(self.mat.output(),self.mat.get_1st_buffer())
-    }
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatBindColVectorExprs<M,D1,D2> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-
-pub struct MatrixFullBindColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column_num: usize, pub(crate) bind_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixFullBindColumn<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(self.column_num, index)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(self.column_num, index)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixFullBindColumn<M> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixFullBindColumn<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = M::FstType;
-    type SndType = M::SndType;
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(self.column_num,index,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(self.column_num,index,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(self.column_num, index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {*self.bind_flag_handle += 1;}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {*self.bind_flag_handle += 1;}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(self.column_num,index)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {(*self.mat).drop_2nd_buf_index(self.column_num,index)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(self.column_num, index)}
-}
-
-
-pub struct MatFullBindColVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) bind_flag: usize}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatFullBindColVectorExprs<M,D1,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixFullBindColumn<M>,D1>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixFullBindColumn{mat: &mut self.mat as *mut M, column_num: inputs, bind_flag_handle: &mut self.bind_flag as *mut usize}),())}
-}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatFullBindColVectorExprs<M,D1,D2> 
-where 
-    (M::OutputBool,M::FstOwnedBufferBool): FilterPair,
-    (<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool): FilterPair
-{
-    type OutputBool = <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as TyBoolPair>::Or;
-    type Output = <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as FilterPair>::Filtered<
-        <(M::OutputBool,M::FstOwnedBufferBool) as FilterPair>::Filtered<
-            M::Output,M::FstOwnedBuffer
-        >,M::SndOwnedBuffer
-    >;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.bind_flag,2*D2,"math_vector Error: All vectors of a MatrixBindColVectorExprs must bind the both buffers and output before the MatrixBindColumnIter can output");
-        <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as FilterPair>::filter(
-            <(M::OutputBool,M::FstOwnedBufferBool)>::filter(self.mat.output(),self.mat.get_1st_buffer()),
-            self.mat.get_2nd_buffer()
-        )
-    }
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatFullBindColVectorExprs<M,D1,D2> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-// doesn't support matrices with outputs properly
 pub struct MatrixRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: usize}
 
-impl<M: MatrixLike> Get for MatrixRow<M> {
+unsafe impl<M: MatrixLike> Get for MatrixRow<M> {
     type GetBool = M::GetBool;
     type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
@@ -1564,358 +1132,52 @@ impl<M: MatrixLike> HasOutput for MatrixRow<M> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixRow<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = M::FstOwnedBufferBool;
-    type SndOwnedBufferBool = M::SndOwnedBufferBool;
-    type FstOwnedBuffer = M::FstOwnedBuffer;
-    type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstType = M::FstType;
-    type SndType = M::SndType;
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index, self.row_num)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {(*self.mat).drop_2nd_buf_index(index, self.row_num)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(index, self.row_num)}
-}
-
-
-pub struct MatRowVectorExprs<M: MatrixLike,const D2: usize>{pub(crate) mat: M}
-
-impl<M: MatrixLike,const D2: usize> Get for MatRowVectorExprs<M,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixRow<M>,D2>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixRow{mat: &mut self.mat as *mut M, row_num: inputs}),())}
-}
-
-impl<M: MatrixLike,const D2: usize> HasOutput for MatRowVectorExprs<M,D2> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D2: usize> HasReuseBuf for MatRowVectorExprs<M,D2> {
+impl<M: MatrixLike> HasReuseBuf for MatrixRow<M> {
     type FstHandleBool = N;
     type SndHandleBool = N;
-    type BoundHandlesBool = N;
+    type BoundHandlesBool = M::BoundHandlesBool;
     type FstOwnedBufferBool = N;
     type SndOwnedBufferBool = N;
     type FstOwnedBuffer = ();
     type SndOwnedBuffer = ();
     type FstType = ();
     type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-
-// dumb name
-pub struct MatrixOutputRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: usize, pub(crate) output_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixOutputRow<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(index,self.row_num)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(index,self.row_num)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixOutputRow<M> {
-    type OutputBool = N; // this indicates whether it actually outputs a type, not that output does nothing
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {*self.output_flag_handle += 1}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixOutputRow<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = M::FstOwnedBufferBool;
-    type SndOwnedBufferBool = M::SndOwnedBufferBool;
-    type FstOwnedBuffer = M::FstOwnedBuffer;
-    type SndOwnedBuffer = M::SndOwnedBuffer;
-    type FstType = M::FstType;
-    type SndType = M::SndType;
     type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {(*self.mat).get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {(*self.mat).get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index,self.row_num)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {(*self.mat).drop_2nd_buf_index(index,self.row_num)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(index,self.row_num)}
-}
-
-
-pub struct MatOutputRowVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) output_flag: usize}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatOutputRowVectorExprs<M,D1,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixOutputRow<M>,D2>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixOutputRow{mat: &mut self.mat as *mut M, row_num: inputs, output_flag_handle: &mut self.output_flag as *mut usize}),())}
-}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatOutputRowVectorExprs<M,D1,D2> {
-    type OutputBool = M::OutputBool;
-    type Output = M::Output;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.output_flag,D1,"math_vector Error: All vectors of a MatrixOutputRowVectorExprs must output before the MatrixOutputRowIter can output");
-        self.mat.output()
-    }
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatOutputRowVectorExprs<M,D1,D2> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-
-pub struct MatrixBindRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: usize, pub(crate) bind_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixBindRow<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(index, self.row_num)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(index, self.row_num)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixBindRow<M> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixBindRow<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = N;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = M::FstType;
-    type SndType = ();
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
+    #[inline] unsafe fn assign_1st_buf(&mut self,_: usize,_: Self::FstType) {}
     #[inline] unsafe fn assign_2nd_buf(&mut self,_: usize,_: Self::SndType) {}
     #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {*self.bind_flag_handle += 1;}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index, self.row_num)}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self,_: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self,_: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(index, self.row_num)}
 }
 
 
-pub struct MatBindRowVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) bind_flag: usize}
+pub struct MatRowVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatBindRowVectorExprs<M,D1,D2> {
+unsafe impl<M: MatrixLike> Get for MatRowVectorExprs<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = N;
+    type IsRepeatable = M::IsRepeatable;
     type Inputs = usize;
-    type Item = VectorExpr<MatrixBindRow<M>,D2>;
+    type Item = MatrixRow<M>;
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixBindRow{mat: &mut self.mat as *mut M, row_num: inputs, bind_flag_handle: &mut self.bind_flag as *mut usize}),())}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixRow{mat: &mut self.mat as *mut M, row_num: inputs},())}
 }
 
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatBindRowVectorExprs<M,D1,D2> where (M::OutputBool,M::FstOwnedBufferBool): FilterPair {
-    type OutputBool = <(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or;
-    type Output = <(M::OutputBool,M::FstOwnedBufferBool) as FilterPair>::Filtered<M::Output,M::FstOwnedBuffer>;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.bind_flag,D1,"math_vector Error: All vectors of a MatrixBindRowVectorExprs must bind the fst buffer and output before the MatrixBindRowIter can output");
-        <(M::OutputBool,M::FstOwnedBufferBool)>::filter(self.mat.output(),self.mat.get_1st_buffer())
-    }
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
-}
-
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatBindRowVectorExprs<M,D1,D2> {
-    type FstHandleBool = N;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = ();
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
-
-
-pub struct MatrixFullBindRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: usize, pub(crate) bind_flag_handle: *mut usize}
-
-impl<M: MatrixLike> Get for MatrixFullBindRow<M> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
-    type Inputs = M::Inputs;
-    type Item = M::Item;
-    type BoundItems = M::BoundItems;
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {unsafe { (*self.mat).get_inputs(index, self.row_num)} }
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(index, self.row_num)} }
-    
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
-}
-
-impl<M: MatrixLike> HasOutput for MatrixFullBindRow<M> {
+impl<M: MatrixLike> HasOutput for MatRowVectorExprs<M> {
     type OutputBool = N;
     type Output = ();
 
     #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
-unsafe impl<M: MatrixLike> HasReuseBuf for MatrixFullBindRow<M> {
-    type FstHandleBool = M::FstHandleBool;
-    type SndHandleBool = M::SndHandleBool;
-    type BoundHandlesBool = M::BoundHandlesBool;
-    type FstOwnedBufferBool = N;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = ();
-    type SndOwnedBuffer = ();
-    type FstType = M::FstType;
-    type SndType = M::SndType;
-    type BoundTypes = M::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {(*self.mat).assign_1st_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {(*self.mat).assign_2nd_buf(index, self.row_num,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {(*self.mat).assign_bound_bufs(index, self.row_num,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {*self.bind_flag_handle += 1;}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {*self.bind_flag_handle += 1;}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {(*self.mat).drop_1st_buf_index(index, self.row_num)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {(*self.mat).drop_2nd_buf_index(index, self.row_num)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {(*self.mat).drop_bound_bufs_index(index, self.row_num)}
-}
-
-
-pub struct MatFullBindRowVectorExprs<M: MatrixLike,const D1: usize,const D2: usize>{pub(crate) mat: M, pub(crate) bind_flag: usize}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> Get for MatFullBindRowVectorExprs<M,D1,D2> {
-    type GetBool = M::GetBool;
-    type IsRepeatable = N;
-    type Inputs = usize;
-    type Item = VectorExpr<MatrixFullBindRow<M>,D2>;
-    type BoundItems = ();
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
-    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(VectorExpr(MatrixFullBindRow{mat: &mut self.mat as *mut M, row_num: inputs, bind_flag_handle: &mut self.bind_flag as *mut usize}),())}
-}
-
-impl<M: MatrixLike,const D1: usize,const D2: usize> HasOutput for MatFullBindRowVectorExprs<M,D1,D2> 
-where 
-    (M::OutputBool,M::FstOwnedBufferBool): FilterPair,
-    (<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool): FilterPair
-{
-    type OutputBool = <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as TyBoolPair>::Or;
-    type Output = <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as FilterPair>::Filtered<
-        <(M::OutputBool,M::FstOwnedBufferBool) as FilterPair>::Filtered<
-            M::Output,M::FstOwnedBuffer
-        >,M::SndOwnedBuffer
-    >;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {
-        assert_eq!(self.bind_flag,2*D1,"math_vector Error: All vectors of a MatrixBindRowVectorExprs must bind the both buffers and output before the MatrixBindRowumnIter can output");
-        <(<(M::OutputBool,M::FstOwnedBufferBool) as TyBoolPair>::Or, M::SndOwnedBufferBool) as FilterPair>::filter(
-            <(M::OutputBool,M::FstOwnedBufferBool)>::filter(self.mat.output(),self.mat.get_1st_buffer()),
-            self.mat.get_2nd_buffer()
-        )
-    }
     #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output()}
 }
 
-unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatFullBindRowVectorExprs<M,D1,D2> {
+impl<M: MatrixLike> HasReuseBuf for MatRowVectorExprs<M> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -1937,6 +1199,116 @@ unsafe impl<M: MatrixLike,const D1: usize,const D2: usize> HasReuseBuf for MatFu
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+unsafe impl<M: MatrixLike> VectorizedMatrix for MatRowVectorExprs<M> {type Vector = Self::Item;}
+
+
+pub struct FullMatMul<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
+
+unsafe impl<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>> Get2D for FullMatMul<M1,M2> where 
+    M1::Item: Mul<M2::Item>,
+    <M1::Item as Mul<M2::Item>>::Output: AddAssign,
+    (M1::BoundHandlesBool,M2::BoundHandlesBool): FilterPair,
+    (M1::AreInputsTransposed,M2::AreInputsTransposed): TyBoolPair,
+{
+    type GetBool = Y;
+    type IsRepeatable = N;
+    type AreInputsTransposed = <(M1::AreInputsTransposed, M2::AreInputsTransposed) as TyBoolPair>::Or;
+    type Inputs = (usize,usize);
+    type Item = <M1::Item as Mul<M2::Item>>::Output;
+    type BoundItems = <(M1::BoundHandlesBool,M2::BoundHandlesBool) as FilterPair>::Filtered<M1::BoundItems, M2::BoundItems>;
+
+    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {(col_index,row_index)}
+    unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
+    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        unsafe {
+            let mut result = self.l_mat.get(0, inputs.1).0 * self.r_mat.get(inputs.0, 0).0;
+            for i in 1..self.shared_size {
+                result += self.l_mat.get(i, inputs.1).0 * self.r_mat.get(inputs.0, i).0;
+            }
+            let bound = <(M1::BoundHandlesBool,M2::BoundHandlesBool) as FilterPair>::filter(
+                self.l_mat.get(inputs.0,inputs.1).1, 
+                self.r_mat.get(inputs.0,inputs.1).1
+            );
+            (result,bound)
+        }
+    }
+}
+
+impl<M1: MatrixLike<IsRepeatable = Y>,M2: MatrixLike<IsRepeatable = Y>> HasOutput for FullMatMul<M1,M2> where (M1::OutputBool, M2::OutputBool): FilterPair {
+    type OutputBool = <(M1::OutputBool,M2::OutputBool) as TyBoolPair>::Or;
+    type Output = <(M1::OutputBool,M2::OutputBool) as FilterPair>::Filtered<M1::Output,M2::Output>;
+
+    unsafe fn output(&mut self) -> Self::Output {
+        <(M1::OutputBool,M2::OutputBool) as FilterPair>::filter(
+            self.l_mat.output(),
+            self.r_mat.output()
+        )
+    }
+    unsafe fn drop_output(&mut self) {
+        self.l_mat.drop_output();
+        self.r_mat.drop_output();
+    }
+} 
+
+impl<M1: MatrixLike<IsRepeatable = Y>,M2: MatrixLike<IsRepeatable = Y>> Has2DReuseBuf for FullMatMul<M1,M2>
+where 
+    (M1::FstOwnedBufferBool, M2::FstOwnedBufferBool): SelectPair,
+    (M1::SndOwnedBufferBool, M2::SndOwnedBufferBool): SelectPair,
+    (M1::FstHandleBool, M2::FstHandleBool): SelectPair,
+    (M1::SndHandleBool, M2::SndHandleBool): SelectPair,
+    (M1::BoundHandlesBool, M2::BoundHandlesBool): FilterPair,
+    (M1::IsFstBufferTransposed, M2::IsFstBufferTransposed): TyBoolPair,
+    (M1::IsSndBufferTransposed, M2::IsSndBufferTransposed): TyBoolPair,
+    (M1::AreBoundBuffersTransposed, M2::AreBoundBuffersTransposed): TyBoolPair
+{
+    type FstHandleBool = <(M1::FstHandleBool, M2::FstHandleBool) as TyBoolPair>::Xor;
+    type SndHandleBool = <(M1::SndHandleBool, M2::SndHandleBool) as TyBoolPair>::Xor;
+    type BoundHandlesBool = <(M1::BoundHandlesBool, M2::BoundHandlesBool) as TyBoolPair>::Or;
+    type FstOwnedBufferBool = <(M1::FstOwnedBufferBool, M2::FstOwnedBufferBool) as TyBoolPair>::Xor; 
+    type SndOwnedBufferBool = <(M1::SndOwnedBufferBool, M2::SndOwnedBufferBool) as TyBoolPair>::Xor; 
+    type IsFstBufferTransposed = <(M1::IsFstBufferTransposed, M2::IsFstBufferTransposed) as TyBoolPair>::Xor;
+    type IsSndBufferTransposed = <(M1::IsSndBufferTransposed, M2::IsSndBufferTransposed) as TyBoolPair>::Xor;
+    type AreBoundBuffersTransposed = <(M1::AreBoundBuffersTransposed, M2::AreBoundBuffersTransposed) as TyBoolPair>::Xor;
+    type FstOwnedBuffer = <(M1::FstOwnedBufferBool, M2::FstOwnedBufferBool) as SelectPair>::Selected<M1::FstOwnedBuffer,M2::FstOwnedBuffer>;
+    type SndOwnedBuffer = <(M1::SndOwnedBufferBool, M2::SndOwnedBufferBool) as SelectPair>::Selected<M1::SndOwnedBuffer,M2::SndOwnedBuffer>;
+    type FstType = <(M1::FstHandleBool, M2::FstHandleBool) as SelectPair>::Selected<M1::FstType,M2::FstType>;
+    type SndType = <(M1::SndHandleBool, M2::SndHandleBool) as SelectPair>::Selected<M1::SndType,M2::SndType>;
+    type BoundTypes = <(M1::BoundHandlesBool, M2::BoundHandlesBool) as FilterPair>::Filtered<M1::BoundTypes,M2::BoundTypes>;
+
+    #[inline] unsafe fn assign_1st_buf(&mut self,col_index: usize,row_index: usize,val: Self::FstType) {
+        let (l_val,r_val) = <(M1::FstHandleBool, M2::FstHandleBool) as SelectPair>::deselect(val);
+        self.l_mat.assign_1st_buf(col_index,row_index,l_val);
+        self.r_mat.assign_1st_buf(col_index,row_index,r_val);
+    }
+    #[inline] unsafe fn assign_2nd_buf(&mut self,col_index: usize,row_index: usize,val: Self::SndType) {
+        let (l_val,r_val) = <(M1::SndHandleBool, M2::SndHandleBool) as SelectPair>::deselect(val);
+        self.l_mat.assign_2nd_buf(col_index,row_index,l_val);
+        self.r_mat.assign_2nd_buf(col_index,row_index,r_val);
+    }
+    #[inline] unsafe fn assign_bound_bufs(&mut self,col_index: usize,row_index: usize,val: Self::BoundTypes) {
+        let (l_val,r_val) = <(M1::BoundHandlesBool, M2::BoundHandlesBool) as FilterPair>::defilter(val);
+        self.l_mat.assign_bound_bufs(col_index,row_index,l_val);
+        self.r_mat.assign_bound_bufs(col_index,row_index,r_val);
+    }
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
+        <(M1::FstOwnedBufferBool, M2::FstOwnedBufferBool) as SelectPair>::select(self.l_mat.get_1st_buffer(),self.r_mat.get_1st_buffer())
+    }
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
+        <(M1::SndOwnedBufferBool, M2::SndOwnedBufferBool) as SelectPair>::select(self.l_mat.get_2nd_buffer(),self.r_mat.get_2nd_buffer())
+    }
+    #[inline] unsafe fn drop_1st_buf_index(&mut self,col_index: usize,row_index: usize) {
+        self.l_mat.drop_1st_buf_index(col_index,row_index);
+        self.r_mat.drop_1st_buf_index(col_index,row_index);
+    }
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self,col_index: usize,row_index: usize) {
+        self.l_mat.drop_2nd_buf_index(col_index,row_index);
+        self.r_mat.drop_2nd_buf_index(col_index,row_index);
+    }
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self,col_index: usize,row_index: usize) {
+        self.l_mat.drop_bound_bufs_index(col_index,row_index);
+        self.r_mat.drop_bound_bufs_index(col_index,row_index);
+    }
+}
 
 
 
@@ -1995,7 +1367,7 @@ macro_rules! mat_struct {
     ) => {
         pub struct $struct<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $mat: $mat_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
-        impl<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $mat_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+        unsafe impl<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $mat_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
             type IsRepeatable = N;
             type AreInputsTransposed = <$mat_generic as Get2D>::AreInputsTransposed;
@@ -2033,7 +1405,7 @@ macro_rules! mat_struct {
             }
         }
 
-        unsafe impl<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+,)? $mat_generic $(,$($generic),+)?> 
+        impl<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+,)? $mat_generic $(,$($generic),+)?> 
         $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type FstHandleBool = <$mat_generic as Has2DReuseBuf>::FstHandleBool;
             type SndHandleBool = <$mat_generic as Has2DReuseBuf>::SndHandleBool;
@@ -2067,7 +1439,7 @@ macro_rules! mat_struct {
     ) => {
         pub struct $struct<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_mat: $l_mat_generic, pub(crate) $r_mat: $r_mat_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
-        impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> where ($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool): FilterPair, (<$l_mat_generic as Get2D>::AreInputsTransposed,<$r_mat_generic as Get2D>::AreInputsTransposed): TyBoolPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+        unsafe impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> where ($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool): FilterPair, (<$l_mat_generic as Get2D>::AreInputsTransposed,<$r_mat_generic as Get2D>::AreInputsTransposed): TyBoolPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
             type IsRepeatable = N;
             type AreInputsTransposed = <(<$l_mat_generic as Get2D>::AreInputsTransposed,<$r_mat_generic as Get2D>::AreInputsTransposed) as TyBoolPair>::And;
@@ -2112,7 +1484,7 @@ macro_rules! mat_struct {
             }
         }
 
-        unsafe impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> 
+        impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> 
         where 
             (<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
             (<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
@@ -2180,7 +1552,7 @@ mat_struct!(MatEntryFold<{M},F: FnMut(O,M::Item) -> O,O>{mat, f: F, cell: Option
 mat_struct!(MatEntryFoldRef<{M},F: FnMut(&mut O,M::Item),O>{mat, f: F, cell: ManuallyDrop<O>}; output: cell: O, get2D: (), |self,input| (self.f)(&mut self.cell,input)); // note: use of this is preferred to MatEntryFold
 
 mat_struct!(MatEntryCopiedFold<{M},F: FnMut(O,M::Item) -> O,O>{mat, f: F, cell: Option<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self,input| {self.cell = Some((self.f)(self.cell.take().unwrap(),input)); input});
-mat_struct!(MatEntryCopiedFoldRef<{M},F: FnMut(&mut O,M::Item),O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self,input| {(self.f)(&mut self.cell,input); input}); // note: use of this is preferred to VecFold
+mat_struct!(MatEntryCopiedFoldRef<{M},F: FnMut(&mut O,M::Item),O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self,input| {(self.f)(&mut self.cell,input); input});
 
 mat_struct!(MatCopy<'a,{M},I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self,input| *input);
 mat_struct!(MatClone<'a,{M},I: 'a | Clone>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self,input| input.clone());
