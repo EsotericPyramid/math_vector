@@ -461,7 +461,17 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecBind{vec: self.unwrap()}) }
     }
 
-    // TODO: add map_bind
+    #[inline]
+    fn map_bind<F: FnMut(<Self::Unwrapped as Get>::Item) -> (I,B),I,B>(self, f: F) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMapBind<Self::Unwrapped,F,I,B>> where 
+        Self::Unwrapped:  VectorLike<FstHandleBool = Y>,
+        (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): FilterPair,
+        (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,Y): FilterPair,
+        VecBind<Self::Unwrapped>: HasReuseBuf<BoundTypes = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
+        Self: Sized
+    {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecMapBind{vec: self.unwrap(), f})}
+    }
 
     #[inline] 
     fn half_bind(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecHalfBind<Self::Unwrapped>> where
