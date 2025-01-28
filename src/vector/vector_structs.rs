@@ -32,7 +32,7 @@ impl<T,const D: usize> DerefMut for OwnedArray<T,D> {
     }
 }
 
-impl<T,const D: usize> Get for OwnedArray<T,D> {
+unsafe impl<T,const D: usize> Get for OwnedArray<T,D> {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = T;
@@ -52,7 +52,7 @@ impl<T,const D: usize> HasOutput for OwnedArray<T,D> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
+impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -76,7 +76,7 @@ unsafe impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
 
 pub struct ReferringOwnedArray<'a,T: 'a,const D: usize>(pub(crate) ManuallyDrop<[T; D]>, pub(crate) std::marker::PhantomData<&'a T>);
 
-impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
+unsafe impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
     type GetBool = Y;
     type IsRepeatable = Y;
     type Inputs = &'a T;
@@ -96,7 +96,7 @@ impl<'a,T: 'a,const D: usize> HasOutput for ReferringOwnedArray<'a,T,D> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<'a,T: 'a,const D: usize> HasReuseBuf for ReferringOwnedArray<'a,T,D> {
+impl<'a,T: 'a,const D: usize> HasReuseBuf for ReferringOwnedArray<'a,T,D> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -119,7 +119,7 @@ unsafe impl<'a,T: 'a,const D: usize> HasReuseBuf for ReferringOwnedArray<'a,T,D>
 }
 
 
-impl<'a,T,const D: usize> Get for &'a [T; D] {
+unsafe impl<'a,T,const D: usize> Get for &'a [T; D] {
     type GetBool = Y;
     type IsRepeatable = Y;
     type Inputs = &'a T;
@@ -139,7 +139,7 @@ impl<'a,T,const D: usize> HasOutput for &'a [T; D] {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
+impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -162,7 +162,7 @@ unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
 }
 
 
-impl<'a,T,const D: usize> Get for &'a mut [T; D] {
+unsafe impl<'a,T,const D: usize> Get for &'a mut [T; D] {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = &'a mut T;
@@ -183,7 +183,94 @@ impl<'a,T,const D: usize> HasOutput for &'a mut [T; D] {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a mut [T; D] {
+impl<'a,T,const D: usize> HasReuseBuf for &'a mut [T; D] {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
+
+unsafe impl<'a,T> Get for &'a [T] {
+    type GetBool = Y;
+    type IsRepeatable = Y;
+    type Inputs = &'a T;
+    type Item = &'a T;
+    type BoundItems = ();
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {self.get_unchecked(index)}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
+    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
+}
+
+impl<'a,T> HasOutput for &'a [T] {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+impl<'a,T> HasReuseBuf for &'a [T] {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
+
+unsafe impl<'a,T> Get for &'a mut [T] {
+    type GetBool = Y;
+    type IsRepeatable = N;
+    type Inputs = &'a mut T;
+    type Item = &'a mut T;
+    type BoundItems = ();
+
+    //ptr shenanigans to change the lifetime
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {&mut*(self.get_unchecked_mut(index) as *mut T)}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
+    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
+}
+
+impl<'a,T> HasOutput for &'a mut [T] {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+impl<'a,T> HasReuseBuf for &'a mut [T] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -208,7 +295,7 @@ unsafe impl<'a,T,const D: usize> HasReuseBuf for &'a mut [T; D] {
 
 #[inline] fn debox<T: Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
 
-impl<V: VectorLike> Get for Box<V> {
+unsafe impl<V: VectorLike> Get for Box<V> {
     type GetBool = V::GetBool;
     type IsRepeatable = N;
     type Inputs = V::Inputs;
@@ -220,7 +307,7 @@ impl<V: VectorLike> Get for Box<V> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
 }
 
-unsafe impl<V: VectorLike> HasReuseBuf for Box<V> {
+impl<V: VectorLike> HasReuseBuf for Box<V> {
     type FstHandleBool = V::FstHandleBool;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -245,7 +332,7 @@ unsafe impl<V: VectorLike> HasReuseBuf for Box<V> {
 
 pub struct ReplaceArray<T,const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
-impl<T,const D: usize> Get for ReplaceArray<T,D> {
+unsafe impl<T,const D: usize> Get for ReplaceArray<T,D> {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = T;
@@ -278,7 +365,7 @@ impl<T: Sized,const D: usize> HasOutput for ReplaceArray<T,D> {
     unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
 }
 
-unsafe impl<T,const D: usize> HasReuseBuf for ReplaceArray<T,D> {
+impl<T,const D: usize> HasReuseBuf for ReplaceArray<T,D> {
     type FstHandleBool = Y;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -305,7 +392,7 @@ unsafe impl<T,const D: usize> HasReuseBuf for ReplaceArray<T,D> {
 
 pub struct ReplaceHeapArray<T,const D: usize>(pub(crate) ManuallyDrop<Box<[T; D]>>);
 
-impl<T,const D: usize> Get for ReplaceHeapArray<T,D> {
+unsafe impl<T,const D: usize> Get for ReplaceHeapArray<T,D> {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = T;
@@ -338,7 +425,7 @@ impl<T: Sized,const D: usize> HasOutput for ReplaceHeapArray<T,D> {
     unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
 }
 
-unsafe impl<T,const D: usize> HasReuseBuf for ReplaceHeapArray<T,D> {
+impl<T,const D: usize> HasReuseBuf for ReplaceHeapArray<T,D> {
     type FstHandleBool = Y;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -372,7 +459,7 @@ unsafe impl<T,const D: usize> HasReuseBuf for ReplaceHeapArray<T,D> {
 
 pub struct VecGenerator<F: FnMut() -> O,O>(pub(crate) F);
 
-impl<F: FnMut() -> O,O> Get for VecGenerator<F,O> {
+unsafe impl<F: FnMut() -> O,O> Get for VecGenerator<F,O> {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = ();
@@ -392,7 +479,7 @@ impl<F: FnMut() -> O,O> HasOutput for VecGenerator<F,O> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<F: FnMut() -> O,O> HasReuseBuf for VecGenerator<F,O> {
+impl<F: FnMut() -> O,O> HasReuseBuf for VecGenerator<F,O> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -417,7 +504,7 @@ unsafe impl<F: FnMut() -> O,O> HasReuseBuf for VecGenerator<F,O> {
 
 pub struct VecIndexGenerator<F: FnMut(usize) -> O,O>(pub(crate) F);
 
-impl<F: FnMut(usize) -> O,O> Get for VecIndexGenerator<F,O> {
+unsafe impl<F: FnMut(usize) -> O,O> Get for VecIndexGenerator<F,O> {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = usize;
@@ -437,7 +524,7 @@ impl<F: FnMut(usize) -> O,O> HasOutput for VecIndexGenerator<F,O> {
     #[inline] unsafe fn drop_output(&mut self) {}
 }
 
-unsafe impl<F: FnMut(usize) -> O,O> HasReuseBuf for VecIndexGenerator<F,O> {
+impl<F: FnMut(usize) -> O,O> HasReuseBuf for VecIndexGenerator<F,O> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -462,7 +549,7 @@ unsafe impl<F: FnMut(usize) -> O,O> HasReuseBuf for VecIndexGenerator<F,O> {
 
 pub struct VecAttachBuf<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize>{pub(crate) vec: V, pub(crate) buf: &'a mut [T; D]} 
 
-impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecAttachBuf<'a,V,T,D> {
+unsafe impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecAttachBuf<'a,V,T,D> {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -484,7 +571,7 @@ impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecAtta
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<'b,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecAttachBuf<'b,V,T,D> {
+impl<'b,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecAttachBuf<'b,V,T,D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -509,7 +596,7 @@ unsafe impl<'b,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf fo
 
 pub struct VecCreateBuf<V: VectorLike<FstHandleBool = N>,T,const D: usize>{pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<T>; D]}
 
-impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateBuf<V,T,D> {
+unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateBuf<V,T,D> {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -531,7 +618,7 @@ impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecCreateB
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecCreateBuf<V,T,D> {
+impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecCreateBuf<V,T,D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -558,7 +645,7 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for V
 
 pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>,T,const D: usize>{pub(crate) vec: V, pub(crate) buf: ManuallyDrop<Box<[std::mem::MaybeUninit<T>; D]>>}
 
-impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateHeapBuf<V,T,D> {
+unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateHeapBuf<V,T,D> {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -580,7 +667,7 @@ impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecCreateH
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecCreateHeapBuf<V,T,D> {
+impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for VecCreateHeapBuf<V,T,D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -607,7 +694,7 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasReuseBuf for V
 
 pub struct VecMaybeCreateBuf<V: VectorLike,T,const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]}
 
-impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -629,7 +716,7 @@ impl<V: VectorLike,T,const D: usize> HasOutput for VecMaybeCreateBuf<V,T,D> wher
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<V: VectorLike,T,const D: usize> HasReuseBuf for VecMaybeCreateBuf<V,T,D> 
+impl<V: VectorLike,T,const D: usize> HasReuseBuf for VecMaybeCreateBuf<V,T,D> 
 where 
     <V::FstHandleBool as TyBool>::Neg: Filter, 
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair, 
@@ -672,7 +759,7 @@ where
 
 pub struct VecMaybeCreateHeapBuf<V: VectorLike,T,const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: ManuallyDrop<Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>>}
 
-impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateHeapBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateHeapBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -694,7 +781,7 @@ impl<V: VectorLike,T,const D: usize> HasOutput for VecMaybeCreateHeapBuf<V,T,D> 
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<V: VectorLike,T,const D: usize> HasReuseBuf for VecMaybeCreateHeapBuf<V,T,D> 
+impl<V: VectorLike,T,const D: usize> HasReuseBuf for VecMaybeCreateHeapBuf<V,T,D> 
 where 
     <V::FstHandleBool as TyBool>::Neg: Filter, 
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -737,7 +824,7 @@ where
 
 pub struct VecBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T} 
 
-impl<T: VectorLike<FstHandleBool = Y>> Get for VecBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
     type IsRepeatable = N;
     type Inputs = T::Inputs;
@@ -776,7 +863,7 @@ impl<T: VectorLike<FstHandleBool = Y>> HasOutput for VecBind<T> where (T::Output
     }
 }
 
-unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type FstHandleBool = N;
     type SndHandleBool = T::SndHandleBool;
     type BoundHandlesBool = <(T::BoundHandlesBool,Y) as TyBoolPair>::Or;
@@ -808,7 +895,7 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<T> where (
 
 pub struct VecMapBind<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> {pub(crate) vec: T, pub(crate) f: F}
 
-impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> Get for VecMapBind<T,F,I,B> where (T::BoundHandlesBool,Y): FilterPair {
+unsafe impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> Get for VecMapBind<T,F,I,B> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = Y;
     type IsRepeatable = N;
     type Inputs = T::Inputs;
@@ -848,7 +935,7 @@ impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> HasOutput 
     }
 }
 
-unsafe impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> HasReuseBuf for VecMapBind<T,F,I,B> where (T::BoundHandlesBool,Y): FilterPair {
+impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> HasReuseBuf for VecMapBind<T,F,I,B> where (T::BoundHandlesBool,Y): FilterPair {
     type FstHandleBool = N;
     type SndHandleBool = T::SndHandleBool;
     type BoundHandlesBool = <(T::BoundHandlesBool,Y) as TyBoolPair>::Or;
@@ -885,7 +972,7 @@ impl<T: VectorLike<FstHandleBool = Y>> VecHalfBind<T> {
     }
 }
 
-impl<T: VectorLike<FstHandleBool = Y>> Get for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
     type IsRepeatable = N;
     type Inputs = T::Inputs;
@@ -924,7 +1011,7 @@ impl<T: VectorLike<FstHandleBool = Y>> HasOutput for VecHalfBind<T> where (T::Ou
     }
 }
 
-unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
+impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type FstHandleBool = N;
     type SndHandleBool = T::SndHandleBool;
     type BoundHandlesBool = <(T::BoundHandlesBool,Y) as TyBoolPair>::Or;
@@ -956,7 +1043,7 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecHalfBind<T> whe
 
 pub struct VecBufSwap<T: VectorLike> {pub(crate) vec: T}
 
-impl<T: VectorLike> Get for VecBufSwap<T> {
+unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
     type GetBool = T::GetBool;
     type IsRepeatable = T::IsRepeatable;
     type Inputs = T::Inputs;
@@ -976,7 +1063,7 @@ impl<T: VectorLike> HasOutput for VecBufSwap<T> {
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
+impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     type FstHandleBool = T::SndHandleBool;
     type SndHandleBool = T::FstHandleBool;
     type BoundHandlesBool = T::BoundHandlesBool;
@@ -998,70 +1085,10 @@ unsafe impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {self.vec.drop_bound_bufs_index(index)}
 }
 
-pub struct VecOffset<T: VectorLike,const D: usize>{pub(crate) vec: T, pub(crate) offset: usize}
-
-impl<T: VectorLike,const D: usize> VecOffset<T,D> {
-    #[inline]
-    fn offset_index(&self,index: usize) -> usize {
-        let mut offset_index = index + self.offset;
-        if offset_index >= index { 
-            offset_index %= D;
-        } else { //index overflowed, LLVM should be able to elid this most of the time
-            //if the index overflowed, (usize::MAX) + 1 was subtracted from it, add (usize::MAX)+1 mod D to recover
-            offset_index %= D;
-            offset_index += ((usize::MAX % D) + 1) % D; // 2 modulos to prevent overflow
-            offset_index %= D;
-        }
-        offset_index
-    }
-}
-
-impl<T: VectorLike,const D: usize> Get for VecOffset<T,D> {
-    type GetBool = T::GetBool;
-    type IsRepeatable = N; // NOTE: N because offset_index adds a small amount of extra computation on get
-    type Inputs = T::Inputs;
-    type Item = T::Item;
-    type BoundItems = T::BoundItems;
-
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {self.vec.get_inputs(self.offset_index(index))}
-    #[inline] unsafe fn drop_inputs(&mut self, index: usize) {self.vec.drop_inputs(self.offset_index(index))}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
-}
-
-impl<T: VectorLike,const D: usize> HasOutput for VecOffset<T,D> {
-    type OutputBool = T::OutputBool;
-    type Output = T::Output;
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {self.vec.output()}
-    #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
-}
-
-unsafe impl<T: VectorLike,const D: usize> HasReuseBuf for VecOffset<T,D> {
-    type FstHandleBool = T::FstHandleBool;
-    type SndHandleBool = T::SndHandleBool;
-    type BoundHandlesBool = T::BoundHandlesBool;
-    type FstOwnedBufferBool = T::FstOwnedBufferBool;
-    type SndOwnedBufferBool = T::SndOwnedBufferBool;
-    type FstOwnedBuffer = T::FstOwnedBuffer;
-    type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstType = T::FstType;
-    type SndType = T::SndType;
-    type BoundTypes = T::BoundTypes;
-
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {self.vec.assign_1st_buf(self.offset_index(index),val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {self.vec.assign_2nd_buf(self.offset_index(index),val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {self.vec.assign_bound_bufs(self.offset_index(index),val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.vec.drop_1st_buf_index(self.offset_index(index))}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {self.vec.drop_2nd_buf_index(self.offset_index(index))}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {self.vec.drop_bound_bufs_index(self.offset_index(index))}
-}
-
 // TODO: add offset method for runtime vecs
-pub struct RuntimeVecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
+pub struct VecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
 
-impl<T: VectorLike> RuntimeVecOffset<T> {
+impl<T: VectorLike> VecOffset<T> {
     #[inline]
     fn offset_index(&self,index: usize) -> usize {
         let mut offset_index = index + self.offset;
@@ -1077,7 +1104,7 @@ impl<T: VectorLike> RuntimeVecOffset<T> {
     }
 }
 
-impl<T: VectorLike> Get for RuntimeVecOffset<T> {
+unsafe impl<T: VectorLike> Get for VecOffset<T> {
     type GetBool = T::GetBool;
     type IsRepeatable = N; // NOTE: N because offset_index adds a small amount of extra computation on get
     type Inputs = T::Inputs;
@@ -1089,7 +1116,7 @@ impl<T: VectorLike> Get for RuntimeVecOffset<T> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
 
-impl<T: VectorLike> HasOutput for RuntimeVecOffset<T> {
+impl<T: VectorLike> HasOutput for VecOffset<T> {
     type OutputBool = T::OutputBool;
     type Output = T::Output;
 
@@ -1097,7 +1124,7 @@ impl<T: VectorLike> HasOutput for RuntimeVecOffset<T> {
     #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
 }
 
-unsafe impl<T: VectorLike> HasReuseBuf for RuntimeVecOffset<T> {
+impl<T: VectorLike> HasReuseBuf for VecOffset<T> {
     type FstHandleBool = T::FstHandleBool;
     type SndHandleBool = T::SndHandleBool;
     type BoundHandlesBool = T::BoundHandlesBool;
@@ -1122,7 +1149,7 @@ unsafe impl<T: VectorLike> HasReuseBuf for RuntimeVecOffset<T> {
 /// SAFETY: it is expected that the used_vec field is safe to output in addition to normal correct implementation
 pub struct VecAttachUsedVec<V: VectorLike,USEDV: VectorLike>{pub(crate) vec: V, pub(crate) used_vec: USEDV}
 
-impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
+unsafe impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
     type GetBool = V::GetBool;
     type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
@@ -1153,7 +1180,7 @@ impl<V: VectorLike,USEDV: VectorLike> HasOutput for VecAttachUsedVec<V,USEDV> wh
     }
 }
 
-unsafe impl<V: VectorLike,USEDV: VectorLike> HasReuseBuf for VecAttachUsedVec<V,USEDV> 
+impl<V: VectorLike,USEDV: VectorLike> HasReuseBuf for VecAttachUsedVec<V,USEDV> 
 where 
     (V::FstOwnedBufferBool, USEDV::FstOwnedBufferBool): SelectPair,
     (V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool): SelectPair,
@@ -1260,7 +1287,7 @@ macro_rules! vec_struct {
     ) => {
         pub struct $struct<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $vec: $vec_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
-        impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+        unsafe impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
             type IsRepeatable = is_present!($($is_repeatable)?);
             type Inputs = <$vec_generic as Get>::Inputs;
@@ -1297,7 +1324,7 @@ macro_rules! vec_struct {
             }
         }
 
-        unsafe impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasReuseBuf for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> 
+        impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasReuseBuf for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> 
         $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type FstHandleBool = <$vec_generic as HasReuseBuf>::FstHandleBool;
             type SndHandleBool = <$vec_generic as HasReuseBuf>::SndHandleBool;
@@ -1328,7 +1355,7 @@ macro_rules! vec_struct {
     ) => {
         pub struct $struct<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_vec: $l_vec_generic, pub(crate) $r_vec: $r_vec_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
-        impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> where ($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+        unsafe impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> where ($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
             type IsRepeatable = is_present!($($is_repeatable)?); 
             type Inputs = ($l_vec_generic::Inputs,$r_vec_generic::Inputs);
@@ -1372,7 +1399,7 @@ macro_rules! vec_struct {
             }
         }
 
-        unsafe impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasReuseBuf for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> 
+        impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasReuseBuf for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> 
         where 
             (<$l_vec_generic as HasReuseBuf>::FstOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
             (<$l_vec_generic as HasReuseBuf>::SndOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::SndOwnedBufferBool): SelectPair,

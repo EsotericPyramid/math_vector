@@ -3,15 +3,18 @@ use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::
 use std::ops::*;
 
 pub mod vec_util_traits {
-    // Note: traits here aren't meant to be used by end users
-    use crate::trait_specialization_utils::TyBool;
+    // Note: traits here aren't meant to be used directly by end users
+
+    use crate::trait_specialization_utils::*;
     use crate::util_traits::HasOutput;
 
-    /// A way to get out items from a collection which knowably invalidates the previously stored value
+    /// A way to get out items from a collection / generator which implicitly invalidates* that index
     /// Can output owned values
-    pub trait Get { 
+    /// *:  if IsRepeatable = Y, indices aren't actually invalidated so it is legal to call get at an index twice or more
+    ///     note: IsRepeatable also implies that there is no bound item
+    pub unsafe trait Get { 
         type GetBool: TyBool;
-        type IsRepeatable: TyBool;
+        type IsRepeatable: TyBool; 
         type Inputs;
         type Item;
         type BoundItems;
@@ -22,6 +25,7 @@ pub mod vec_util_traits {
 
         fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
 
+        /// Note: generally not used to better manage dropping, may be removed in the future
         #[inline]
         unsafe fn get(&mut self, index: usize) -> (Self::Item, Self::BoundItems) {
             let inputs = self.get_inputs(index);
@@ -29,9 +33,7 @@ pub mod vec_util_traits {
         }
     }
 
-    /// safety:
-    ///     The object returned from get_1st_handle or get_2nd_handle must not alias with the object returned from get_bound_handles
-    pub unsafe trait HasReuseBuf {
+    pub trait HasReuseBuf {
         type FstHandleBool: TyBool;
         type SndHandleBool: TyBool;
         type BoundHandlesBool: TyBool;
@@ -53,6 +55,13 @@ pub mod vec_util_traits {
         unsafe fn drop_bound_bufs_index(&mut self, index: usize);
     }
 
+    pub trait VectorWrapperBuilder: Clone {
+        type Wrapped<T: VectorLike>;
+
+        ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
+        unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
+    }
+
     ///really just a shorthand for the individual traits
     pub trait VectorLike: Get + HasOutput + HasReuseBuf {}
 
@@ -61,6 +70,7 @@ pub mod vec_util_traits {
 
 
 pub mod vector_structs;
+use vec_util_traits::VectorWrapperBuilder;
 use vector_structs::*;
 
 #[repr(transparent)]
@@ -103,6 +113,34 @@ impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     }
 }
 
+impl<V: VectorLike<IsRepeatable = Y>,const D: usize> VectorExpr<V,D> {
+    /// Note:   This method does NOT fill any buffers bound to the vector, if you need that, see binding_get
+    pub fn get(&mut self,index: usize) -> V::Item {
+        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        unsafe {
+            let inputs = self.0.get_inputs(index);
+            let (item,_) = self.0.process(inputs);
+            item
+        }
+    }
+
+    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
+    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
+    ///         Additionally, if the buffer is owned by the vector, the vector expr is also responsible for dropping filled indices
+    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
+    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
+    /// Note TLDR: this method is extremely prone to causing memory leaks
+    pub fn binding_get(&mut self,index: usize) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        unsafe {
+            let inputs = self.0.get_inputs(index);
+            let (item,bound_items) = self.0.process(inputs);
+            self.0.assign_bound_bufs(index, bound_items); // NOTE: all current things which have IsRepeatable don't have any bound items, however, it is not restricted by the definition
+            item
+        }
+    }
+}
+
 impl<T: VectorLike,const D: usize> Drop for VectorExpr<T,D> {
     #[inline]
     fn drop(&mut self) {
@@ -129,6 +167,14 @@ impl<T: VectorLike,const D: usize> IntoIterator for VectorExpr<T,D> where T: Has
     }
 }
 
+#[derive(Clone)]
+pub struct VectorExprBuilder<const D: usize>;
+
+impl<const D: usize> VectorWrapperBuilder for VectorExprBuilder<D> {
+    type Wrapped<T: VectorLike> = VectorExpr<T,D>;
+    
+    unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {VectorExpr(vec)}
+}
 
 pub struct VectorIter<T: VectorLike,const D: usize>{vec: T, live_input_start: usize, dead_output_start: usize} // note: ranges are start inclusive, end exclusive
 
@@ -368,221 +414,259 @@ pub fn vector_index_gen<F: FnMut(usize) -> O,O,const D: usize>(f: F) -> VectorEx
 }
 
 
-impl<V: VectorLike<IsRepeatable = Y>,const D: usize> VectorExpr<V,D> {
-    /// Note:   This method does NOT fill any buffers bound to the vector, if you need that, see binding_get
-    pub fn get(&mut self,index: usize) -> V::Item {
-        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
-        unsafe {
-            let inputs = self.0.get_inputs(index);
-            let (item,_) = self.0.process(inputs);
-            item
-        }
-    }
+pub struct RSVectorExpr<T: VectorLike>{vec: T, size: usize}
 
-    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
-    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
-    ///         Additionally, if the buffer is owned by the vector, the vector expr is also responsible for dropping filled indices
-    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
-    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
-    /// Note TLDR: this method is extremely prone to causing memory leaks
-    pub fn binding_get(&mut self,index: usize) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+impl<T: VectorLike> Drop for RSVectorExpr<T> {
+    #[inline]
+    fn drop(&mut self) {
         unsafe {
-            let inputs = self.0.get_inputs(index);
-            let (item,bound_items) = self.0.process(inputs);
-            self.0.assign_bound_bufs(index, bound_items); // NOTE: all current things which have IsRepeatable don't have any bound items, however, it is not restricted by the definition
-            item
+            for i in 0..self.size {
+                self.vec.drop_inputs(i);
+            }
+            self.vec.drop_output();
         }
     }
 }
 
-pub trait VectorOps {
+#[derive(Clone)]
+pub struct RSVectorExprBuilder{size: usize}
+
+impl VectorWrapperBuilder for RSVectorExprBuilder {
+    type Wrapped<T: VectorLike> = RSVectorExpr<T>;
+
+    unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
+        RSVectorExpr{vec, size: self.size}
+    }
+}
+
+
+
+pub unsafe trait VectorOps {
     type Unwrapped: VectorLike;
-    type Wrapped<T: VectorLike>;
+    type WrapperBuilder: VectorWrapperBuilder;
 
     fn unwrap(self) -> Self::Unwrapped;
-    unsafe fn wrap<T: VectorLike>(vec: T) -> Self::Wrapped<T>;
+    fn get_wrapper_builder(&self) -> Self::WrapperBuilder;
+    fn size(&self) -> usize;
 
     #[inline] 
-    fn bind(self) -> Self::Wrapped<VecBind<Self::Unwrapped>> where 
+    fn bind(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecBind<Self::Unwrapped>> where 
         Self::Unwrapped:  VectorLike<FstHandleBool = Y>,
         (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): FilterPair,
         (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,Y): FilterPair,
         VecBind<Self::Unwrapped>: HasReuseBuf<BoundTypes = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
         Self: Sized
     {
-        unsafe { Self::wrap(VecBind{vec: self.unwrap()}) }
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecBind{vec: self.unwrap()}) }
     }
 
     // TODO: add map_bind
 
     #[inline] 
-    fn half_bind(self) -> Self::Wrapped<VecHalfBind<Self::Unwrapped>> where
+    fn half_bind(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecHalfBind<Self::Unwrapped>> where
         Self::Unwrapped:  VectorLike<FstHandleBool = Y>,
         (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): FilterPair,
         (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,Y): FilterPair,
         VecHalfBind<Self::Unwrapped>: HasReuseBuf<BoundTypes = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
         Self: Sized
     {
-        unsafe { Self::wrap(VecHalfBind{vec: self.unwrap()}) }
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecHalfBind{vec: self.unwrap()}) }
     }
 
-    #[inline] fn buf_swap(self) -> Self::Wrapped<VecBufSwap<Self::Unwrapped>> where Self: Sized {
-        unsafe { Self::wrap(VecBufSwap{vec: self.unwrap()}) }
+    #[inline] fn buf_swap(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecBufSwap<Self::Unwrapped>> where Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecBufSwap{vec: self.unwrap()}) }
     }
 
-    #[inline] fn map<F: FnMut(<Self::Unwrapped as Get>::Item) -> O,O>(self, f: F) -> Self::Wrapped<VecMap<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecMap{vec: self.unwrap(), f}) }
+    #[inline] 
+    fn offset(self,offset: usize) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
+        let size = self.size();
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecOffset{vec: self.unwrap(), offset: offset % size, size}) }
+    }
+
+
+    #[inline] fn map<F: FnMut(<Self::Unwrapped as Get>::Item) -> O,O>(self, f: F) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMap<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecMap{vec: self.unwrap(), f}) }
     } 
 
     //note: fold_ref should be used whenever possible due to implementation
-    #[inline] fn fold<F: FnMut(O,<Self::Unwrapped as Get>::Item) -> O,O>(self, f: F, init: O) -> Self::Wrapped<VecFold<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecFold{vec: self.unwrap(), f, cell: Some(init)}) }
+    #[inline] fn fold<F: FnMut(O,<Self::Unwrapped as Get>::Item) -> O,O>(self, f: F, init: O) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecFold<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecFold{vec: self.unwrap(), f, cell: Some(init)}) }
     }
 
-    #[inline] fn fold_ref<F: FnMut(&mut O,<Self::Unwrapped as Get>::Item),O>(self, f: F, init: O) -> Self::Wrapped<VecFoldRef<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecFoldRef{vec: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+    #[inline] fn fold_ref<F: FnMut(&mut O,<Self::Unwrapped as Get>::Item),O>(self, f: F, init: O) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecFoldRef<Self::Unwrapped,F,O>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecFoldRef{vec: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
     }
 
-    #[inline] fn copied<'a,I: Copy>(self) -> Self::Wrapped<VecCopy<'a,Self::Unwrapped,I>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a I>, Self: Sized {
-        unsafe { Self::wrap(VecCopy{vec: self.unwrap()}) }
+    #[inline] fn copied<'a,I: Copy>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopy<'a,Self::Unwrapped,I>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a I>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopy{vec: self.unwrap()}) }
     }
 
-    #[inline] fn cloned<'a,I: Clone>(self) -> Self::Wrapped<VecClone<'a,Self::Unwrapped,I>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a I>, Self: Sized {
-        unsafe { Self::wrap(VecClone{vec: self.unwrap()}) }
+    #[inline] fn cloned<'a,I: Clone>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecClone<'a,Self::Unwrapped,I>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a I>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecClone{vec: self.unwrap()}) }
     }
 
-    #[inline] fn neg(self) -> Self::Wrapped<VecNeg<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Neg, Self: Sized {
-        unsafe { Self::wrap(VecNeg{vec: self.unwrap()}) }
+    #[inline] fn neg(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecNeg<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Neg, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecNeg{vec: self.unwrap()}) }
     }
 
-    #[inline] fn mul_r<S: Mul<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> Self::Wrapped<VecMulR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecMulR{vec: self.unwrap(), scalar}) }
+    #[inline] fn mul_r<S: Mul<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMulR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecMulR{vec: self.unwrap(), scalar}) }
     }
 
-    #[inline] fn div_r<S: Div<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> Self::Wrapped<VecDivR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecDivR{vec: self.unwrap(), scalar}) }
+    #[inline] fn div_r<S: Div<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecDivR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecDivR{vec: self.unwrap(), scalar}) }
     }
 
-    #[inline] fn rem_r<S: Rem<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> Self::Wrapped<VecRemR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecRemR{vec: self.unwrap(), scalar}) }
+    #[inline] fn rem_r<S: Rem<<Self::Unwrapped as Get>::Item> + Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecRemR<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecRemR{vec: self.unwrap(), scalar}) }
     }
 
-    #[inline] fn mul_l<S: Copy>(self,scalar: S) -> Self::Wrapped<VecMulL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Mul<S>, Self: Sized {
-        unsafe { Self::wrap(VecMulL{vec: self.unwrap(), scalar})}
+    #[inline] fn mul_l<S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMulL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Mul<S>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecMulL{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn div_l<S: Copy>(self,scalar: S) -> Self::Wrapped<VecDivL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Div<S>, Self: Sized {
-        unsafe { Self::wrap(VecDivL{vec: self.unwrap(), scalar})}
+    #[inline] fn div_l<S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecDivL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Div<S>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecDivL{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn rem_l<S: Copy>(self,scalar: S) -> Self::Wrapped<VecRemL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Rem<S>, Self: Sized {
-        unsafe { Self::wrap(VecRemL{vec: self.unwrap(), scalar})}
+    #[inline] fn rem_l<S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecRemL<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, <Self::Unwrapped as Get>::Item: Rem<S>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecRemL{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn mul_assign<'a,I: 'a + MulAssign<S>,S: Copy>(self,scalar: S) -> Self::Wrapped<VecMulAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
-        unsafe { Self::wrap(VecMulAssign{vec: self.unwrap(), scalar})}
+    #[inline] fn mul_assign<'a,I: 'a + MulAssign<S>,S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMulAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecMulAssign{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn div_assign<'a,I: 'a + DivAssign<S>,S: Copy>(self,scalar: S) -> Self::Wrapped<VecDivAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
-        unsafe { Self::wrap(VecDivAssign{vec: self.unwrap(), scalar})}
+    #[inline] fn div_assign<'a,I: 'a + DivAssign<S>,S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecDivAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecDivAssign{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn rem_assign<'a,I: 'a + RemAssign<S>,S: Copy>(self,scalar: S) -> Self::Wrapped<VecRemAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
-        unsafe { Self::wrap(VecRemAssign{vec: self.unwrap(), scalar})}
+    #[inline] fn rem_assign<'a,I: 'a + RemAssign<S>,S: Copy>(self,scalar: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecRemAssign<'a,Self::Unwrapped,I,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecRemAssign{vec: self.unwrap(), scalar})}
     }
 
-    #[inline] fn sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> Self::Wrapped<VecSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
+    #[inline] fn sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
     }
 
-    #[inline] fn initialized_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> Self::Wrapped<VecSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    #[inline] fn product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> Self::Wrapped<VecProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
+    #[inline] fn product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
     }
 
-    #[inline] fn sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> Self::Wrapped<VecSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        unsafe { Self::wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
+    #[inline] fn sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
     }
 
-    #[inline] fn initialized_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> Self::Wrapped<VecProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
-        unsafe { Self::wrap(VecProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    #[inline] fn initialized_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self,init: S) -> Self::Wrapped<VecSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        unsafe { Self::wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    #[inline] fn copied_sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> Self::Wrapped<VecCopiedSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        unsafe { Self::wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
+    #[inline] fn copied_sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
     }
 
-    #[inline] fn copied_product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> Self::Wrapped<VecCopiedProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        unsafe { Self::wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
+    #[inline] fn copied_product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
     }
 
-    #[inline] fn copied_sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> Self::Wrapped<VecCopiedSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        unsafe { Self::wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
+    #[inline] fn copied_sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
     }
 
-    #[inline] fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> Self::Wrapped<VecCopiedSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        unsafe { Self::wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    #[inline] fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> Self::Wrapped<VecCopiedProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        unsafe { Self::wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    #[inline] fn initialized_copied_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self,init: S) -> Self::Wrapped<VecCopiedSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        unsafe { Self::wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    #[inline] fn initialized_copied_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self,init: S) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped,S>> where (<Self::Unwrapped as HasOutput>::OutputBool,Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 }
 
 pub trait ArrayVectorOps<const D: usize>: VectorOps {
     // note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
     #[inline]
-    fn attach_buf<'a,T>(self,buf: &'a mut MathVector<T,D>) -> Self::Wrapped<VecAttachBuf<'a,Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
-        unsafe{ Self::wrap(VecAttachBuf{vec: self.unwrap(),buf}) }
+    fn attach_buf<'a,T>(self,buf: &'a mut MathVector<T,D>) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecAttachBuf<'a,Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe{ builder.wrap(VecAttachBuf{vec: self.unwrap(),buf}) }
     }
 
     #[inline] 
-    fn create_buf<T>(self) -> Self::Wrapped<VecCreateBuf<Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
-        unsafe{ Self::wrap(VecCreateBuf{vec: self.unwrap(),buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+    fn create_buf<T>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCreateBuf<Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe{ builder.wrap(VecCreateBuf{vec: self.unwrap(),buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
     #[inline] 
-    fn create_heap_buf<T>(self) -> Self::Wrapped<VecCreateHeapBuf<Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
-        unsafe{ Self::wrap(VecCreateHeapBuf{vec: self.unwrap(),buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+    fn create_heap_buf<T>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecCreateHeapBuf<Self::Unwrapped,T,D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_wrapper_builder();
+        unsafe{ builder.wrap(VecCreateHeapBuf{vec: self.unwrap(),buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 
     #[inline] 
-    fn maybe_create_buf<T>(self) -> Self::Wrapped<VecMaybeCreateBuf<Self::Unwrapped,T,D>> 
+    fn maybe_create_buf<T>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMaybeCreateBuf<Self::Unwrapped,T,D>> 
     where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as HasReuseBuf>::FstHandleBool,<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
         (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
         Self: Sized
     {
-        unsafe{ Self::wrap(VecMaybeCreateBuf{vec: self.unwrap(),buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        let builder = self.get_wrapper_builder();
+        unsafe{ builder.wrap(VecMaybeCreateBuf{vec: self.unwrap(),buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
     #[inline] 
-    fn maybe_create_heap_buf<T>(self) -> Self::Wrapped<VecMaybeCreateHeapBuf<Self::Unwrapped,T,D>> 
+    fn maybe_create_heap_buf<T>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecMaybeCreateHeapBuf<Self::Unwrapped,T,D>> 
     where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as HasReuseBuf>::FstHandleBool,<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
         (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
         Self: Sized
     {
-        unsafe{ Self::wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(),buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
-    }
-
-    #[inline] 
-    fn offset(self,offset: usize) -> Self::Wrapped<VecOffset<Self::Unwrapped,D>> where Self: Sized {
-        unsafe{ Self::wrap(VecOffset{vec: self.unwrap(), offset: offset % D}) }
+        let builder = self.get_wrapper_builder();
+        unsafe{ builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(),buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 }
 
@@ -591,7 +675,7 @@ pub trait RepeatableVectorOps: VectorOps {
     type UsedVector: VectorLike;
     //type HeapedUsedVector: VectorLike;
 
-    fn make_repeatable<'a>(self) -> Self::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
     where
         Self: 'a,
         (<Self::RepeatableVector<'a> as HasOutput>::OutputBool,<Self::UsedVector as HasOutput>::OutputBool): FilterPair,
@@ -682,9 +766,9 @@ macro_rules! overload_operators {
     };
 }
 
-impl<V: VectorLike,const D: usize> VectorOps for VectorExpr<V,D> {
+unsafe impl<V: VectorLike,const D: usize> VectorOps for VectorExpr<V,D> {
     type Unwrapped = V;
-    type Wrapped<T: VectorLike> = VectorExpr<T,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -696,7 +780,8 @@ impl<V: VectorLike,const D: usize> VectorOps for VectorExpr<V,D> {
         // (should) be non-panicking so leaking shouldn't happen
         unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) } 
     }
-    #[inline] unsafe fn wrap<T: VectorLike>(vec: T) -> Self::Wrapped<T> {VectorExpr(vec)} // this struct creation is technically usafe due to assumptions made by VectorExpr's Drop impl
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<V: VectorLike,const D: usize> ArrayVectorOps<D> for VectorExpr<V,D> {}
 
@@ -714,7 +799,7 @@ where
     type RepeatableVector<'a> = ReferringOwnedArray<'a,V::Item,D> where Self: 'a;
     type UsedVector = VecHalfBind<VecMaybeCreateBuf<V,V::Item,D>>;
 
-    fn make_repeatable<'a>(self) -> Self::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
     where
         Self: 'a,
         (<Self::RepeatableVector<'a> as HasOutput>::OutputBool,<Self::UsedVector as HasOutput>::OutputBool): FilterPair,
@@ -726,21 +811,22 @@ where
         (<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): TyBoolPair,
         <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
     {
+        let builder = self.get_wrapper_builder();
         let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
         unsafe {
             while vec_iter.live_input_start < D {
                 let _ = vec_iter.next_unchecked();
             }
-            Self::wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
         }
     }
 }
 
 overload_operators!(<V: VectorLike,{D}>, VectorExpr<V,D>, vector: V, item: V::Item);
 
-impl<V: VectorLike,const D: usize> VectorOps for Box<VectorExpr<V,D>> {
+unsafe impl<V: VectorLike,const D: usize> VectorOps for Box<VectorExpr<V,D>> {
     type Unwrapped = Box<V>;
-    type Wrapped<T: VectorLike> = VectorExpr<T,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -752,7 +838,8 @@ impl<V: VectorLike,const D: usize> VectorOps for Box<VectorExpr<V,D>> {
         // (should) be non-panicking so leaking shouldn't happen
         Box::new(unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) })
     }
-    #[inline] unsafe fn wrap<T: VectorLike>(vec: T) -> Self::Wrapped<T> {VectorExpr(vec)} // this struct creation is technically usafe due to assumptions made by VectorExpr's Drop impl
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<V: VectorLike,const D: usize> ArrayVectorOps<D> for Box<VectorExpr<V,D>> {}
 
@@ -770,7 +857,7 @@ where
     type RepeatableVector<'a> = ReferringOwnedArray<'a,V::Item,D> where Self: 'a;
     type UsedVector = VecHalfBind<VecMaybeCreateBuf<Box<V>,V::Item,D>>;
 
-    fn make_repeatable<'a>(self) -> Self::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as VectorWrapperBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>,Self::UsedVector>> 
     where
         Self: 'a,
         (<Self::RepeatableVector<'a> as HasOutput>::OutputBool,<Self::UsedVector as HasOutput>::OutputBool): FilterPair,
@@ -782,12 +869,13 @@ where
         (<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): TyBoolPair,
         <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
     {
+        let builder = self.get_wrapper_builder();
         let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
         unsafe {
             while vec_iter.live_input_start < D {
                 let _ = vec_iter.next_unchecked();
             }
-            Self::wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
         }
     }
 }
@@ -795,42 +883,46 @@ where
 overload_operators!(<V: VectorLike,{D}>, Box<VectorExpr<V,D>>, vector: V, item: V::Item);
 
 //already repeatable / can't truly be made repeatable so not implemented
-impl<'a,T,const D: usize> VectorOps for &'a MathVector<T,D> {
+unsafe impl<'a,T,const D: usize> VectorOps for &'a MathVector<T,D> {
     type Unwrapped = &'a [T; D];
-    type Wrapped<V: VectorLike> = VectorExpr<V,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline] fn unwrap(self) -> Self::Unwrapped {&self.0}
-    #[inline] unsafe fn wrap<V: VectorLike>(vec: V) -> Self::Wrapped<V> {VectorExpr(vec)}
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<'a,T,const D: usize> ArrayVectorOps<D> for &'a MathVector<T,D> {}
 overload_operators!(<'a,T,{D}>, &'a MathVector<T,D>, vector: &'a [T; D], item: &'a T);
 
-impl<'a,T,const D: usize> VectorOps for &'a mut MathVector<T,D> {
+unsafe impl<'a,T,const D: usize> VectorOps for &'a mut MathVector<T,D> {
     type Unwrapped = &'a mut [T; D];
-    type Wrapped<V: VectorLike> = VectorExpr<V,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline] fn unwrap(self) -> Self::Unwrapped {&mut self.0}
-    #[inline] unsafe fn wrap<V: VectorLike>(vec: V) -> Self::Wrapped<V> {VectorExpr(vec)}
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<'a,T,const D: usize> ArrayVectorOps<D> for &'a mut MathVector<T,D> {}
 overload_operators!(<'a,T,{D}>, &'a mut MathVector<T,D>, vector: &'a mut [T; D], item: &'a mut T);
 
-impl<'a,T,const D: usize> VectorOps for &'a Box<MathVector<T,D>> {
+unsafe impl<'a,T,const D: usize> VectorOps for &'a Box<MathVector<T,D>> {
     type Unwrapped = &'a [T; D];
-    type Wrapped<V: VectorLike> = VectorExpr<V,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline] fn unwrap(self) -> Self::Unwrapped {&self.0}
-    #[inline] unsafe fn wrap<V: VectorLike>(vec: V) -> Self::Wrapped<V> {VectorExpr(vec)}
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<'a,T,const D: usize> ArrayVectorOps<D> for &'a Box<MathVector<T,D>> {}
 overload_operators!(<'a,T,{D}>, &'a Box<MathVector<T,D>>, vector: &'a [T; D], item: &'a T);
 
-impl<'a,T,const D: usize> VectorOps for &'a mut Box<MathVector<T,D>> {
+unsafe impl<'a,T,const D: usize> VectorOps for &'a mut Box<MathVector<T,D>> {
     type Unwrapped = &'a mut [T; D];
-    type Wrapped<V: VectorLike> = VectorExpr<V,D>;
+    type WrapperBuilder = VectorExprBuilder<D>;
 
     #[inline] fn unwrap(self) -> Self::Unwrapped {&mut self.0}
-    #[inline] unsafe fn wrap<V: VectorLike>(vec: V) -> Self::Wrapped<V> {VectorExpr(vec)}
+    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {VectorExprBuilder}
+    #[inline] fn size(&self) -> usize {D}
 }
 impl<'a,T,const D: usize> ArrayVectorOps<D> for &'a mut Box<MathVector<T,D>> {}
 overload_operators!(<'a,T,{D}>, &'a mut Box<MathVector<T,D>>, vector: &'a mut [T; D], item: &'a mut T);
@@ -1133,7 +1225,7 @@ macro_rules! impl_const_sized_double_vector_ops {
             (<$l_vector as HasReuseBuf>::FstHandleBool, N): SelectPair,
             (<$l_vector as HasReuseBuf>::SndHandleBool, N): SelectPair,
             (<$l_vector as HasReuseBuf>::FstOwnedBufferBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, N): SelectPair,
+            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, N): SelectPair,    
             (N, <$r_vector as HasOutput>::OutputBool): FilterPair,
             (<(N, <$r_vector as HasOutput>::OutputBool) as TyBoolPair>::Or,N): FilterPair,
             (N, <$r_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
