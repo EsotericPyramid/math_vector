@@ -37,7 +37,6 @@ impl<T,const D1: usize,const D2: usize> DerefMut for Owned2DArray<T,D1,D2> {
 
 unsafe impl<T,const D1: usize,const D2: usize> Get2D for Owned2DArray<T,D1,D2> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = N;
     type Inputs = T;
     type Item = T;
@@ -94,7 +93,6 @@ impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,D1,D2> 
 
 unsafe impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
     type GetBool = Y;
-    type IsRepeatable = Y;
     type AreInputsTransposed = N;
     type Inputs = &'a T;
     type Item = &'a T;
@@ -133,7 +131,6 @@ impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
 
 unsafe impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a mut [[T; D1]; D2] {
     type GetBool = Y;
-    type IsRepeatable = Y;
     type AreInputsTransposed = N;
     type Inputs = &'a mut T;
     type Item = &'a mut T;
@@ -174,7 +171,6 @@ impl<'a,T,const D1: usize,const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D
 
 unsafe impl<M: MatrixLike> Get2D for Box<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -184,6 +180,8 @@ unsafe impl<M: MatrixLike> Get2D for Box<M> {
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {(debox(self)).drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for Box<M> {}
 
 impl<M: MatrixLike> Has2DReuseBuf for Box<M> {
     type FstHandleBool = M::FstHandleBool;
@@ -215,7 +213,6 @@ pub struct Replace2DArray<T,const D1: usize,const D2: usize>(pub(crate) Manually
 
 unsafe impl<T,const D1: usize,const D2: usize> Get2D for Replace2DArray<T,D1,D2> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = N;
     type Inputs = T;
     type Item = T;
@@ -283,7 +280,6 @@ pub struct Replace2DHeapArray<T,const D1: usize,const D2: usize>(pub(crate) Manu
 
 unsafe impl<T,const D1: usize,const D2: usize> Get2D for Replace2DHeapArray<T,D1,D2> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = N;
     type Inputs = T;
     type Item = T;
@@ -358,7 +354,6 @@ pub struct MatGenerator<F: FnMut() -> O,O>(pub(crate) F);
 
 unsafe impl<F: FnMut() -> O,O> Get2D for MatGenerator<F,O> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = N;
     type Inputs = ();
     type Item = O;
@@ -407,7 +402,6 @@ pub struct MatAttach2DBuf<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,
 
 unsafe impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatAttach2DBuf<'a,M,T,D1,D2> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -417,6 +411,8 @@ unsafe impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usiz
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<'a,M: IsRepeatable + MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> IsRepeatable for MatAttach2DBuf<'a,M,T,D1,D2> {}
 
 impl<'a,M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasOutput for MatAttach2DBuf<'a,M,T,D1,D2> {
     type OutputBool = M::OutputBool;
@@ -456,7 +452,6 @@ pub struct MatCreate2DBuf<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,con
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DBuf<M,T,D1,D2> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -466,6 +461,8 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> IsRepeatable for MatCreate2DBuf<M,T,D1,D2> {}
 
 impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasOutput for MatCreate2DBuf<M,T,D1,D2> {
     type OutputBool = M::OutputBool;
@@ -507,7 +504,6 @@ pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>,T,const D1: usize
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> Get2D for MatCreate2DHeapBuf<M,T,D1,D2> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -517,6 +513,8 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> 
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> IsRepeatable for MatCreate2DHeapBuf<M,T,D1,D2> {}
 
 impl<M: MatrixLike<FstHandleBool = N>,T,const D1: usize,const D2: usize> HasOutput for MatCreate2DHeapBuf<M,T,D1,D2> {
     type OutputBool = M::OutputBool;
@@ -558,7 +556,6 @@ pub struct MatMaybeCreate2DBuf<M: MatrixLike,T,const D1: usize,const D2: usize> 
 
 unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -568,6 +565,8 @@ unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeC
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike,T,const D1: usize,const D2: usize> IsRepeatable for MatMaybeCreate2DBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<M: MatrixLike,T,const D1: usize,const D2: usize> HasOutput for MatMaybeCreate2DBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = M::OutputBool;
@@ -621,7 +620,6 @@ pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike,T,const D1: usize,const D2: usi
 
 unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -631,6 +629,8 @@ unsafe impl<M: MatrixLike,T,const D1: usize,const D2: usize> Get2D for MatMaybeC
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike,T,const D1: usize,const D2: usize> IsRepeatable for MatMaybeCreate2DHeapBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<M: MatrixLike,T,const D1: usize,const D2: usize> HasOutput for MatMaybeCreate2DHeapBuf<M,T,D1,D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = M::OutputBool;
@@ -684,7 +684,6 @@ pub struct MatBind<M: MatrixLike<FstHandleBool = Y>>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatBind<M> where (M::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
-    type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = ();
@@ -759,7 +758,6 @@ pub struct MatMapBind<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B
 
 unsafe impl<M: MatrixLike<FstHandleBool = Y>,F: FnMut(M::Item) -> (I,B),I,B> Get2D for MatMapBind<M,F,I,B> where (M::BoundHandlesBool,Y): FilterPair {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = I;
@@ -835,7 +833,6 @@ pub struct MatBufSwap<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -845,6 +842,8 @@ unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index,row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatBufSwap<M> {}
 
 impl<M: MatrixLike> HasOutput for MatBufSwap<M> {
     type OutputBool = M::OutputBool;
@@ -899,7 +898,6 @@ impl<M: MatrixLike> MatColOffset<M> {
 
 unsafe impl<M: MatrixLike> Get2D for MatColOffset<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -963,7 +961,6 @@ impl<M: MatrixLike> MatRowOffset<M> {
 
 unsafe impl<M: MatrixLike> Get2D for MatRowOffset<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = N;
     type AreInputsTransposed = M::AreInputsTransposed;
     type Inputs = M::Inputs;
     type Item = M::Item;
@@ -1013,7 +1010,6 @@ pub struct MatrixColumn<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) column
 
 unsafe impl<M: MatrixLike> Get for MatrixColumn<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
     type Item = M::Item;
     type BoundItems = M::BoundItems;
@@ -1027,6 +1023,8 @@ unsafe impl<M: MatrixLike> Get for MatrixColumn<M> {
     #[inline]
     fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatrixColumn<M> {}
 
 impl<M: MatrixLike> HasOutput for MatrixColumn<M> {
     type OutputBool = N;
@@ -1063,7 +1061,6 @@ pub struct MatColVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get for MatColVectorExprs<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type Inputs = usize;
     type Item = MatrixColumn<M>;
     type BoundItems = ();
@@ -1072,6 +1069,8 @@ unsafe impl<M: MatrixLike> Get for MatColVectorExprs<M> {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixColumn{mat: &mut self.mat as *mut M, column_num: inputs},())}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatColVectorExprs<M> {}
 
 impl<M: MatrixLike> HasOutput for MatColVectorExprs<M> {
     type OutputBool = N;
@@ -1109,7 +1108,6 @@ pub struct MatrixRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: 
 
 unsafe impl<M: MatrixLike> Get for MatrixRow<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
     type Item = M::Item;
     type BoundItems = M::BoundItems;
@@ -1123,6 +1121,8 @@ unsafe impl<M: MatrixLike> Get for MatrixRow<M> {
     #[inline]
     fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatrixRow<M> {}
 
 impl<M: MatrixLike> HasOutput for MatrixRow<M> {
     type OutputBool = N;
@@ -1159,7 +1159,6 @@ pub struct MatRowVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get for MatRowVectorExprs<M> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::IsRepeatable;
     type Inputs = usize;
     type Item = MatrixRow<M>;
     type BoundItems = ();
@@ -1168,6 +1167,8 @@ unsafe impl<M: MatrixLike> Get for MatRowVectorExprs<M> {
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixRow{mat: &mut self.mat as *mut M, row_num: inputs},())}
 }
+
+unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatRowVectorExprs<M> {}
 
 impl<M: MatrixLike> HasOutput for MatRowVectorExprs<M> {
     type OutputBool = N;
@@ -1202,16 +1203,15 @@ impl<M: MatrixLike> HasReuseBuf for MatRowVectorExprs<M> {
 unsafe impl<M: MatrixLike> VectorizedMatrix for MatRowVectorExprs<M> {}
 
 
-pub struct FullMatMul<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
+pub struct FullMatMul<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
 
-unsafe impl<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>> Get2D for FullMatMul<M1,M2> where 
+unsafe impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> Get2D for FullMatMul<M1,M2> where 
     M1::Item: Mul<M2::Item>,
     <M1::Item as Mul<M2::Item>>::Output: AddAssign,
     (M1::BoundHandlesBool,M2::BoundHandlesBool): FilterPair,
     (M1::AreInputsTransposed,M2::AreInputsTransposed): TyBoolPair,
 {
     type GetBool = Y;
-    type IsRepeatable = N;
     type AreInputsTransposed = <(M1::AreInputsTransposed, M2::AreInputsTransposed) as TyBoolPair>::Or;
     type Inputs = (usize,usize);
     type Item = <M1::Item as Mul<M2::Item>>::Output;
@@ -1234,7 +1234,7 @@ unsafe impl<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>> 
     }
 }
 
-impl<M1: MatrixLike<IsRepeatable = Y>,M2: MatrixLike<IsRepeatable = Y>> HasOutput for FullMatMul<M1,M2> where (M1::OutputBool, M2::OutputBool): FilterPair {
+impl<M1: MatrixLike + IsRepeatable,M2: MatrixLike + IsRepeatable> HasOutput for FullMatMul<M1,M2> where (M1::OutputBool, M2::OutputBool): FilterPair {
     type OutputBool = <(M1::OutputBool,M2::OutputBool) as TyBoolPair>::Or;
     type Output = <(M1::OutputBool,M2::OutputBool) as FilterPair>::Filtered<M1::Output,M2::Output>;
 
@@ -1250,7 +1250,7 @@ impl<M1: MatrixLike<IsRepeatable = Y>,M2: MatrixLike<IsRepeatable = Y>> HasOutpu
     }}
 } 
 
-impl<M1: MatrixLike<IsRepeatable = Y>,M2: MatrixLike<IsRepeatable = Y>> Has2DReuseBuf for FullMatMul<M1,M2>
+impl<M1: MatrixLike + IsRepeatable,M2: MatrixLike + IsRepeatable> Has2DReuseBuf for FullMatMul<M1,M2>
 where 
     (M1::FstOwnedBufferBool, M2::FstOwnedBufferBool): SelectPair,
     (M1::SndOwnedBufferBool, M2::SndOwnedBufferBool): SelectPair,
@@ -1330,6 +1330,15 @@ macro_rules! is_present {
     }
 }
 
+macro_rules! if_present {
+    ({$($tokens:tt)*}, $bool:tt) => {
+        $($tokens)*
+    };
+    ({$($tokens:tt)*}, ) => {
+        
+    }
+}
+
 macro_rules! optional_type {
     () => {
         ()
@@ -1363,13 +1372,12 @@ macro_rules! mat_struct {
         $struct:ident<$($($lifetime:lifetime),+,)? {$mat_generic:ident} $(,$($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$mat:ident $(,$($field:ident: $field_ty:ty),+)?}
         $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
         $(output: $outputted_field:ident: $output_ty:ty,)?
-        get2D: $item:ty, |$self:ident,$(($is_mut:tt))? $input:ident| $get_expr:expr_2021
+        get2D: $item:ty, |$self:ident,$(($is_mut:tt))? $input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?
     ) => {
         pub struct $struct<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $mat: $mat_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
         unsafe impl<$($($lifetime),+,)? $mat_generic: MatrixLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $mat_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = N;
             type AreInputsTransposed = <$mat_generic as Get2D>::AreInputsTransposed;
             type Inputs = <$mat_generic as Get2D>::Inputs;
             type Item = $item;
@@ -1435,13 +1443,12 @@ macro_rules! mat_struct {
         $struct:ident<$($($lifetime:lifetime),+,)? {$l_mat_generic:ident,$r_mat_generic:ident} $(,$($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_mat:ident, $r_mat:ident $(,$($field:ident: $field_ty:ty),+)?}
         $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
         $(output: $outputted_field:ident: $output_ty:ty,)?
-        get2D: $item:ty, |$self:ident,$(($l_is_mut:tt))? $l_input:ident,$(($r_is_mut:tt))? $r_input:ident| $get_expr:expr_2021
+        get2D: $item:ty, |$self:ident,$(($l_is_mut:tt))? $l_input:ident,$(($r_is_mut:tt))? $r_input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?
     ) => {
         pub struct $struct<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_mat: $l_mat_generic, pub(crate) $r_mat: $r_mat_generic $(,$(pub(crate) $field: $field_ty),+)?}
 
         unsafe impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> where ($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool): FilterPair, (<$l_mat_generic as Get2D>::AreInputsTransposed,<$r_mat_generic as Get2D>::AreInputsTransposed): TyBoolPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = N;
             type AreInputsTransposed = <(<$l_mat_generic as Get2D>::AreInputsTransposed,<$r_mat_generic as Get2D>::AreInputsTransposed) as TyBoolPair>::And;
             type Inputs = ($l_mat_generic::Inputs,$r_mat_generic::Inputs);
             type Item = $item;
@@ -1463,6 +1470,8 @@ macro_rules! mat_struct {
                 ($get_expr,<($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items,r_bound_items))
             }
         }
+
+        if_present!({unsafe impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike + IsRepeatable, $r_mat_generic: MatrixLike + IsRepeatable $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> IsRepeatable for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}},$($is_repeatable)?);
     
         impl<$($($lifetime),+,)? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+,)? $l_mat_generic, $r_mat_generic $(,$($generic),+)?> where ($l_mat_generic::OutputBool,$r_mat_generic::OutputBool): FilterPair, (<($l_mat_generic::OutputBool,$r_mat_generic::OutputBool) as TyBoolPair>::Or,is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type OutputBool = optimized_or!(<($l_mat_generic::OutputBool,$r_mat_generic::OutputBool) as TyBoolPair>::Or,$($outputted_field)?);
@@ -1554,7 +1563,7 @@ mat_struct!(MatEntryFoldRef<{M},F: FnMut(&mut O,M::Item),O>{mat, f: F, cell: Man
 mat_struct!(MatEntryCopiedFold<{M},F: FnMut(O,M::Item) -> O,O>{mat, f: F, cell: Option<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self,input| {self.cell = Some((self.f)(self.cell.take().unwrap(),input)); input});
 mat_struct!(MatEntryCopiedFoldRef<{M},F: FnMut(&mut O,M::Item),O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self,input| {(self.f)(&mut self.cell,input); input});
 
-mat_struct!(MatCopy<'a,{M},I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self,input| *input);
+mat_struct!(MatCopy<'a,{M},I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self,input| *input, Y);
 mat_struct!(MatClone<'a,{M},I: 'a | Clone>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self,input| input.clone());
 
 mat_struct!(MatNeg<{M}>{mat} where M::Item: Neg; get2D: <M::Item as Neg>::Output, |self,input| -input);
@@ -1577,7 +1586,7 @@ mat_struct!(MatCopiedEntrySum<{M},S>{mat,scalar: ManuallyDrop<S>} where M::Item:
 mat_struct!(MatCopiedEntryProd<{M},S>{mat,scalar: ManuallyDrop<S>} where M::Item: Copy, S: MulAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar *= input; input});
 
 
-mat_struct!(MatZip<{M1,M2}>{l_mat,r_mat}; get2D: (M1::Item, M2::Item), |self,l_input,r_input| (l_input,r_input));
+mat_struct!(MatZip<{M1,M2}>{l_mat,r_mat}; get2D: (M1::Item, M2::Item), |self,l_input,r_input| (l_input,r_input), Y);
 
 mat_struct!(MatAdd<{M1,M2}>{l_mat,r_mat} where M1::Item: Add<M2::Item>; get2D: <M1::Item as Add<M2::Item>>::Output, |self,l_input,r_input| l_input + r_input);
 mat_struct!(MatSub<{M1,M2}>{l_mat,r_mat} where M1::Item: Sub<M2::Item>; get2D: <M1::Item as Sub<M2::Item>>::Output, |self,l_input,r_input| l_input - r_input);
