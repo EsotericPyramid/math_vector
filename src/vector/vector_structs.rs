@@ -34,7 +34,6 @@ impl<T,const D: usize> DerefMut for OwnedArray<T,D> {
 
 unsafe impl<T,const D: usize> Get for OwnedArray<T,D> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = T;
     type Item = T;
     type BoundItems = ();
@@ -78,7 +77,6 @@ pub struct ReferringOwnedArray<'a,T: 'a,const D: usize>(pub(crate) ManuallyDrop<
 
 unsafe impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
     type GetBool = Y;
-    type IsRepeatable = Y;
     type Inputs = &'a T;
     type Item = &'a T;
     type BoundItems = ();
@@ -87,6 +85,8 @@ unsafe impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
+
+unsafe impl<'a,T: 'a,const D: usize> IsRepeatable for ReferringOwnedArray<'a,T,D> {}
 
 impl<'a,T: 'a,const D: usize> HasOutput for ReferringOwnedArray<'a,T,D> {
     type OutputBool = N;
@@ -121,7 +121,6 @@ impl<'a,T: 'a,const D: usize> HasReuseBuf for ReferringOwnedArray<'a,T,D> {
 
 unsafe impl<'a,T,const D: usize> Get for &'a [T; D] {
     type GetBool = Y;
-    type IsRepeatable = Y;
     type Inputs = &'a T;
     type Item = &'a T;
     type BoundItems = ();
@@ -130,6 +129,8 @@ unsafe impl<'a,T,const D: usize> Get for &'a [T; D] {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
+
+unsafe impl<'a,T,const D: usize> IsRepeatable for &'a [T; D] {}
 
 impl<'a,T,const D: usize> HasOutput for &'a [T; D] {
     type OutputBool = N;
@@ -164,7 +165,6 @@ impl<'a,T,const D: usize> HasReuseBuf for &'a [T; D] {
 
 unsafe impl<'a,T,const D: usize> Get for &'a mut [T; D] {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = &'a mut T;
     type Item = &'a mut T;
     type BoundItems = ();
@@ -208,7 +208,6 @@ impl<'a,T,const D: usize> HasReuseBuf for &'a mut [T; D] {
 
 unsafe impl<'a,T> Get for &'a [T] {
     type GetBool = Y;
-    type IsRepeatable = Y;
     type Inputs = &'a T;
     type Item = &'a T;
     type BoundItems = ();
@@ -217,6 +216,8 @@ unsafe impl<'a,T> Get for &'a [T] {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs,())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
+
+unsafe impl<'a, T> IsRepeatable for &'a [T] {}
 
 impl<'a,T> HasOutput for &'a [T] {
     type OutputBool = N;
@@ -251,7 +252,6 @@ impl<'a,T> HasReuseBuf for &'a [T] {
 
 unsafe impl<'a,T> Get for &'a mut [T] {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = &'a mut T;
     type Item = &'a mut T;
     type BoundItems = ();
@@ -297,7 +297,6 @@ impl<'a,T> HasReuseBuf for &'a mut [T] {
 
 unsafe impl<V: VectorLike + ?Sized> Get for Box<V> {
     type GetBool = V::GetBool;
-    type IsRepeatable = N;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -334,7 +333,6 @@ pub struct ReplaceArray<T,const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
 unsafe impl<T,const D: usize> Get for ReplaceArray<T,D> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = T;
     type Item = T;
     type BoundItems = ();
@@ -394,7 +392,6 @@ pub struct ReplaceHeapArray<T,const D: usize>(pub(crate) ManuallyDrop<Box<[T; D]
 
 unsafe impl<T,const D: usize> Get for ReplaceHeapArray<T,D> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = T;
     type Item = T;
     type BoundItems = ();
@@ -461,7 +458,6 @@ pub struct VecGenerator<F: FnMut() -> O,O>(pub(crate) F);
 
 unsafe impl<F: FnMut() -> O,O> Get for VecGenerator<F,O> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = ();
     type Item = O;
     type BoundItems = ();
@@ -506,7 +502,6 @@ pub struct VecIndexGenerator<F: FnMut(usize) -> O,O>(pub(crate) F);
 
 unsafe impl<F: FnMut(usize) -> O,O> Get for VecIndexGenerator<F,O> {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = usize;
     type Item = O;
     type BoundItems = ();
@@ -551,7 +546,6 @@ pub struct VecAttachBuf<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize>{pu
 
 unsafe impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecAttachBuf<'a,V,T,D> {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -562,6 +556,8 @@ unsafe impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecAtt
 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<'a,V: IsRepeatable + VectorLike<FstHandleBool = N>,T,const D: usize> IsRepeatable for VecAttachBuf<'a,V,T,D> {}
 
 impl<'a,V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecAttachBuf<'a,V,T,D> {
     type OutputBool = V::OutputBool;
@@ -598,7 +594,6 @@ pub struct VecCreateBuf<V: VectorLike<FstHandleBool = N>,T,const D: usize>{pub(c
 
 unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateBuf<V,T,D> {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -609,6 +604,8 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreate
 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>,T,const D: usize> IsRepeatable for VecCreateBuf<V,T,D> {}
 
 impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecCreateBuf<V,T,D> {
     type OutputBool = V::OutputBool;
@@ -647,7 +644,6 @@ pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>,T,const D: usize>{p
 
 unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreateHeapBuf<V,T,D> {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -658,6 +654,8 @@ unsafe impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> Get for VecCreate
 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>,T,const D: usize> IsRepeatable for VecCreateHeapBuf<V,T,D> {}
 
 impl<V: VectorLike<FstHandleBool = N>,T,const D: usize> HasOutput for VecCreateHeapBuf<V,T,D> {
     type OutputBool = V::OutputBool;
@@ -696,7 +694,6 @@ pub struct VecMaybeCreateBuf<V: VectorLike,T,const D: usize> where <V::FstHandle
 
 unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -707,6 +704,8 @@ unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateBuf<V,T,D> whe
 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike,T,const D: usize> IsRepeatable for VecMaybeCreateBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<V: VectorLike,T,const D: usize> HasOutput for VecMaybeCreateBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = V::OutputBool;
@@ -761,7 +760,6 @@ pub struct VecMaybeCreateHeapBuf<V: VectorLike,T,const D: usize> where <V::FstHa
 
 unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateHeapBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -772,6 +770,8 @@ unsafe impl<V: VectorLike,T,const D: usize> Get for VecMaybeCreateHeapBuf<V,T,D>
 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike,T,const D: usize> IsRepeatable for VecMaybeCreateHeapBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<V: VectorLike,T,const D: usize> HasOutput for VecMaybeCreateHeapBuf<V,T,D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = V::OutputBool;
@@ -826,7 +826,6 @@ pub struct VecBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T}
 
 unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
-    type IsRepeatable = N;
     type Inputs = T::Inputs;
     type Item = ();
     type BoundItems = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundItems,T::Item>;
@@ -897,7 +896,6 @@ pub struct VecMapBind<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B
 
 unsafe impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> Get for VecMapBind<T,F,I,B> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = Y;
-    type IsRepeatable = N;
     type Inputs = T::Inputs;
     type Item = I;
     type BoundItems = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundItems,B>;
@@ -974,7 +972,6 @@ impl<T: VectorLike<FstHandleBool = Y>> VecHalfBind<T> {
 
 unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecHalfBind<T> where (T::BoundHandlesBool,Y): FilterPair {
     type GetBool = N;
-    type IsRepeatable = N;
     type Inputs = T::Inputs;
     type Item = ();
     type BoundItems = <(T::BoundHandlesBool,Y) as FilterPair>::Filtered<T::BoundItems,T::Item>;
@@ -1045,7 +1042,6 @@ pub struct VecBufSwap<T: VectorLike> {pub(crate) vec: T}
 
 unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
     type GetBool = T::GetBool;
-    type IsRepeatable = T::IsRepeatable;
     type Inputs = T::Inputs;
     type Item = T::Item;
     type BoundItems = T::BoundItems;
@@ -1054,6 +1050,8 @@ unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<T: VectorLike + IsRepeatable> IsRepeatable for VecBufSwap<T> {}
 
 impl<T: VectorLike> HasOutput for VecBufSwap<T> {
     type OutputBool = T::OutputBool;
@@ -1104,8 +1102,7 @@ impl<T: VectorLike> VecOffset<T> {
 }
 
 unsafe impl<T: VectorLike> Get for VecOffset<T> {
-    type GetBool = T::GetBool;
-    type IsRepeatable = N; // NOTE: N because offset_index adds a small amount of extra computation on get
+    type GetBool = T::GetBool; // NOTE: N because offset_index adds a small amount of extra computation on get
     type Inputs = T::Inputs;
     type Item = T::Item;
     type BoundItems = T::BoundItems;
@@ -1150,7 +1147,6 @@ pub struct VecAttachUsedVec<V: VectorLike,USEDV: VectorLike>{pub(crate) vec: V, 
 
 unsafe impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = V::Inputs;
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -1159,6 +1155,8 @@ unsafe impl<V: VectorLike,USEDV: VectorLike> Get for VecAttachUsedVec<V,USEDV> {
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike,USEDV: VectorLike> IsRepeatable for VecAttachUsedVec<V,USEDV> {}
 
 impl<V: VectorLike,USEDV: VectorLike> HasOutput for VecAttachUsedVec<V,USEDV> where (V::OutputBool,USEDV::OutputBool): FilterPair {
     type OutputBool = <(V::OutputBool,USEDV::OutputBool) as TyBoolPair>::Or;
@@ -1236,7 +1234,6 @@ pub struct DynamicVectorLike<V: VectorLike>{pub(crate) vec: V, pub(crate) inputs
 
 unsafe impl<V: VectorLike> Get for DynamicVectorLike<V> {
     type GetBool = V::GetBool;
-    type IsRepeatable = V::IsRepeatable;
     type Inputs = ();
     type Item = V::Item;
     type BoundItems = V::BoundItems;
@@ -1245,6 +1242,8 @@ unsafe impl<V: VectorLike> Get for DynamicVectorLike<V> {
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
     #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.inputs.take().unwrap())}
 }
+
+unsafe impl<V: IsRepeatable + VectorLike> IsRepeatable for DynamicVectorLike<V> {}
 
 impl<V: VectorLike> HasOutput for DynamicVectorLike<V> {
     type OutputBool = V::OutputBool;
@@ -1295,6 +1294,15 @@ macro_rules! is_present {
     }
 }
 
+macro_rules! if_present {
+    ({$($tokens:tt)*}, $bool:tt) => {
+        $($tokens)*
+    };
+    ({$($tokens:tt)*}, ) => {
+        
+    }
+}
+
 macro_rules! optional_type {
     () => {
         ()
@@ -1333,7 +1341,6 @@ macro_rules! vec_struct {
 
         unsafe impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = is_present!($($is_repeatable)?);
             type Inputs = <$vec_generic as Get>::Inputs;
             type Item = $item;
             type BoundItems = <$vec_generic as Get>::BoundItems;
@@ -1351,6 +1358,8 @@ macro_rules! vec_struct {
             }
         }
 
+        if_present!({unsafe impl<$($($lifetime),+,)? $vec_generic: IsRepeatable + VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> IsRepeatable for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
+ 
         impl<$($($lifetime),+,)? $vec_generic: VectorLike $(,$($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+,)? $vec_generic $(,$($generic),+)?> 
         where ($vec_generic::OutputBool,is_present!($($outputted_field)?)): FilterPair $(,$($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type OutputBool = optimized_or!($vec_generic::OutputBool,$($outputted_field)?);
@@ -1401,7 +1410,6 @@ macro_rules! vec_struct {
 
         unsafe impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> where ($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type GetBool = is_unit!($item);
-            type IsRepeatable = is_present!($($is_repeatable)?); 
             type Inputs = ($l_vec_generic::Inputs,$r_vec_generic::Inputs);
             type Item = $item;
             type BoundItems = <($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool) as FilterPair>::Filtered<$l_vec_generic::BoundItems,$r_vec_generic::BoundItems>;
@@ -1423,6 +1431,8 @@ macro_rules! vec_struct {
             }
         }
     
+        if_present!({unsafe impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> IsRepeatable for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
+
         impl<$($($lifetime),+,)? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(,$($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+,)? $l_vec_generic, $r_vec_generic $(,$($generic),+)?> where ($l_vec_generic::OutputBool,$r_vec_generic::OutputBool): FilterPair, (<($l_vec_generic::OutputBool,$r_vec_generic::OutputBool) as TyBoolPair>::Or,is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type OutputBool = optimized_or!(<($l_vec_generic::OutputBool,$r_vec_generic::OutputBool) as TyBoolPair>::Or,$($outputted_field)?);
             type Output = <(<($l_vec_generic::OutputBool,$r_vec_generic::OutputBool) as TyBoolPair>::Or,is_present!($($outputted_field)?)) as FilterPair>::Filtered<<($l_vec_generic::OutputBool,$r_vec_generic::OutputBool) as FilterPair>::Filtered<$l_vec_generic::Output,$r_vec_generic::Output>,optional_type!($($output_ty)?)>;

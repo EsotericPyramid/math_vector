@@ -1,5 +1,5 @@
 use self::{vec_util_traits::{Get, HasReuseBuf, VectorLike}, vector_structs::OwnedArray};
-use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::HasOutput};
+use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::{HasOutput, IsRepeatable}};
 use std::ops::*;
 
 pub mod vec_util_traits {
@@ -14,7 +14,6 @@ pub mod vec_util_traits {
     ///     note: IsRepeatable also implies that there is no bound item
     pub unsafe trait Get { 
         type GetBool: TyBool;
-        type IsRepeatable: TyBool; 
         type Inputs;
         type Item;
         type BoundItems;
@@ -80,7 +79,6 @@ impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     #[inline]
     pub fn make_dynamic(self) -> VectorExpr<Box<dyn VectorLike<
         GetBool = T::GetBool,
-        IsRepeatable = T::IsRepeatable,
         Inputs = (),
         Item = T::Item,
         BoundItems = T::BoundItems,
@@ -101,7 +99,6 @@ impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     >>,D> where T: 'static {
         VectorExpr(Box::new(DynamicVectorLike{vec: self.unwrap(), inputs: None}) as Box<dyn VectorLike<
             GetBool = T::GetBool,
-            IsRepeatable = T::IsRepeatable,
             Inputs = (),
             Item = T::Item,
             BoundItems = T::BoundItems,
@@ -158,7 +155,7 @@ impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
     }
 }
 
-impl<V: VectorLike<IsRepeatable = Y>,const D: usize> VectorExpr<V,D> {
+impl<V: VectorLike + IsRepeatable,const D: usize> VectorExpr<V,D> {
     /// Note:   This method does NOT fill any buffers bound to the vector, if you need that, see binding_get
     pub fn get(&mut self,index: usize) -> V::Item {
         // the nature of IsRepeatable means that any index can be called any number of times so this is fine
@@ -731,7 +728,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
 }
 
 pub trait RepeatableVectorOps: VectorOps {
-    type RepeatableVector<'a>: VectorLike<IsRepeatable = Y> where Self: 'a;
+    type RepeatableVector<'a>: VectorLike + IsRepeatable where Self: 'a;
     type UsedVector: VectorLike;
     //type HeapedUsedVector: VectorLike;
 

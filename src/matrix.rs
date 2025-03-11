@@ -1,4 +1,4 @@
-use crate::{util_traits::HasOutput, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
+use crate::{util_traits::{HasOutput, IsRepeatable}, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
 use self::mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike};
 use crate::trait_specialization_utils::*;
 use std::ops::*;
@@ -12,7 +12,6 @@ pub mod mat_util_traits {
 
     pub unsafe trait Get2D {
         type GetBool: TyBool;
-        type IsRepeatable: TyBool;
         type AreInputsTransposed: TyBool; // used to optimize access order
         type Inputs;
         type Item;
@@ -568,8 +567,8 @@ pub trait MatrixOps {
     ///NOTE: WILL BE MOVED
     #[inline]
     fn mat_mul<M: MatrixOps>(self,other: M) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped,M::Unwrapped>> where 
-        Self::Unwrapped: MatrixLike<IsRepeatable = Y>,
-        M::Unwrapped: MatrixLike<IsRepeatable = Y>,
+        Self::Unwrapped: IsRepeatable,
+        M::Unwrapped: IsRepeatable,
         <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
         <<Self::Unwrapped as Get2D>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output: AddAssign,
 

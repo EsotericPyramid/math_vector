@@ -16,7 +16,6 @@ pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWra
 
 unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> Get for MatColWrapper<M,V,Wrap> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
     type Item = Wrap::VectorWrapped<M::Item>;
     type BoundItems = M::BoundItems;
@@ -28,6 +27,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
         (unsafe { self.wrapper_builder.wrap_vec(col) }, bound)
     }
 }
+
+unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixWrapperBuilder> IsRepeatable for MatColWrapper<M,V,Wrap> {}
 
 impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutput for MatColWrapper<M,V,Wrap> {
     type OutputBool = M::OutputBool;
@@ -65,7 +66,6 @@ pub struct MatRowWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWra
 
 unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> Get for MatRowWrapper<M,V,Wrap> {
     type GetBool = M::GetBool;
-    type IsRepeatable = M::GetBool;
     type Inputs = M::Inputs;
     type Item = Wrap::TransposedVectorWrapped<M::Item>;
     type BoundItems = M::BoundItems;
@@ -77,6 +77,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
         (unsafe { self.wrapper_builder.wrap_trans_vec(col) }, bound)
     }
 }
+
+unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixWrapperBuilder> IsRepeatable for MatRowWrapper<M,V,Wrap> {}
 
 impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutput for MatRowWrapper<M,V,Wrap> {
     type OutputBool = M::OutputBool;
