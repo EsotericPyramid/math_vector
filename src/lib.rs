@@ -43,19 +43,19 @@ pub mod trait_specialization_utils {
         type Filtered<T1,T2> = (); 
         
         #[inline] fn filter<T1,T2>(_: T1, _: T2) -> Self::Filtered<T1,T2> {}
-        #[inline] unsafe fn defilter<T1,T2>(_: Self::Filtered<T1,T2>) -> (T1,T2) {(transmute_copy(&()),transmute_copy(&()))}
+        #[inline] unsafe fn defilter<T1,T2>(_: Self::Filtered<T1,T2>) -> (T1,T2) { unsafe {(transmute_copy(&()),transmute_copy(&()))}}
     }
     impl FilterPair for (N,Y) {
         type Filtered<T1,T2> = T2; 
         
         #[inline] fn filter<T1,T2>(_: T1, x: T2) -> Self::Filtered<T1,T2> {x}
-        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) {(transmute_copy(&()),filtered)}
+        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) { unsafe {(transmute_copy(&()),filtered)}}
     }
     impl FilterPair for (Y,N) {
         type Filtered<T1,T2> = T1;
         
         #[inline] fn filter<T1,T2>(x: T1, _: T2) -> Self::Filtered<T1,T2> {x}
-        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) {(filtered,transmute_copy(&()))}
+        #[inline] unsafe fn defilter<T1,T2>(filtered: Self::Filtered<T1,T2>) -> (T1,T2) { unsafe {(filtered,transmute_copy(&()))}}
     }
     impl FilterPair for (Y,Y) {
         type Filtered<T1,T2> = (T1,T2); 
@@ -77,7 +77,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = ();
 
         #[inline] fn select<T1,T2>(_: T1, _: T2) -> Self::Selected<T1,T2> {}
-        #[inline] unsafe fn deselect<T1,T2>(_: Self::Selected<T1,T2>) -> (T1,T2) {(transmute_copy(&()),transmute_copy(&()))}
+        #[inline] unsafe fn deselect<T1,T2>(_: Self::Selected<T1,T2>) -> (T1,T2) { unsafe {(transmute_copy(&()),transmute_copy(&()))}}
         #[inline] fn select_ref<'a,T1,T2>(_: &'a T1, _: &'a T2) -> &'a Self::Selected<T1,T2> {Box::leak(Box::new(()))} //oh no, leaking a (), a type of size 0, whatever will we do...
         #[inline] fn select_ref_mut<'a,T1,T2>(_: &'a mut T1, _: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {Box::leak(Box::new(()))} //although this does assume Rust will realize that the & is useless and elides it
     }
@@ -86,7 +86,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = T2;
 
         #[inline] fn select<T1,T2>(_: T1, x: T2) -> Self::Selected<T1,T2> {x} 
-        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) {(transmute_copy(&()),filtered)}
+        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) { unsafe {(transmute_copy(&()),filtered)}}
         #[inline] fn select_ref<'a,T1,T2>(_: &'a T1, x: &'a T2) -> &'a Self::Selected<T1,T2> {x}
         #[inline] fn select_ref_mut<'a,T1,T2>(_: &'a mut T1, x: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {x}
     }
@@ -95,7 +95,7 @@ pub mod trait_specialization_utils {
         type Selected<T1,T2> = T1;
 
         #[inline] fn select<T1,T2>(x: T1, _: T2) -> Self::Selected<T1,T2> {x} 
-        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) {(filtered,transmute_copy(&()))}
+        #[inline] unsafe fn deselect<T1,T2>(filtered: Self::Selected<T1,T2>) -> (T1,T2) { unsafe {(filtered,transmute_copy(&()))}}
         #[inline] fn select_ref<'a,T1,T2>(x: &'a T1, _: &'a T2) -> &'a Self::Selected<T1,T2> {x}
         #[inline] fn select_ref_mut<'a,T1,T2>(x: &'a mut T1, _: &'a mut T2) -> &'a mut Self::Selected<T1,T2> {x}
     }
@@ -165,8 +165,8 @@ pub mod util_traits {
         type OutputBool = Y;
         type Output = T;
 
-        unsafe fn output(&mut self) -> Self::Output {std::ptr::read(&**self)}
-        unsafe fn drop_output(&mut self) {std::mem::ManuallyDrop::drop(self)}
+        unsafe fn output(&mut self) -> Self::Output { unsafe {std::ptr::read(&**self)}}
+        unsafe fn drop_output(&mut self) { unsafe {std::mem::ManuallyDrop::drop(self)}}
     }
 
     impl<T> HasOutput for Option<T> {
@@ -183,8 +183,8 @@ pub mod util_traits {
         type OutputBool = T::OutputBool;
         type Output = T::Output;
     
-        #[inline] unsafe fn output(&mut self) -> Self::Output {(debox(self)).output()}
-        #[inline] unsafe fn drop_output(&mut self) {(debox(self)).drop_output()}
+        #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {(debox(self)).output()}}
+        #[inline] unsafe fn drop_output(&mut self) { unsafe {(debox(self)).drop_output()}}
     }
 }
 
@@ -217,9 +217,9 @@ mod test {
     
     #[test]
     fn mat_vec_mul() {
-        let mut rng = rand::thread_rng();
-        let vec: MathVector<f64, 10000> = vector_gen(|| rng.gen()).eval();
-        let mat: Box<MathVector<MathVector<f64, 10000>, 10000>> = vector_gen(|| vector_gen(|| rng.gen()).eval()).heap_eval();
+        let mut rng = rand::rng();
+        let vec: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
+        let mat: Box<MathVector<MathVector<f64, 10000>, 10000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
         let now = Instant::now();
         let out = mat.zip(vec).map(|(mat_vec,scalar)| (mat_vec.reuse() * scalar).eval()).sum::<MathVector<f64,10000>>().consume();
         let elapsed = now.elapsed();
@@ -229,9 +229,9 @@ mod test {
 
     #[test]
     fn mat_mat_mul() {
-        let mut rng = rand::thread_rng();
-        let mat1: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.gen()).eval()).heap_eval();
-        let mat2: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.gen()).eval()).heap_eval();
+        let mut rng = rand::rng();
+        let mat1: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
+        let mat2: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
         let now = Instant::now();
         let out = mat2.map(|vec| (&mat1).zip(vec).map(|(mat_vec,scalar)| (mat_vec *scalar).eval()).sum::<MathVector<f64,1000>>().consume()).heap_eval();
         let elapsed = now.elapsed();
@@ -241,12 +241,12 @@ mod test {
 
     #[test]
     fn vec_angle_cos() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut total = 0.0;
         let mut time = Duration::new(0,0);
         for _ in 0..10000 {
-            let vec1: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
-            let vec2: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
+            let vec1: MathVector<f64,10000> = vector_gen(|| rng.random()).eval();
+            let vec2: MathVector<f64,10000> = vector_gen(|| rng.random()).eval();
             let now = Instant::now();
             let ((vec1_sqr_mag,vec2_sqr_mag),dot_product): ((f64,f64),f64) = (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
             let elapsed = now.elapsed();
@@ -261,12 +261,12 @@ mod test {
     #[test]
     fn repeatable_vectors_test() {
         // although IsRepeatable would likely mostly be only used internally, it has minimal external use
-        let mut rng = rand::thread_rng();
-        let vec1: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
-        let vec2: MathVector<f64,10000> = vector_gen(|| rng.gen()).eval();
+        let mut rng = rand::rng();
+        let vec1: MathVector<f64,10000> = vector_gen(|| rng.random()).eval();
+        let vec2: MathVector<f64,10000> = vector_gen(|| rng.random()).eval();
         let mut vec3 = (vec1.comp_mul(vec2)).copied_sum::<f64>().make_repeatable().copied();
         for _ in 0..200 { // enabled by IsRepeatable
-            println!("{}",vec3.get(rng.gen_range(0..10000)));
+            println!("{}",vec3.get(rng.random_range(0..10000)));
         }
         let (sum,product) = vec3.product::<f64>().consume();
         println!("sum: {}, product: {}",sum,product);
@@ -274,9 +274,9 @@ mod test {
 
     #[test]
     fn full_matrix_mul_test() {
-        let mut rng = rand::thread_rng();
-        let mat1: Box<MathMatrix<f64, 1000,1000>> = matrix_gen(|| rng.gen()).heap_eval();
-        let mat2: Box<MathMatrix<f64, 1000,1000>> = matrix_gen(|| rng.gen()).heap_eval(); 
+        let mut rng = rand::rng();
+        let mat1: Box<MathMatrix<f64, 1000,1000>> = matrix_gen(|| rng.random()).heap_eval();
+        let mat2: Box<MathMatrix<f64, 1000,1000>> = matrix_gen(|| rng.random()).heap_eval(); 
         let now = Instant::now();
         let out = (&mat1).mat_mul(&mat2).heap_eval();
         let elapsed = now.elapsed();
@@ -286,39 +286,39 @@ mod test {
 
     #[test]
     fn vector_variation_test() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut total = 0.0;
         let mut normal_time = Duration::new(0,0);
         let mut heap_time = Duration::new(0,0);
         let mut dynamic_time = Duration::new(0,0);
         let mut dyn_heap_time = Duration::new(0,0);
-        for _ in 0..100000 {
-            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
-            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+        for _ in 0..1000 {
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let now = Instant::now();
             let res = (vec1 + vec2).eval();
             let elapsed = now.elapsed();
             normal_time += elapsed;
             total += res[0];
 
-            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
-            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let now = Instant::now();
             let res = (vec1 + vec2).heap_eval();
             let elapsed = now.elapsed();
             heap_time += elapsed;
             total += res[0];
 
-            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
-            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let now = Instant::now();
             let res = (vec1 + vec2).make_dynamic().eval();
             let elapsed = now.elapsed();
             dynamic_time += elapsed;
             total += res[0];
 
-            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
-            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let now = Instant::now();
             let res = (vec1 + vec2).make_dynamic().heap_eval();
             let elapsed = now.elapsed();

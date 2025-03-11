@@ -25,10 +25,10 @@ pub mod mat_util_traits {
         fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
 
         #[inline]
-        unsafe fn get(&mut self, col_index: usize, row_index: usize) -> (Self::Item, Self::BoundItems) {
+        unsafe fn get(&mut self, col_index: usize, row_index: usize) -> (Self::Item, Self::BoundItems) { unsafe {
             let inputs = self.get_inputs(col_index,row_index);
             self.process(inputs)
-        }
+        }}
     }
 
     pub trait Has2DReuseBuf {
@@ -193,8 +193,11 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
     #[inline]
     pub unsafe fn unchecked_output(self) -> M::Output {
         let mut man_drop_self = std::mem::ManuallyDrop::new(self);
-        let output = unsafe { man_drop_self.mat.output() };
-        std::ptr::drop_in_place(&mut man_drop_self.mat);
+        let output;
+        unsafe { 
+            output = man_drop_self.mat.output();
+            std::ptr::drop_in_place(&mut man_drop_self.mat);
+        }
         output
     }
 
@@ -283,12 +286,12 @@ impl<T,const D1: usize,const D2: usize> MathMatrix<T,D1,D2> {
         unsafe { MatrixExpr(Replace2DHeapArray(std::mem::transmute::<Box<Self>,std::mem::ManuallyDrop<Box<[[T; D1]; D2]>>>(self))) }
     } 
     
-    #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[[T; D1]]>>(&self,index: I) -> &I::Output {
+    #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[[T; D1]]>>(&self,index: I) -> &I::Output { unsafe {
         self.0.0.get_unchecked(index)
-    }
-    #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[[T; D1]]>>(&mut self,index: I) -> &mut I::Output {
+    }}
+    #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[[T; D1]]>>(&mut self,index: I) -> &mut I::Output { unsafe {
         self.0.0.get_unchecked_mut(index)
-    }
+    }}
 }
 
 impl<T: Clone,const D1: usize,const D2: usize> Clone for MathMatrix<T,D1,D2> {
