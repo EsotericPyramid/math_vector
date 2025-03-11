@@ -177,9 +177,9 @@ pub mod util_traits {
         unsafe fn drop_output(&mut self) {} // normal drop should be called & can handle Option fine
     }
 
-    #[inline] fn debox<T: Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
+    #[inline] fn debox<T: ?Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
 
-    impl<T: HasOutput> HasOutput for Box<T> {
+    impl<T: HasOutput + ?Sized> HasOutput for Box<T> {
         type OutputBool = T::OutputBool;
         type Output = T::Output;
     
@@ -282,5 +282,53 @@ mod test {
         let elapsed = now.elapsed();
         println!("{}", out[0][0]);
         println!("Elapsed: {}",elapsed.as_nanos());
+    }
+
+    #[test]
+    fn vector_variation_test() {
+        let mut rng = rand::thread_rng();
+        let mut total = 0.0;
+        let mut normal_time = Duration::new(0,0);
+        let mut heap_time = Duration::new(0,0);
+        let mut dynamic_time = Duration::new(0,0);
+        let mut dyn_heap_time = Duration::new(0,0);
+        for _ in 0..100000 {
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+            let now = Instant::now();
+            let res = (vec1 + vec2).eval();
+            let elapsed = now.elapsed();
+            normal_time += elapsed;
+            total += res[0];
+
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let now = Instant::now();
+            let res = (vec1 + vec2).heap_eval();
+            let elapsed = now.elapsed();
+            heap_time += elapsed;
+            total += res[0];
+
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).eval();
+            let now = Instant::now();
+            let res = (vec1 + vec2).make_dynamic().eval();
+            let elapsed = now.elapsed();
+            dynamic_time += elapsed;
+            total += res[0];
+
+            let vec1 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let vec2 = vector_gen::<_, f64, 10000>(|| rng.gen()).heap_eval();
+            let now = Instant::now();
+            let res = (vec1 + vec2).make_dynamic().heap_eval();
+            let elapsed = now.elapsed();
+            dyn_heap_time += elapsed;
+            total += res[0];
+        }
+        println!("{}",total);
+        println!("Normal Time:    {}",normal_time.as_nanos());
+        println!("Heap Time:      {}",heap_time.as_nanos());
+        println!("Dynamic Time:   {}",dynamic_time.as_nanos());
+        println!("Dyn Heap Time:  {}",dyn_heap_time.as_nanos());
     }
 }

@@ -8,7 +8,7 @@ use super::mat_util_traits::MatrixWrapperBuilder;
 
 
 //implies the returned vectors must be of the exact same length
-pub unsafe trait VectorizedMatrix: VectorLike<Item = Self::Vector> {type Vector: VectorLike;}
+pub unsafe trait VectorizedMatrix: VectorLike {}
 
 pub type MathVectoredMatrix<T,const D1: usize,const D2: usize> = MathVector<MathVector<T,D1>,D2>;
 
