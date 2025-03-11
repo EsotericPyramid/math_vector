@@ -293,9 +293,9 @@ impl<'a,T> HasReuseBuf for &'a mut [T] {
 }
 
 
-#[inline] fn debox<T: Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
+#[inline] fn debox<T: ?Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
 
-unsafe impl<V: VectorLike> Get for Box<V> {
+unsafe impl<V: VectorLike + ?Sized> Get for Box<V> {
     type GetBool = V::GetBool;
     type IsRepeatable = N;
     type Inputs = V::Inputs;
@@ -307,7 +307,7 @@ unsafe impl<V: VectorLike> Get for Box<V> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
 }
 
-impl<V: VectorLike> HasReuseBuf for Box<V> {
+impl<V: VectorLike + ?Sized> HasReuseBuf for Box<V> {
     type FstHandleBool = V::FstHandleBool;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -1085,7 +1085,6 @@ impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {self.vec.drop_bound_bufs_index(index)}
 }
 
-// TODO: add offset method for runtime vecs
 pub struct VecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
 
 impl<T: VectorLike> VecOffset<T> {
@@ -1230,6 +1229,51 @@ where
         self.vec.drop_bound_bufs_index(index);
         self.used_vec.drop_bound_bufs_index(index);
     }
+}
+
+
+pub struct DynamicVectorLike<V: VectorLike>{pub(crate) vec: V, pub(crate) inputs: Option<V::Inputs>}
+
+unsafe impl<V: VectorLike> Get for DynamicVectorLike<V> {
+    type GetBool = V::GetBool;
+    type IsRepeatable = V::IsRepeatable;
+    type Inputs = ();
+    type Item = V::Item;
+    type BoundItems = V::BoundItems;
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {self.inputs = Some(self.vec.get_inputs(index));}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) {self.vec.drop_inputs(index)}
+    #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.inputs.take().unwrap())}
+}
+
+impl<V: VectorLike> HasOutput for DynamicVectorLike<V> {
+    type OutputBool = V::OutputBool;
+    type Output = V::Output;
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {self.vec.output()}
+    #[inline] unsafe fn drop_output(&mut self) {self.vec.drop_output()}
+}
+
+impl<V: VectorLike> HasReuseBuf for DynamicVectorLike<V> {
+    type FstHandleBool = V::FstHandleBool;
+    type SndHandleBool = V::SndHandleBool;
+    type BoundHandlesBool = V::BoundHandlesBool;
+    type FstOwnedBufferBool = V::FstOwnedBufferBool;
+    type SndOwnedBufferBool = V::SndOwnedBufferBool;
+    type FstOwnedBuffer = V::FstOwnedBuffer;
+    type SndOwnedBuffer = V::SndOwnedBuffer;
+    type FstType = V::FstType;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {self.vec.assign_1st_buf(index,val)}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {self.vec.assign_2nd_buf(index,val)}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {self.vec.assign_bound_bufs(index,val)}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.vec.get_1st_buffer()}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.vec.get_2nd_buffer()}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) {self.vec.drop_1st_buf_index(index)}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) {self.vec.drop_2nd_buf_index(index)}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) {self.vec.drop_bound_bufs_index(index)}
 }
 
 

@@ -887,7 +887,7 @@ impl<M: MatrixLike> MatColOffset<M> {
         let mut offset_index = index + self.offset;
         if offset_index >= index { 
             offset_index %= self.num_columns;
-        } else { //index overflowed, LLVM should be able to elid this most of the time
+        } else { //index overflowed, LLVM should be able to elid this most of the time (hopefully)
             //if the index overflowed, (usize::MAX) + 1 was subtracted from it, add (usize::MAX)+1 mod self.num_columns to recover
             offset_index %= self.num_columns;
             offset_index += ((usize::MAX % self.num_columns) + 1) % self.num_columns; // 2 modulos to prevent overflow
@@ -1103,7 +1103,7 @@ impl<M: MatrixLike> HasReuseBuf for MatColVectorExprs<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-unsafe impl<M: MatrixLike> VectorizedMatrix for MatColVectorExprs<M> {type Vector = Self::Item;}
+unsafe impl<M: MatrixLike> VectorizedMatrix for MatColVectorExprs<M> {}
 
 pub struct MatrixRow<M: MatrixLike>{pub(crate) mat: *mut M, pub(crate) row_num: usize}
 
@@ -1199,7 +1199,7 @@ impl<M: MatrixLike> HasReuseBuf for MatRowVectorExprs<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-unsafe impl<M: MatrixLike> VectorizedMatrix for MatRowVectorExprs<M> {type Vector = Self::Item;}
+unsafe impl<M: MatrixLike> VectorizedMatrix for MatRowVectorExprs<M> {}
 
 
 pub struct FullMatMul<M1: MatrixLike<IsRepeatable = Y>, M2: MatrixLike<IsRepeatable = Y>>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}

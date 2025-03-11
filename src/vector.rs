@@ -77,6 +77,51 @@ use vector_structs::*;
 pub struct VectorExpr<T: VectorLike,const D: usize>(pub(crate) T); // note: VectorExpr only holds fully unused VectorLike objects
 
 impl<T: VectorLike,const D: usize> VectorExpr<T,D> {
+    #[inline]
+    pub fn make_dynamic(self) -> VectorExpr<Box<dyn VectorLike<
+        GetBool = T::GetBool,
+        IsRepeatable = T::IsRepeatable,
+        Inputs = (),
+        Item = T::Item,
+        BoundItems = T::BoundItems,
+
+        OutputBool = T::OutputBool,
+        Output = T::Output,
+
+        FstHandleBool = T::FstHandleBool,
+        SndHandleBool = T::SndHandleBool,
+        BoundHandlesBool = T::BoundHandlesBool,
+        FstOwnedBufferBool = T::FstOwnedBufferBool,
+        SndOwnedBufferBool = T::SndOwnedBufferBool,
+        FstOwnedBuffer = T::FstOwnedBuffer,
+        SndOwnedBuffer = T::SndOwnedBuffer,
+        FstType = T::FstType,
+        SndType = T::SndType,
+        BoundTypes = T::BoundTypes,
+    >>,D> where T: 'static {
+        VectorExpr(Box::new(DynamicVectorLike{vec: self.unwrap(), inputs: None}) as Box<dyn VectorLike<
+            GetBool = T::GetBool,
+            IsRepeatable = T::IsRepeatable,
+            Inputs = (),
+            Item = T::Item,
+            BoundItems = T::BoundItems,
+
+            OutputBool = T::OutputBool,
+            Output = T::Output,
+
+            FstHandleBool = T::FstHandleBool,
+            SndHandleBool = T::SndHandleBool,
+            BoundHandlesBool = T::BoundHandlesBool,
+            FstOwnedBufferBool = T::FstOwnedBufferBool,
+            SndOwnedBufferBool = T::SndOwnedBufferBool,
+            FstOwnedBuffer = T::FstOwnedBuffer,
+            SndOwnedBuffer = T::SndOwnedBuffer,
+            FstType = T::FstType,
+            SndType = T::SndType,
+            BoundTypes = T::BoundTypes,
+        >>)
+    }
+
     #[inline] 
     pub fn consume(self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
         VectorIter::<T,D>{
@@ -166,6 +211,8 @@ impl<T: VectorLike,const D: usize> IntoIterator for VectorExpr<T,D> where T: Has
         }
     }
 }
+
+
 
 #[derive(Clone)]
 pub struct VectorExprBuilder<const D: usize>;
@@ -1344,7 +1391,7 @@ macro_rules! impl_all_const_sized_double_vector_ops {
         $r_ty:ty,
         vector: $r_vector:ty,
         item: $r_item:ty)*
-    ) => {
+    ) => {      
         impl_some_const_sized_double_vector_ops!(
             $size
             |
