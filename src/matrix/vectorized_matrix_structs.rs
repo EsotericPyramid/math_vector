@@ -21,8 +21,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
     type Item = Wrap::VectorWrapped<M::Item>;
     type BoundItems = M::BoundItems;
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {self.mat.get_inputs(index)}
-    #[inline] unsafe fn drop_inputs(&mut self, index: usize) {self.mat.drop_inputs(index);}
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
         (unsafe { self.wrapper_builder.wrap_vec(col) }, bound)
@@ -33,8 +33,8 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutp
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
-    #[inline] unsafe fn output(&mut self) -> Self::Output {self.mat.output()}
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output();}
+    #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {self.mat.output()}}
+    #[inline] unsafe fn drop_output(&mut self) { unsafe {self.mat.drop_output();}}
 }
 
 impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReuseBuf for MatColWrapper<M,V,Wrap> {
@@ -49,14 +49,14 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReus
     type SndType = M::SndType;
     type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {self.mat.assign_1st_buf(index,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {self.mat.assign_2nd_buf(index,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {self.mat.assign_bound_bufs(index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.mat.drop_1st_buf_index(index)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {self.mat.drop_2nd_buf_index(index)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {self.mat.drop_bound_bufs_index(index)}    
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) { unsafe {self.mat.assign_1st_buf(index,val)}}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) { unsafe {self.mat.assign_2nd_buf(index,val)}}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(index,val)}}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) { unsafe {self.mat.drop_1st_buf_index(index)}}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) { unsafe {self.mat.drop_2nd_buf_index(index)}}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) { unsafe {self.mat.drop_bound_bufs_index(index)}}    
 }
 
 
@@ -70,8 +70,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
     type Item = Wrap::TransposedVectorWrapped<M::Item>;
     type BoundItems = M::BoundItems;
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {self.mat.get_inputs(index)}
-    #[inline] unsafe fn drop_inputs(&mut self, index: usize) {self.mat.drop_inputs(index);}
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
         (unsafe { self.wrapper_builder.wrap_trans_vec(col) }, bound)
@@ -82,8 +82,8 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutp
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
-    #[inline] unsafe fn output(&mut self) -> Self::Output {self.mat.output()}
-    #[inline] unsafe fn drop_output(&mut self) {self.mat.drop_output();}
+    #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {self.mat.output()}}
+    #[inline] unsafe fn drop_output(&mut self) { unsafe {self.mat.drop_output();}}
 }
 
 impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReuseBuf for MatRowWrapper<M,V,Wrap> {
@@ -98,14 +98,14 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReus
     type SndType = M::SndType;
     type BoundTypes = M::BoundTypes;
 
-    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) {self.mat.assign_1st_buf(index,val)}
-    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) {self.mat.assign_2nd_buf(index,val)}
-    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) {self.mat.assign_bound_bufs(index,val)}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {self.mat.get_1st_buffer()}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {self.mat.get_2nd_buffer()}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) {self.mat.drop_1st_buf_index(index)}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) {self.mat.drop_2nd_buf_index(index)}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) {self.mat.drop_bound_bufs_index(index)}    
+    #[inline] unsafe fn assign_1st_buf(&mut self,index: usize,val: Self::FstType) { unsafe {self.mat.assign_1st_buf(index,val)}}
+    #[inline] unsafe fn assign_2nd_buf(&mut self,index: usize,val: Self::SndType) { unsafe {self.mat.assign_2nd_buf(index,val)}}
+    #[inline] unsafe fn assign_bound_bufs(&mut self,index: usize,val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(index,val)}}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self,index: usize) { unsafe {self.mat.drop_1st_buf_index(index)}}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self,index: usize) { unsafe {self.mat.drop_2nd_buf_index(index)}}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self,index: usize) { unsafe {self.mat.drop_bound_bufs_index(index)}}    
 }
 
 //TODO: add lazy Mat multiplication

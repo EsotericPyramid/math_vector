@@ -27,10 +27,10 @@ pub mod vec_util_traits {
 
         /// Note: generally not used to better manage dropping, may be removed in the future
         #[inline]
-        unsafe fn get(&mut self, index: usize) -> (Self::Item, Self::BoundItems) {
+        unsafe fn get(&mut self, index: usize) -> (Self::Item, Self::BoundItems) { unsafe {
             let inputs = self.get_inputs(index);
             self.process(inputs)
-        }
+        }}
     }
 
     pub trait HasReuseBuf {
@@ -227,7 +227,7 @@ pub struct VectorIter<T: VectorLike,const D: usize>{vec: T, live_input_start: us
 
 impl<T: VectorLike,const D: usize> VectorIter<T,D> {
     #[inline]
-    pub unsafe fn next_unchecked(&mut self) -> T::Item where T: HasReuseBuf<BoundTypes = T::BoundItems> {
+    pub unsafe fn next_unchecked(&mut self) -> T::Item where T: HasReuseBuf<BoundTypes = T::BoundItems> { unsafe {
         let index = self.live_input_start;
         self.live_input_start += 1;
         let inputs = self.vec.get_inputs(index);
@@ -235,13 +235,16 @@ impl<T: VectorLike,const D: usize> VectorIter<T,D> {
         self.vec.assign_bound_bufs(index,bound_items);
         self.dead_output_start += 1;
         item
-    }
+    }}
 
     #[inline]
     pub unsafe fn unchecked_output(self) -> T::Output {
         let mut man_drop_self = std::mem::ManuallyDrop::new(self);
-        let output = unsafe { man_drop_self.vec.output() };
-        std::ptr::drop_in_place(&mut man_drop_self.vec);
+        let output; 
+        unsafe { 
+            output = man_drop_self.vec.output(); 
+            std::ptr::drop_in_place(&mut man_drop_self.vec);
+        }
         output
     }
 
@@ -317,13 +320,13 @@ impl<T,const D: usize> MathVector<T,D> {
         VectorExpr(ReferringOwnedArray(self.unwrap().0,std::marker::PhantomData))
     }
 
-    #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[T]>>(&self, index: I) -> &I::Output {
+    #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[T]>>(&self, index: I) -> &I::Output { unsafe {
         self.0.0.get_unchecked(index)
-    }
+    }}
 
-    #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output {
+    #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output { unsafe {
         self.0.0.get_unchecked_mut(index)
-    }
+    }}
 }
 
 impl<T: Clone,const D: usize> Clone for MathVector<T,D> {
