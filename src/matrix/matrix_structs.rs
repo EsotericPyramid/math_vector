@@ -57,6 +57,8 @@ unsafe impl<T,const D1: usize,const D2: usize> Get2D for Owned2DArray<T,D1,D2> {
     }}
 }
 
+unsafe impl<T: Copy,const D1: usize,const D2: usize> IsRepeatable for Owned2DArray<T,D1,D2> {}
+
 impl<T,const D1: usize,const D2: usize> HasOutput for Owned2DArray<T,D1,D2> {
     type OutputBool = N;
     type Output = ();
@@ -90,7 +92,8 @@ impl<T,const D1: usize,const D2: usize> Has2DReuseBuf for Owned2DArray<T,D1,D2> 
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
 }
 
-
+//Note: these 2 technically impl HasOutput via vector_structs' impls on &[T; D], fine since none actually output anything
+//Note: impls IsRepeatable through vector_structs' impl, still correct though
 unsafe impl<'a,T,const D1: usize,const D2: usize> Get2D for &'a [[T; D1]; D2] {
     type GetBool = Y;
     type AreInputsTransposed = N;

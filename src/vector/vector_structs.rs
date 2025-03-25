@@ -43,6 +43,9 @@ unsafe impl<T,const D: usize> Get for OwnedArray<T,D> {
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
 }
 
+//Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
+unsafe impl<T: Copy, const D: usize> IsRepeatable for OwnedArray<T,D> {} 
+
 impl<T,const D: usize> HasOutput for OwnedArray<T,D> {
     type OutputBool = N;
     type Output = ();
