@@ -132,6 +132,34 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     }
 }
 
+impl<M: MatrixLike + IsRepeatable, const D1: usize, const D2: usize> MatrixExpr<M,D1,D2> {
+    /// Note:   This method does NOT fill any buffers bound to the matrix, if you need that, see binding_get
+    pub fn get(&mut self, col_index: usize, row_index: usize) -> M::Item {
+        if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
+        unsafe {
+            let inputs = self.0.get_inputs(col_index, row_index);
+            let (item, _) = self.0.process(inputs);
+            item
+        }
+    } 
+
+    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
+    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
+    ///         Additionally, if the buffer is owned by the matrix, the matrix expr is also responsible for dropping filled indices
+    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
+    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
+    /// Note TLDR: this method is extremely prone to causing memory leaks
+    pub fn binding_get(&mut self, col_index: usize, row_index: usize) -> M::Item where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
+        if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
+        unsafe {
+            let inputs = self.0.get_inputs(col_index, row_index);
+            let (item, bound_items) = self.0.process(inputs);
+            self.0.assign_bound_bufs(col_index, row_index, bound_items);
+            item
+        }
+    }
+}
+
 impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1, D2> {
     #[inline]
     fn drop(&mut self) {

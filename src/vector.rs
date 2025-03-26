@@ -159,6 +159,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
     /// Note:   This method does NOT fill any buffers bound to the vector, if you need that, see binding_get
     pub fn get(&mut self, index: usize) -> V::Item {
         // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        if index >= D {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(index);
             let (item, _) = self.0.process(inputs);
@@ -174,6 +175,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
     /// Note TLDR: this method is extremely prone to causing memory leaks
     pub fn binding_get(&mut self, index: usize) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> {
         // the nature of IsRepeatable means that any index can be called any number of times so this is fine
+        if index >= D {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(index);
             let (item, bound_items) = self.0.process(inputs);
@@ -883,6 +885,7 @@ where
 }
 
 overload_operators!(<V: VectorLike, {D}>, VectorExpr<V, D>, vector: V, item: V::Item);
+
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
     type Unwrapped = Box<V>;
