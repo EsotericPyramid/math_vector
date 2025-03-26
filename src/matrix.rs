@@ -1,5 +1,6 @@
 use crate::{util_traits::{HasOutput, IsRepeatable}, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
 use self::mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike};
+use std::mem::ManuallyDrop;
 use crate::trait_specialization_utils::*;
 use std::ops::*;
 
@@ -209,6 +210,12 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
 
     #[inline]
     pub fn consume(mut self) -> M::Output where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
+        self.no_output_consume();
+        unsafe {self.unchecked_output()}
+    }
+
+    #[inline]
+    pub fn no_output_consume(&mut self) where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
         let mat = &mut self.mat;
         let current_col = &mut self.current_col;
         let live_input_row_start = &mut self.live_input_row_start;
@@ -235,7 +242,6 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixEntryIter<M,D1,D2> {
                 mat.assign_bound_bufs(*current_col,row_index,bound_items);
                 *dead_output_row_start += 1;
             }
-            self.unchecked_output()
         }
     }
 }
@@ -285,6 +291,10 @@ impl<T,const D1: usize,const D2: usize> MathMatrix<T,D1,D2> {
         unsafe { MatrixExpr(Replace2DHeapArray(std::mem::transmute::<Box<Self>,std::mem::ManuallyDrop<Box<[[T; D1]; D2]>>>(self))) }
     } 
     
+    #[inline] pub fn referred<'a>(self) -> MatrixExpr<Referring2DArray<'a,T,D1,D2>,D1,D2> where T: 'a {
+        MatrixExpr(Referring2DArray(unsafe {std::mem::transmute_copy::<ManuallyDrop<[[T; D1]; D2]>,[[T; D1]; D2]>(&self.unwrap().0)}, std::marker::PhantomData))
+    }
+
     #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[[T; D1]]>>(&self,index: I) -> &I::Output { unsafe {
         self.0.0.get_unchecked(index)
     }}
@@ -427,6 +437,21 @@ pub trait MatrixOps {
     {
         let wrapper_builder = self.get_wrapper_builder();
         unsafe { wrapper_builder.wrap_mat(MatBind{mat: self.unwrap()}) }
+    }
+
+    //TODO: map_bind
+
+    #[inline]
+    fn half_bind(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatHalfBind<Self::Unwrapped>>
+    where 
+        Self::Unwrapped:  MatrixLike<FstHandleBool = Y>,
+        (<Self::Unwrapped as HasOutput>::OutputBool,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool,Y): FilterPair,
+        MatHalfBind<Self::Unwrapped>: Has2DReuseBuf<BoundTypes = <MatBind<Self::Unwrapped> as Get2D>::BoundItems>,
+        Self: Sized
+    {
+        let builder = self.get_wrapper_builder();
+        unsafe { builder.wrap_mat(MatHalfBind{mat: self.unwrap()}) }
     }
 
     #[inline]
@@ -638,6 +663,27 @@ pub trait ArrayMatrixOps<const D1: usize,const D2: usize>: MatrixOps {
     }
 }
 
+pub trait RepeatableMatrixOps: MatrixOps {
+    type RepeatableMatrix<'a>: MatrixLike + IsRepeatable where Self: 'a;
+    type UsedMatrix: MatrixLike;
+    //type HeapedUsedMatrix: MatrixLike;
+
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>,Self::UsedMatrix>> where
+        Self: 'a,
+        (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool,<Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::BoundHandlesBool,<Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsFstBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsSndBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::AreBoundBuffersTransposed,<Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+        (<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
+        <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
+    ;
+}
+
 macro_rules! overload_operators {
     (
         <$($($lifetime:lifetime),+,)? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+,{$d1:ident,$d2:ident}>,
@@ -674,7 +720,7 @@ macro_rules! overload_operators {
     }
 }
 
-
+ 
 impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for MatrixExpr<M,D1,D2> {
     type Unwrapped = M;
     type WrapperBuilder = MatrixExprBuilder<D1,D2>;
@@ -694,6 +740,43 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for MatrixExpr<M,D
     #[inline] fn dimensions(&self) -> (usize,usize) {(D1,D2)}
 }
 impl<M: MatrixLike,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for MatrixExpr<M,D1,D2> {}
+
+impl<M: MatrixLike,const D1: usize,const D2: usize> RepeatableMatrixOps for MatrixExpr<M,D1,D2> where    
+    <M::FstHandleBool as TyBool>::Neg: Filter,
+    (M::BoundHandlesBool,Y): FilterPair,
+    (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair<
+    Selected<M::FstOwnedBuffer, MathMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<M as Get2D>::Item>, D1,D2>> = MathMatrix<M::Item,D1,D2>>,
+    (M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<M::FstHandleBool as TyBool>::Neg,M::FstOwnedBufferBool): TyBoolPair,
+    (M::OutputBool,<(M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    MatHalfBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundItems,M::Item>>
+{
+    type RepeatableMatrix<'a> = Referring2DArray<'a,M::Item,D1,D2> where Self: 'a;
+    type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<M,M::Item,D1,D2>>;
+
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>,Self::UsedMatrix>> where
+        Self: 'a,
+        (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool,<Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::BoundHandlesBool,<Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsFstBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsSndBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::AreBoundBuffersTransposed,<Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+        (<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
+        <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
+    {
+        let builder = self.get_wrapper_builder();
+        let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
+        unsafe {
+            mat_iter.no_output_consume();
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(),used_mat: std::ptr::read(&mat_iter.mat)})
+        }
+    }
+}
+
 overload_operators!(<M: MatrixLike,{D1,D2}>, MatrixExpr<M,D1,D2>, matrix: M, item: M::Item);
 
 impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for Box<MatrixExpr<M,D1,D2>> {
@@ -717,6 +800,43 @@ impl<M: MatrixLike,const D1: usize,const D2: usize> MatrixOps for Box<MatrixExpr
     #[inline] fn dimensions(&self) -> (usize,usize) {(D1,D2)}
 }
 impl<M: MatrixLike,const D1: usize,const D2: usize> ArrayMatrixOps<D1,D2> for Box<MatrixExpr<M,D1,D2>> {}
+
+impl<M: MatrixLike,const D1: usize,const D2: usize> RepeatableMatrixOps for Box<MatrixExpr<M,D1,D2>> where    
+    <M::FstHandleBool as TyBool>::Neg: Filter,
+    (M::BoundHandlesBool,Y): FilterPair,
+    (M::FstHandleBool,<M::FstHandleBool as TyBool>::Neg): SelectPair<
+    Selected<M::FstOwnedBuffer, MathMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<M as Get2D>::Item>, D1,D2>> = MathMatrix<M::Item,D1,D2>>,
+    (M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<M::FstHandleBool as TyBool>::Neg,M::FstOwnedBufferBool): TyBoolPair,
+    (M::OutputBool,<(M::FstOwnedBufferBool,<M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    MatHalfBind<MatMaybeCreate2DBuf<Box<M>,M::Item,D1,D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool,Y) as FilterPair>::Filtered<M::BoundItems,M::Item>>
+{
+    type RepeatableMatrix<'a> = Referring2DArray<'a,M::Item,D1,D2> where Self: 'a;
+    type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<Box<M>,M::Item,D1,D2>>;
+
+    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>,Self::UsedMatrix>> where
+        Self: 'a,
+        (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool,<Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndHandleBool,<Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::BoundHandlesBool,<Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::SndOwnedBufferBool,<Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsFstBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::IsSndBufferTransposed,<Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::AreBoundBuffersTransposed,<Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+        (<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
+        <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
+    {
+        let builder = self.get_wrapper_builder();
+        let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
+        unsafe {
+            mat_iter.no_output_consume();
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(),used_mat: std::ptr::read(&mat_iter.mat)})
+        }
+    }
+}
+
 overload_operators!(<M: MatrixLike,{D1,D2}>, Box<MatrixExpr<M,D1,D2>>, matrix: Box<M>, item: M::Item);
 
 
