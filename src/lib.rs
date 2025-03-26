@@ -33,6 +33,7 @@ pub mod trait_specialization_utils {
         type Filtered<T1, T2>;
 
         fn filter<T1, T2>(x1: T1, x2: T2) -> Self::Filtered<T1, T2>;
+        ///Safety: requires that T1 & T2 are a ZST if the corresponding bool in the FilterPair is false
         unsafe fn defilter<T1, T2>(filtered: Self::Filtered<T1, T2>) -> (T1, T2);
     }
 
@@ -103,54 +104,6 @@ pub mod trait_specialization_utils {
 
 pub mod util_traits {
     use crate::trait_specialization_utils::*;
-
-    pub trait Assign {
-        type Val;
-    
-        fn assign(self, val: Self::Val);
-    }
-    
-    impl Assign for () {
-        type Val = ();
-    
-        #[inline]
-        fn assign(self, _: Self::Val) {}
-    }
-    
-    impl<'a, T> Assign for &'a mut T {
-        type Val = T;
-    
-        #[inline]
-        fn assign(self, val: Self::Val) {*self = val;}
-    }
-
-    pub struct NoDropHandle<'a, T>(pub &'a mut std::mem::ManuallyDrop<T>);
-
-    impl<'a, T> Assign for NoDropHandle<'a, T> {
-        type Val = T;
-
-        #[inline]
-        fn assign(self, val: Self::Val) {
-            *self.0 = std::mem::ManuallyDrop::new(val)
-        }
-    }
-
-    impl<T> Assign for *mut T {
-        type Val = T;
-
-        #[inline]
-        fn assign(self, val: Self::Val) {unsafe {std::ptr::write(self, val)}}
-    }
-    
-    impl<T1: Assign, T2: Assign> Assign for (T1, T2) {
-        type Val = (T1::Val, T2::Val);
-    
-        #[inline]
-        fn assign(self, val: Self::Val) {
-            self.0.assign(val.0);
-            self.1.assign(val.1)
-        }
-    }
 
     pub trait HasOutput {
         type OutputBool: TyBool;
