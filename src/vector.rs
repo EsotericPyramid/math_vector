@@ -1,6 +1,6 @@
 use self::{vec_util_traits::{Get, HasReuseBuf, VectorLike}, vector_structs::OwnedArray};
 use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::{HasOutput, IsRepeatable}};
-use std::ops::*;
+use std::{mem::ManuallyDrop, ops::*};
 
 pub mod vec_util_traits {
     // Note: traits here aren't meant to be used directly by end users
@@ -254,10 +254,15 @@ impl<T: VectorLike,const D: usize> VectorIter<T,D> {
 
     #[inline]
     pub fn consume(mut self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
+        self.no_output_consume();
+        unsafe {self.unchecked_output()} // safety: VectorIter was fully used
+    }
+
+    #[inline]
+    pub fn no_output_consume(&mut self) where T: HasReuseBuf<BoundTypes = T::BoundItems> {
         while self.live_input_start < D {
             unsafe { let _ = self.next_unchecked(); }
         }
-        unsafe {self.unchecked_output()} // safety: VectorIter was fully used
     }
 }
 
@@ -314,7 +319,7 @@ impl<T,const D: usize> MathVector<T,D> {
     }
 
     #[inline] pub fn referred<'a>(self) -> VectorExpr<ReferringOwnedArray<'a,T,D>,D> where T: 'a {
-        VectorExpr(ReferringOwnedArray(self.unwrap().0,std::marker::PhantomData))
+        VectorExpr(ReferringOwnedArray(unsafe {std::mem::transmute_copy::<ManuallyDrop<[T; D]>,[T; D]>(&self.unwrap().0)},std::marker::PhantomData)) //FIXME: unecessary transmute copy to get the compiler to not complain
     }
 
     #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[T]>>(&self, index: I) -> &I::Output { unsafe {
@@ -871,9 +876,7 @@ where
         let builder = self.get_wrapper_builder();
         let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
         unsafe {
-            while vec_iter.live_input_start < D {
-                let _ = vec_iter.next_unchecked();
-            }
+            vec_iter.no_output_consume();
             builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(),used_vec: std::ptr::read(&vec_iter.vec)})
         }
     }

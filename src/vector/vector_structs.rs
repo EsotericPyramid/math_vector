@@ -76,7 +76,8 @@ impl<T,const D: usize> HasReuseBuf for OwnedArray<T,D> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-pub struct ReferringOwnedArray<'a,T: 'a,const D: usize>(pub(crate) ManuallyDrop<[T; D]>, pub(crate) std::marker::PhantomData<&'a T>);
+
+pub struct ReferringOwnedArray<'a,T: 'a,const D: usize>(pub(crate) [T; D], pub(crate) std::marker::PhantomData<&'a T>);
 
 unsafe impl<'a,T: 'a,const D: usize> Get for ReferringOwnedArray<'a,T,D> {
     type GetBool = Y;
@@ -965,6 +966,7 @@ impl<T: VectorLike<FstHandleBool = Y>,F: FnMut(T::Item) -> (I,B),I,B> HasReuseBu
     }}
 }
 
+
 pub struct VecHalfBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T} 
 
 impl<T: VectorLike<FstHandleBool = Y>> VecHalfBind<T> {
@@ -1085,6 +1087,7 @@ impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
+
 
 pub struct VecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
 
