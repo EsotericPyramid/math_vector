@@ -4,79 +4,12 @@ use std::mem::ManuallyDrop;
 use crate::trait_specialization_utils::*;
 use std::ops::*;
 
-pub mod mat_util_traits {
-    use crate::vector::vec_util_traits::VectorLike;
-
-    // Note: traits here aren't meant to be used by end users
-    use crate::trait_specialization_utils::TyBool;
-    use crate::util_traits::HasOutput;
-
-    pub unsafe trait Get2D {
-        type GetBool: TyBool;
-        type AreInputsTransposed: TyBool; // used to optimize access order
-        type Inputs;
-        type Item;
-        type BoundItems;
-
-        unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs; 
-
-        unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize);
-
-        fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
-
-        #[inline]
-        unsafe fn get(&mut self, col_index: usize, row_index: usize) -> (Self::Item, Self::BoundItems) { unsafe {
-            let inputs = self.get_inputs(col_index, row_index);
-            self.process(inputs)
-        }}
-    }
-
-    pub trait Has2DReuseBuf {
-        type FstHandleBool: TyBool;
-        type SndHandleBool: TyBool;
-        type BoundHandlesBool: TyBool;
-        type FstOwnedBufferBool: TyBool;
-        type SndOwnedBufferBool: TyBool;
-        type IsFstBufferTransposed: TyBool;
-        type IsSndBufferTransposed: TyBool;
-        type AreBoundBuffersTransposed: TyBool;
-        type FstOwnedBuffer;
-        type SndOwnedBuffer;
-        type FstType;
-        type SndType;
-        type BoundTypes;
-
-        unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType); 
-        unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType);
-        unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes);
-        unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize);
-        unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize);
-        unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize);
-        unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer;
-        unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer;
-    }
-
-    pub trait MatrixWrapperBuilder: Clone {
-        type MatrixWrapped<T: MatrixLike>;
-        type TransposedMatrixWrapped<T: MatrixLike>;
-        type VectorWrapped<T: VectorLike>;
-        type TransposedVectorWrapped<T: VectorLike>;
-
-        unsafe fn wrap_mat<T: MatrixLike>(&self, mat: T) -> Self::MatrixWrapped<T>;
-        unsafe fn wrap_trans_mat<T: MatrixLike>(&self, mat: T) -> Self::TransposedMatrixWrapped<T>;
-        unsafe fn wrap_vec<T: VectorLike>(&self, vec: T) -> Self::VectorWrapped<T>;
-        unsafe fn wrap_trans_vec<T: VectorLike>(&self, vec: T) -> Self::TransposedVectorWrapped<T>;        
-    }
-
-    ///really just a shorthand for the individual traits
-    pub trait MatrixLike: Get2D + HasOutput + Has2DReuseBuf {}
-
-    impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
-}
+pub mod mat_util_traits;
 
 
 pub mod matrix_structs;
 pub mod vectorized_matrix_structs;
+
 use mat_util_traits::MatrixWrapperBuilder;
 use matrix_structs::*;
 use vectorized_matrix_structs::*;
