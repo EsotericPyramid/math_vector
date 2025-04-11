@@ -72,9 +72,3 @@ pub trait CombinableMatrixWrapperBuilder<T: MatrixWrapperBuilder>: MatrixWrapper
 
     fn union(self, other: T) -> Self::Union;
 }
-
-impl<T: CombinableMatrixWrapperBuilder<U>, U: MatrixWrapperBuilder> CombinableMatrixWrapperBuilder<T> for U {
-    type Union = <T as CombinableMatrixWrapperBuilder<U>>::Union;
-
-    fn union(self, other: T) -> Self::Union {other.union(self)}
-}
