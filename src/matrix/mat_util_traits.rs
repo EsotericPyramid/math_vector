@@ -50,6 +50,11 @@ pub trait Has2DReuseBuf {
     unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer;
 }
 
+///really just a shorthand for the individual traits
+pub trait MatrixLike: Get2D + HasOutput + Has2DReuseBuf {}
+
+impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
+
 pub trait MatrixWrapperBuilder: Clone {
     type MatrixWrapped<T: MatrixLike>;
     type TransposedMatrixWrapped<T: MatrixLike>;
@@ -62,7 +67,14 @@ pub trait MatrixWrapperBuilder: Clone {
     unsafe fn wrap_trans_vec<T: VectorLike>(&self, vec: T) -> Self::TransposedVectorWrapped<T>;        
 }
 
-///really just a shorthand for the individual traits
-pub trait MatrixLike: Get2D + HasOutput + Has2DReuseBuf {}
+pub trait CombinableMatrixWrapperBuilder<T: MatrixWrapperBuilder>: MatrixWrapperBuilder {
+    type Union: MatrixWrapperBuilder;
 
-impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
+    fn union(self, other: T) -> Self::Union;
+}
+
+impl<T: CombinableMatrixWrapperBuilder<U>, U: MatrixWrapperBuilder> CombinableMatrixWrapperBuilder<T> for U {
+    type Union = <T as CombinableMatrixWrapperBuilder<U>>::Union;
+
+    fn union(self, other: T) -> Self::Union {other.union(self)}
+}

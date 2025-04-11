@@ -60,3 +60,15 @@ pub trait VectorWrapperBuilder: Clone {
     ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
 }
+
+pub trait CombinableVectorWrapperBuilder<T: VectorWrapperBuilder>: VectorWrapperBuilder {
+    type Union: VectorWrapperBuilder;
+
+    fn union(self, other: T) -> Self::Union;
+}
+
+impl<T: CombinableVectorWrapperBuilder<U>, U: VectorWrapperBuilder> CombinableVectorWrapperBuilder<T> for U {
+    type Union = <T as CombinableVectorWrapperBuilder<U>>::Union;
+
+    fn union(self, other: T) -> Self::Union {other.union(self)}
+}
