@@ -66,9 +66,3 @@ pub trait CombinableVectorWrapperBuilder<T: VectorWrapperBuilder>: VectorWrapper
 
     fn union(self, other: T) -> Self::Union;
 }
-
-impl<T: CombinableVectorWrapperBuilder<U>, U: VectorWrapperBuilder> CombinableVectorWrapperBuilder<T> for U {
-    type Union = <T as CombinableVectorWrapperBuilder<U>>::Union;
-
-    fn union(self, other: T) -> Self::Union {other.union(self)}
-}
