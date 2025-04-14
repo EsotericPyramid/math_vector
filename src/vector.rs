@@ -343,14 +343,14 @@ impl<T, I, const D: usize> IndexMut<I> for MathVector<T, D> where [T; D]: IndexM
 impl<T1: AddAssign<T2>, T2, const D: usize> AddAssign<MathVector<T2, D>> for MathVector<T1, D> {
     #[inline]
     fn add_assign(&mut self, rhs: MathVector<T2, D>) {
-        <&mut Self as VectorVectorOps<MathVector<T2, D>>>::add_assign(self, rhs).consume();
+        VectorOps::add_assign(self, rhs).consume();
     }
 }
 
 impl<T1: SubAssign<T2>, T2, const D: usize> SubAssign<MathVector<T2, D>> for MathVector<T1, D> {
     #[inline]
     fn sub_assign(&mut self, rhs: MathVector<T2, D>) {
-        <&mut Self as VectorVectorOps<MathVector<T2, D>>>::sub_assign(self, rhs).consume();
+        VectorOps::sub_assign(self, rhs).consume();
     }
 }
 
@@ -944,7 +944,7 @@ macro_rules! overload_operators {
             {
                 #[inline]
                 fn add_assign(&mut self, rhs: $ty) {
-                    VectorVectorOps::add_assign(self, rhs).consume();
+                    VectorOps::add_assign(self, rhs).consume();
                 }
             }
         ); $($($lifetime),+)?);
@@ -962,7 +962,7 @@ macro_rules! overload_operators {
             {
                 #[inline]
                 fn sub_assign(&mut self, rhs: $ty) {
-                    VectorVectorOps::sub_assign(self, rhs).consume();
+                    VectorOps::sub_assign(self, rhs).consume();
                 }
             }
         ); $($($lifetime),+)?);
@@ -1128,6 +1128,92 @@ impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut Box<MathVector<T, D>> 
 overload_operators!(<'a, T, {D}>, &'a mut Box<MathVector<T, D>>, vector: &'a mut [T; D], item: &'a mut T);
 
  
+macro_rules! impl_binary_ops_for_wrapper {
+    (
+        $(
+            $($size:ident,)?
+            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+>,
+            $ty:ty,
+            trait_vector: $trait_vector:ty,
+            true_vector: $true_vector:ty;
+        )*
+    ) => {
+        $(
+            impl<
+                $($($lifetime),+, )? 
+                $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                V2: VectorOps
+                $(, const $size: usize)?
+            > Add<V2> for $ty where 
+                <$ty as VectorOps>::WrapperBuilder: CombinableVectorWrapperBuilder<V2::WrapperBuilder>,
+                <$trait_vector as Get>::Item: Add<<V2::Unwrapped as Get>::Item>,
+                (<$trait_vector as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(<$trait_vector as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (<$trait_vector as HasReuseBuf>::BoundHandlesBool, <V2::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
+                (<$trait_vector as HasReuseBuf>::FstHandleBool, <V2::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::SndHandleBool, <V2::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::FstOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (N, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(N, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                $ty: Sized
+            {
+                type Output = <<<$ty as VectorOps>::WrapperBuilder as CombinableVectorWrapperBuilder<V2::WrapperBuilder>>::Union as VectorWrapperBuilder>::Wrapped<VecAdd<$true_vector, V2::Unwrapped>>;
+            
+                fn add(self, rhs: V2) -> Self::Output {
+                    VectorOps::add(self,rhs)
+                }
+            }
+
+            impl<
+                $($($lifetime),+, )? 
+                $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                V2: VectorOps
+                $(, const $size: usize)?
+            > Sub<V2> for $ty where 
+                <$ty as VectorOps>::WrapperBuilder: CombinableVectorWrapperBuilder<V2::WrapperBuilder>,
+                <$trait_vector as Get>::Item: Sub<<V2::Unwrapped as Get>::Item>,
+                (<$trait_vector as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(<$trait_vector as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (<$trait_vector as HasReuseBuf>::BoundHandlesBool, <V2::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
+                (<$trait_vector as HasReuseBuf>::FstHandleBool, <V2::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::SndHandleBool, <V2::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::FstOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (<$trait_vector as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (N, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(N, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (N, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                $ty: Sized
+            {
+                type Output = <<<$ty as VectorOps>::WrapperBuilder as CombinableVectorWrapperBuilder<V2::WrapperBuilder>>::Union as VectorWrapperBuilder>::Wrapped<VecSub<$true_vector, V2::Unwrapped>>;
+            
+                fn sub(self, rhs: V2) -> Self::Output {
+                    VectorOps::sub(self,rhs)
+                }
+            }
+        )*
+
+    };
+}
+
+impl_binary_ops_for_wrapper!(
+    D, <V: VectorLike>, VectorExpr<V, D>, trait_vector: V, true_vector: V;
+    D, <V: VectorLike>, Box<VectorExpr<V, D>>, trait_vector: V, true_vector: Box<V>;
+    D, <'a, T>, &'a MathVector<T,D>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
+    D, <'a, T>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+    D, <'a, T>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
+    D, <'a, T>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+);
+
 /*
 
 impl<V1: VectorLike, V2: VectorOps, const D: usize> Add<V2> for VectorExpr<V1,D> where 
@@ -1366,250 +1452,4 @@ pub trait VectorVectorOps<V: VectorOps>: VectorOps {
         unsafe { Self::double_wrap(VecDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: std::mem::ManuallyDrop::new(init)}) }
     }
 }
-
-macro_rules! impl_const_sized_double_vector_ops {
-    (
-        $size:ident;
-        <$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        vector: $l_vector:ty,
-        item: $l_item:ty;
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        vector: $r_vector:ty,
-        item: $r_item:ty
-    ) => {
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            $($l_tt, )?
-            $($r_tt, )?
-            const $size: usize
-        > VectorVectorOps<$r_ty> for $l_ty {
-            type DoubleWrapped<Z: VectorLike> = VectorExpr<Z, $size>;
-
-            #[inline] fn assert_eq_len(&self, _: &$r_ty) {} //compile time checked, nothing necessary to assert
-            #[inline] unsafe fn double_wrap<Z: VectorLike>(vec: Z) -> Self::DoubleWrapped<Z> {VectorExpr(vec)}
-        }
-
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            const $size: usize
-        > Add<$r_ty> for $l_ty 
-        where 
-            $l_item: Add<$r_item>,
-            (<$l_vector as HasOutput>::OutputBool, N): FilterPair,
-            (<(<$l_vector as HasOutput>::OutputBool, N) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::BoundHandlesBool, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::FstHandleBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndHandleBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::FstOwnedBufferBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, N): SelectPair,    
-            (N, <$r_vector as HasOutput>::OutputBool): FilterPair,
-            (<(N, <$r_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (N, <$r_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-            (N, <$r_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (<$l_vector as HasOutput>::OutputBool, <$r_vector as HasOutput>::OutputBool): FilterPair,
-            (<(<$l_vector as HasOutput>::OutputBool, <$r_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::BoundHandlesBool, <$r_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-            (<$l_vector as HasReuseBuf>::FstHandleBool, <$r_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndHandleBool, <$r_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::FstOwnedBufferBool, <$r_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, <$r_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-        {
-            type Output = VectorExpr<VecAdd<<$l_ty as VectorOps>::Unwrapped, <$r_ty as VectorOps>::Unwrapped>, D>;
-
-            #[inline] 
-            fn add(self, rhs: $r_ty) -> Self::Output {
-                <Self as VectorVectorOps<$r_ty>>::add(self, rhs)
-            }
-        }
-
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            const $size: usize
-        > Sub<$r_ty> for $l_ty 
-        where 
-            $l_item: Sub<$r_item>,
-            (<$l_vector as HasOutput>::OutputBool, N): FilterPair,
-            (<(<$l_vector as HasOutput>::OutputBool, N) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::BoundHandlesBool, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::FstHandleBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndHandleBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::FstOwnedBufferBool, N): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, N): SelectPair,    
-            (N, <$r_vector as HasOutput>::OutputBool): FilterPair,
-            (<(N, <$r_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (N, <$r_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-            (N, <$r_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (N, <$r_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (<$l_vector as HasOutput>::OutputBool, <$r_vector as HasOutput>::OutputBool): FilterPair,
-            (<(<$l_vector as HasOutput>::OutputBool, <$r_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_vector as HasReuseBuf>::BoundHandlesBool, <$r_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-            (<$l_vector as HasReuseBuf>::FstHandleBool, <$r_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndHandleBool, <$r_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::FstOwnedBufferBool, <$r_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (<$l_vector as HasReuseBuf>::SndOwnedBufferBool, <$r_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-        {
-            type Output = VectorExpr<VecSub<<$l_ty as VectorOps>::Unwrapped, <$r_ty as VectorOps>::Unwrapped>, D>;
-
-            #[inline] 
-            fn sub(self, rhs: $r_ty) -> Self::Output {
-                <Self as VectorVectorOps<$r_ty>>::sub(self, rhs)
-            }
-        }
-    };
-}
-
-macro_rules! impl_some_const_sized_double_vector_ops {
-    (
-        $size:ident
-        |
-        | 
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        vector: $r_vector:ty,
-        item: $r_item:ty
-    ) => {};
-    (
-        $size:ident 
-        |
-        <$($($fst_l_lifetime:lifetime),+, )? $($fst_l_generic:ident $(:)? $($fst_l_lifetime_bound:lifetime |)? $($fst_l_fst_trait_bound:path $(| $fst_l_trait_bound:path)*)?),+ $(, {$fst_l_tt:tt})?>,
-        $fst_l_ty:ty,
-        vector: $fst_l_vector:ty,
-        item: $fst_l_item:ty
-        $(; <$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        vector: $l_vector:ty,
-        item: $l_item:ty)* 
-        |
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        vector: $r_vector:ty,
-        item: $r_item:ty
-    ) => {
-        impl_const_sized_double_vector_ops!(
-            $size;
-            <$($($fst_l_lifetime),+, )? $($fst_l_generic: $($fst_l_lifetime_bound |)? $($fst_l_fst_trait_bound $(| $fst_l_trait_bound)*)?),+ $(, {$fst_l_tt})?>,
-            $fst_l_ty,
-            vector: $fst_l_vector,
-            item: $fst_l_item;
-            <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-            $r_ty,
-            vector: $r_vector,
-            item: $r_item
-        );
-
-        impl_some_const_sized_double_vector_ops!(
-            $size
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                vector: $l_vector,
-                item: $l_item
-            );*
-            |
-            <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-            $r_ty,
-            vector: $r_vector,
-            item: $r_item
-        );
-    };
-}
-
-macro_rules! impl_all_const_sized_double_vector_ops {
-    (
-        $size:ident
-        |
-        $(<$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        vector: $l_vector:ty,
-        item: $l_item:ty);+
-        |
-    ) => {};
-    (
-        $size:ident 
-        |
-        $(<$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        vector: $l_vector:ty,
-        item: $l_item:ty);+
-        |
-        <$($($fst_r_lifetime:lifetime),+, )? $($fst_r_generic:ident $(:)? $($fst_r_lifetime_bound:lifetime |)? $($fst_r_fst_trait_bound:path $(| $fst_r_trait_bound:path)*)?),+ $(, {$fst_r_tt:tt})?>,
-        $fst_r_ty:ty,
-        vector: $fst_r_vector:ty,
-        item: $fst_r_item:ty
-        $(; <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        vector: $r_vector:ty,
-        item: $r_item:ty)*
-    ) => {      
-        impl_some_const_sized_double_vector_ops!(
-            $size
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                vector: $l_vector,
-                item: $l_item
-            );+
-            |
-            <$($($fst_r_lifetime),+, )? $($fst_r_generic: $($fst_r_lifetime_bound |)? $($fst_r_fst_trait_bound $(| $fst_r_trait_bound)*)?),+ $(, {$fst_r_tt})?>,
-            $fst_r_ty,
-            vector: $fst_r_vector,
-            item: $fst_r_item
-        );
-
-        impl_all_const_sized_double_vector_ops!{
-            $size
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                vector: $l_vector,
-                item: $l_item
-            );+
-            |
-            $(
-                <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-                $r_ty,
-                vector: $r_vector,
-                item: $r_item
-            );*
-        }
-    };
-}
-
-
-impl_all_const_sized_double_vector_ops!(
-    D 
-    |
-    <V1: VectorLike>, VectorExpr<V1, D>, vector: V1, item: V1::Item;
-    <V1: VectorLike>, Box<VectorExpr<V1, D>>, vector: V1, item: V1::Item;
-    <'a, T1>, &'a MathVector<T1, D>, vector: &'a [T1; D], item: &'a T1;
-    <'a, T1>, &'a mut MathVector<T1, D>, vector: &'a mut [T1; D], item: &'a mut T1;
-    <'a, T1>, &'a Box<MathVector<T1, D>>, vector: &'a [T1; D], item: &'a T1;
-    <'a, T1>, &'a mut Box<MathVector<T1, D>>, vector: &'a mut [T1; D], item: &'a mut T1
-    |
-    <V2: VectorLike>, VectorExpr<V2, D>, vector: V2, item: V2::Item;
-    <V2: VectorLike>, Box<VectorExpr<V2, D>>, vector: V2, item: V2::Item;
-    <'b, T2>, &'b MathVector<T2, D>, vector: &'b [T2; D], item: &'b T2;
-    <'b, T2>, &'b mut MathVector<T2, D>, vector: &'b mut [T2; D], item: &'b mut T2;
-    <'b, T2>, &'b Box<MathVector<T2, D>>, vector: &'b [T2; D], item: &'b T2;
-    <'b, T2>, &'b mut Box<MathVector<T2, D>>, vector: &'b mut [T2; D], item: &'b mut T2
-);
 
