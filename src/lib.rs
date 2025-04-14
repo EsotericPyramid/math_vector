@@ -165,7 +165,7 @@ pub mod matrix;
 #[cfg(test)]
 mod test {
     use rand::Rng; 
-    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, VectorVectorOps}};
+    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, }};
     use std::time::*;
 
 
@@ -188,7 +188,7 @@ mod test {
         let mat1: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
         let mat2: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
         let now = Instant::now();
-        let out = mat2.map(|vec| (&mat1).zip(vec).map(|(mat_vec, scalar)| (mat_vec *scalar).eval()).sum::<MathVector<f64, 1000>>().consume()).heap_eval();
+        let out = mat2.map(|vec| (&mat1).zip(vec).map(|(mat_vec, scalar)| (mat_vec * scalar).eval()).sum::<MathVector<f64, 1000>>().consume()).heap_eval();
         let elapsed = now.elapsed();
         println!("{}", out.map(|vec| vec.into_array()).heap_eval()[0][0]);
         println!("Elapsed: {}", elapsed.as_nanos());
@@ -219,7 +219,7 @@ mod test {
         let mut rng = rand::rng();
         let vec1: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
         let vec2: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
-        let mut vec3 = (vec1.comp_mul(vec2)).copied_sum::<f64>().make_repeatable().copied();
+        let mut vec3 = (vec1.reuse().comp_mul(vec2)).copied_sum::<f64>().make_repeatable().copied();
         for _ in 0..200 { // enabled by IsRepeatable
             println!("{}", vec3.get(rng.random_range(0..10000)));
         }
@@ -233,7 +233,7 @@ mod test {
         let mat1: Box<MathMatrix<f64, 1000, 1000>> = matrix_gen(|| rng.random()).heap_eval();
         let mat2: Box<MathMatrix<f64, 1000, 1000>> = matrix_gen(|| rng.random()).heap_eval(); 
         let now = Instant::now();
-        let out = (&mat1).mat_mul(&mat2).heap_eval();
+        let out = (mat1).mat_mul(mat2).heap_eval();
         let elapsed = now.elapsed();
         println!("{}", out[0][0]);
         println!("Elapsed: {}", elapsed.as_nanos());
@@ -251,7 +251,7 @@ mod test {
             let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let now = Instant::now();
-            let res = (vec1 + vec2).eval();
+            let res = (vec1.reuse() + vec2).eval();
             let elapsed = now.elapsed();
             normal_time += elapsed;
             total += res[0];
@@ -259,7 +259,7 @@ mod test {
             let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let now = Instant::now();
-            let res = (vec1 + vec2).heap_eval();
+            let res = (vec1.heap_reuse() + vec2).heap_eval();
             let elapsed = now.elapsed();
             heap_time += elapsed;
             total += res[0];
@@ -267,7 +267,7 @@ mod test {
             let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
             let now = Instant::now();
-            let res = (vec1 + vec2).make_dynamic().eval();
+            let res = (vec1.reuse() + vec2).make_dynamic().eval();
             let elapsed = now.elapsed();
             dynamic_time += elapsed;
             total += res[0];
@@ -275,7 +275,7 @@ mod test {
             let vec1 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let vec2 = vector_gen::<_, f64, 10000>(|| rng.random()).heap_eval();
             let now = Instant::now();
-            let res = (vec1 + vec2).make_dynamic().heap_eval();
+            let res = (vec1.heap_reuse() + vec2).make_dynamic().heap_eval();
             let elapsed = now.elapsed();
             dyn_heap_time += elapsed;
             total += res[0];
