@@ -1,10 +1,10 @@
-use super::vec_util_traits::{VectorWrapperBuilder, CombinableVectorWrapperBuilder, VectorLike};
+use super::vec_util_traits::{VectorBuilder, VectorBuilderUnion, VectorLike};
 use super::{VectorExpr, RSVectorExpr};
 
 #[derive(Clone)]
 pub struct VectorExprBuilder<const D: usize>;
 
-impl<const D: usize> VectorWrapperBuilder for VectorExprBuilder<D> {
+impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     type Wrapped<T: VectorLike> = VectorExpr<T, D>;
     
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {VectorExpr(vec)}
@@ -14,7 +14,7 @@ impl<const D: usize> VectorWrapperBuilder for VectorExprBuilder<D> {
 #[derive(Clone)]
 pub struct RSVectorExprBuilder{size: usize}
 
-impl VectorWrapperBuilder for RSVectorExprBuilder {
+impl VectorBuilder for RSVectorExprBuilder {
     type Wrapped<T: VectorLike> = RSVectorExpr<T>;
 
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
@@ -24,13 +24,13 @@ impl VectorWrapperBuilder for RSVectorExprBuilder {
 
 
 
-impl<const D: usize> CombinableVectorWrapperBuilder<VectorExprBuilder<D>> for VectorExprBuilder<D> {
+impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for VectorExprBuilder<D> {
     type Union = Self;
 
     fn union(self, _: VectorExprBuilder<D>) -> Self::Union {self}
 }
 
-impl CombinableVectorWrapperBuilder<RSVectorExprBuilder> for RSVectorExprBuilder {
+impl VectorBuilderUnion<RSVectorExprBuilder> for RSVectorExprBuilder {
     type Union = Self;
 
     fn union(self, other: RSVectorExprBuilder) -> Self::Union {
@@ -39,7 +39,7 @@ impl CombinableVectorWrapperBuilder<RSVectorExprBuilder> for RSVectorExprBuilder
     }
 }
 
-impl<const D: usize> CombinableVectorWrapperBuilder<VectorExprBuilder<D>> for RSVectorExprBuilder {
+impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for RSVectorExprBuilder {
     type Union = VectorExprBuilder<D>;
 
     fn union(self, other: VectorExprBuilder<D>) -> Self::Union {
@@ -48,7 +48,7 @@ impl<const D: usize> CombinableVectorWrapperBuilder<VectorExprBuilder<D>> for RS
     }
 }
 
-impl<const D: usize> CombinableVectorWrapperBuilder<RSVectorExprBuilder> for VectorExprBuilder<D> {
+impl<const D: usize> VectorBuilderUnion<RSVectorExprBuilder> for VectorExprBuilder<D> {
     type Union = VectorExprBuilder<D>;
 
     fn union(self, other: RSVectorExprBuilder) -> Self::Union {

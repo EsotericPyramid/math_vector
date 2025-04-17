@@ -55,7 +55,7 @@ pub trait MatrixLike: Get2D + HasOutput + Has2DReuseBuf {}
 
 impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
 
-pub trait MatrixWrapperBuilder: Clone {
+pub trait MatrixBuilder: Clone {
     type MatrixWrapped<T: MatrixLike>;
     type TransposedMatrixWrapped<T: MatrixLike>;
     type VectorWrapped<T: VectorLike>;
@@ -67,8 +67,8 @@ pub trait MatrixWrapperBuilder: Clone {
     unsafe fn wrap_trans_vec<T: VectorLike>(&self, vec: T) -> Self::TransposedVectorWrapped<T>;        
 }
 
-pub trait CombinableMatrixWrapperBuilder<T: MatrixWrapperBuilder>: MatrixWrapperBuilder {
-    type Union: MatrixWrapperBuilder;
+pub trait MatrixBuilderUnion<T: MatrixBuilder>: MatrixBuilder {
+    type Union: MatrixBuilder;
 
     fn union(self, other: T) -> Self::Union;
 }
