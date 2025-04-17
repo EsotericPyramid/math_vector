@@ -17,14 +17,14 @@ pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBui
 unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for MatColWrapper<M, V, Wrap> {
     type GetBool = M::GetBool;
     type Inputs = M::Inputs;
-    type Item = Wrap::VectorWrapped<M::Item>;
+    type Item = Wrap::ColWrapped<M::Item>;
     type BoundItems = M::BoundItems;
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
-        (unsafe { self.builder.wrap_vec(col) }, bound)
+        (unsafe { self.builder.wrap_col_vec(col) }, bound)
     }
 }
 
@@ -67,14 +67,14 @@ pub struct MatRowWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBui
 unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for MatRowWrapper<M, V, Wrap> {
     type GetBool = M::GetBool;
     type Inputs = M::Inputs;
-    type Item = Wrap::TransposedVectorWrapped<M::Item>;
+    type Item = Wrap::RowWrapped<M::Item>;
     type BoundItems = M::BoundItems;
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
-        (unsafe { self.builder.wrap_trans_vec(col) }, bound)
+        (unsafe { self.builder.wrap_row_vec(col) }, bound)
     }
 }
 
