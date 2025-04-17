@@ -1,18 +1,18 @@
 use crate::{util_traits::{HasOutput, IsRepeatable}, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
-use self::mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike};
 use std::mem::ManuallyDrop;
 use crate::trait_specialization_utils::*;
 use std::ops::*;
 
 pub mod mat_util_traits;
-
-
 pub mod matrix_structs;
 pub mod vectorized_matrix_structs;
+pub mod matrix_builders;
 
-use mat_util_traits::MatrixBuilder;
+use mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike, MatrixBuilder};
+use matrix_builders::*;
 use matrix_structs::*;
 use vectorized_matrix_structs::*;
+
 
 /// D1: # rows (dimension of vectors), D2: # columns (# of vectors)
 // MatrixExpr assumes that the stored MatrixLike is fully unused
@@ -107,20 +107,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
     }
 }
 
-#[derive(Clone)]
-pub struct MatrixExprBuilder<const D1: usize, const D2: usize>;
-
-impl<const D1: usize, const D2: usize> MatrixBuilder for MatrixExprBuilder<D1, D2> {
-    type MatrixWrapped<T: MatrixLike> = MatrixExpr<T, D1, D2>;
-    type TransposedMatrixWrapped<T: MatrixLike> = MatrixExpr<T, D2, D1>;
-    type VectorWrapped<T: VectorLike> = VectorExpr<T, D1>;
-    type TransposedVectorWrapped<T: VectorLike> = VectorExpr<T, D2>;
-
-    #[inline] unsafe fn wrap_mat<T: MatrixLike>(&self, mat: T) -> Self::MatrixWrapped<T> {MatrixExpr(mat)}
-    #[inline] unsafe fn wrap_trans_mat<T: MatrixLike>(&self, mat: T) -> Self::TransposedMatrixWrapped<T> {MatrixExpr(mat)}
-    #[inline] unsafe fn wrap_vec<T: VectorLike>(&self, vec: T) -> Self::VectorWrapped<T> {VectorExpr(vec)}
-    #[inline] unsafe fn wrap_trans_vec<T: VectorLike>(&self, vec: T) -> Self::TransposedVectorWrapped<T> {VectorExpr(vec)}
-}
 
 pub struct MatrixEntryIter<M: MatrixLike, const D1: usize, const D2: usize>{mat: M, current_col: usize, live_input_row_start: usize, dead_output_row_start: usize}
 
@@ -436,15 +422,15 @@ pub trait MatrixOps {
     }
 
     #[inline]
-    fn columns(self) -> <Self::Builder as MatrixBuilder>::TransposedVectorWrapped<MatColWrapper<MatColVectorExprs<Self::Unwrapped>, MatrixColumn<Self::Unwrapped>, Self::Builder>> where Self: Sized {
+    fn columns(self) -> <Self::Builder as MatrixBuilder>::RowWrapped<MatColWrapper<MatColVectorExprs<Self::Unwrapped>, MatrixColumn<Self::Unwrapped>, Self::Builder>> where Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_trans_vec(MatColWrapper{mat: MatColVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
+        unsafe { builder.wrap_row_vec(MatColWrapper{mat: MatColVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
     }
 
     #[inline]
-    fn rows(self) -> <Self::Builder as MatrixBuilder>::VectorWrapped<MatRowWrapper<MatRowVectorExprs<Self::Unwrapped>, MatrixRow<Self::Unwrapped>, Self::Builder>> where Self: Sized {
+    fn rows(self) -> <Self::Builder as MatrixBuilder>::ColWrapped<MatRowWrapper<MatRowVectorExprs<Self::Unwrapped>, MatrixRow<Self::Unwrapped>, Self::Builder>> where Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_vec(MatRowWrapper{mat: MatRowVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
+        unsafe { builder.wrap_col_vec(MatRowWrapper{mat: MatRowVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
     }
 
 
@@ -855,8 +841,8 @@ pub trait EqDimMatrixMatrixOps<M: MatrixOps>: MatrixOps {
     fn assert_eq_dim(&self, other: &M);
     unsafe fn double_wrap_mat<T: MatrixLike>(mat: T) -> Self::MatrixDoubleWrapped<T>;
     unsafe fn double_wrap_trans_mat<T: MatrixLike>(mat: T) -> Self::TransposedMatrixDoubleWrapped<T>;
-    unsafe fn double_wrap_vec<T: VectorLike>(vec: T) -> Self::VectorDoubleWrapped<T>;
-    unsafe fn double_wrap_trans_vec<T: VectorLike>(vec: T) -> Self::TransposedVectorDoubleWrapped<T>;
+    unsafe fn double_wrap_col_vec<T: VectorLike>(vec: T) -> Self::VectorDoubleWrapped<T>;
+    unsafe fn double_wrap_row_vec<T: VectorLike>(vec: T) -> Self::TransposedVectorDoubleWrapped<T>;
 
     #[inline]
     fn zip(self, other: M) -> Self::MatrixDoubleWrapped<MatZip<Self::Unwrapped, M::Unwrapped>>
@@ -1120,8 +1106,8 @@ macro_rules! impl_const_sized_eq_dim_mat_mat_ops {
             #[inline] fn assert_eq_dim(&self, _: &$r_ty) {} //compile time checked through const equivalence
             #[inline] unsafe fn double_wrap_mat<Z: MatrixLike>(mat: Z) -> Self::MatrixDoubleWrapped<Z> {MatrixExpr(mat)}
             #[inline] unsafe fn double_wrap_trans_mat<Z: MatrixLike>(mat: Z) -> Self::TransposedMatrixDoubleWrapped<Z> {MatrixExpr(mat)}
-            #[inline] unsafe fn double_wrap_vec<Z: VectorLike>(vec: Z) -> Self::VectorDoubleWrapped<Z> {VectorExpr(vec)}
-            #[inline] unsafe fn double_wrap_trans_vec<Z: VectorLike>(vec: Z) -> Self::TransposedVectorDoubleWrapped<Z> {VectorExpr(vec)}
+            #[inline] unsafe fn double_wrap_col_vec<Z: VectorLike>(vec: Z) -> Self::VectorDoubleWrapped<Z> {VectorExpr(vec)}
+            #[inline] unsafe fn double_wrap_row_vec<Z: VectorLike>(vec: Z) -> Self::TransposedVectorDoubleWrapped<Z> {VectorExpr(vec)}
         }
 
         impl<

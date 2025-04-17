@@ -1,5 +1,5 @@
 
-use crate::vector::vec_util_traits::VectorLike;
+use crate::vector::vec_util_traits::{VectorBuilder, VectorLike};
 
 // Note: traits here aren't meant to be used by end users
 use crate::trait_specialization_utils::TyBool;
@@ -58,13 +58,22 @@ impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
 pub trait MatrixBuilder: Clone {
     type MatrixWrapped<T: MatrixLike>;
     type TransposedMatrixWrapped<T: MatrixLike>;
-    type VectorWrapped<T: VectorLike>;
-    type TransposedVectorWrapped<T: VectorLike>;
+    type ColWrapped<T: VectorLike>;
+    type RowWrapped<T: VectorLike>;
+
+    //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
+    type ColBuilder: VectorBuilder;
+    type RowBuilder: VectorBuilder;
+
 
     unsafe fn wrap_mat<T: MatrixLike>(&self, mat: T) -> Self::MatrixWrapped<T>;
     unsafe fn wrap_trans_mat<T: MatrixLike>(&self, mat: T) -> Self::TransposedMatrixWrapped<T>;
-    unsafe fn wrap_vec<T: VectorLike>(&self, vec: T) -> Self::VectorWrapped<T>;
-    unsafe fn wrap_trans_vec<T: VectorLike>(&self, vec: T) -> Self::TransposedVectorWrapped<T>;        
+    unsafe fn wrap_col_vec<T: VectorLike>(&self, vec: T) -> Self::ColWrapped<T>;
+    unsafe fn wrap_row_vec<T: VectorLike>(&self, vec: T) -> Self::RowWrapped<T>;        
+
+    //FIXME (above is source of issue): currently requires correct implementation even though trait is not unsafe
+    fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder);
+    fn compose(col: Self::ColBuilder, row: Self::RowBuilder) -> Self;
 }
 
 pub trait MatrixBuilderUnion<T: MatrixBuilder>: MatrixBuilder {
