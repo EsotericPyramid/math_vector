@@ -54,15 +54,15 @@ pub trait VectorLike: Get + HasOutput + HasReuseBuf {}
 
 impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
 
-pub trait VectorWrapperBuilder: Clone {
+pub trait VectorBuilder: Clone {
     type Wrapped<T: VectorLike>;
 
     ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
 }
 
-pub trait CombinableVectorWrapperBuilder<T: VectorWrapperBuilder>: VectorWrapperBuilder {
-    type Union: VectorWrapperBuilder;
+pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
+    type Union: VectorBuilder;
 
     fn union(self, other: T) -> Self::Union;
 }

@@ -10,7 +10,7 @@ pub mod mat_util_traits;
 pub mod matrix_structs;
 pub mod vectorized_matrix_structs;
 
-use mat_util_traits::MatrixWrapperBuilder;
+use mat_util_traits::MatrixBuilder;
 use matrix_structs::*;
 use vectorized_matrix_structs::*;
 
@@ -110,7 +110,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
 #[derive(Clone)]
 pub struct MatrixExprBuilder<const D1: usize, const D2: usize>;
 
-impl<const D1: usize, const D2: usize> MatrixWrapperBuilder for MatrixExprBuilder<D1, D2> {
+impl<const D1: usize, const D2: usize> MatrixBuilder for MatrixExprBuilder<D1, D2> {
     type MatrixWrapped<T: MatrixLike> = MatrixExpr<T, D1, D2>;
     type TransposedMatrixWrapped<T: MatrixLike> = MatrixExpr<T, D2, D1>;
     type VectorWrapped<T: VectorLike> = VectorExpr<T, D1>;
@@ -381,14 +381,14 @@ pub fn matrix_gen<F: FnMut() -> O, O, const D1: usize, const D2: usize>(f: F) ->
 
 pub trait MatrixOps {
     type Unwrapped: MatrixLike;
-    type WrapperBuilder: MatrixWrapperBuilder;
+    type Builder: MatrixBuilder;
 
     fn unwrap(self) -> Self::Unwrapped;
-    fn get_wrapper_builder(&self) -> Self::WrapperBuilder;
+    fn get_builder(&self) -> Self::Builder;
     fn dimensions(&self) -> (usize, usize); // 0: num rows, 1: num columns
 
     #[inline]
-    fn bind(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatBind<Self::Unwrapped>>
+    fn bind(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatBind<Self::Unwrapped>>
     where
         Self::Unwrapped: Has2DReuseBuf<FstHandleBool = Y>,
         (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, Y): FilterPair,
@@ -396,14 +396,14 @@ pub trait MatrixOps {
         (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
         Self: Sized
     {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatBind{mat: self.unwrap()}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatBind{mat: self.unwrap()}) }
     }
 
     //TODO: map_bind
 
     #[inline]
-    fn half_bind(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatHalfBind<Self::Unwrapped>>
+    fn half_bind(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatHalfBind<Self::Unwrapped>>
     where 
         Self::Unwrapped:  MatrixLike<FstHandleBool = Y>,
         (<Self::Unwrapped as HasOutput>::OutputBool, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
@@ -411,148 +411,148 @@ pub trait MatrixOps {
         MatHalfBind<Self::Unwrapped>: Has2DReuseBuf<BoundTypes = <MatBind<Self::Unwrapped> as Get2D>::BoundItems>,
         Self: Sized
     {
-        let builder = self.get_wrapper_builder();
+        let builder = self.get_builder();
         unsafe { builder.wrap_mat(MatHalfBind{mat: self.unwrap()}) }
     }
 
     #[inline]
-    fn buf_swap(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatBufSwap<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatBufSwap{mat: self.unwrap()}) }
+    fn buf_swap(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatBufSwap<Self::Unwrapped>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatBufSwap{mat: self.unwrap()}) }
     }
 
     #[inline]
-    fn offset_columns(self, offset: usize) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatColOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_columns(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatColOffset<Self::Unwrapped>> where Self: Sized {
         let (_, cols) = self.dimensions();
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatColOffset{mat: self.unwrap(), offset: offset % cols, num_columns: cols}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatColOffset{mat: self.unwrap(), offset: offset % cols, num_columns: cols}) }
     }
 
     #[inline]
-    fn offset_rows(self, offset: usize) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatRowOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_rows(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRowOffset<Self::Unwrapped>> where Self: Sized {
         let (rows, _) = self.dimensions();
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatRowOffset{mat: self.unwrap(), offset: offset % rows, num_rows: rows}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRowOffset{mat: self.unwrap(), offset: offset % rows, num_rows: rows}) }
     }
 
     #[inline]
-    fn columns(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::TransposedVectorWrapped<MatColWrapper<MatColVectorExprs<Self::Unwrapped>, MatrixColumn<Self::Unwrapped>, Self::WrapperBuilder>> where Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_trans_vec(MatColWrapper{mat: MatColVectorExprs{mat: self.unwrap()}, wrapper_builder: wrapper_builder.clone()}) }
+    fn columns(self) -> <Self::Builder as MatrixBuilder>::TransposedVectorWrapped<MatColWrapper<MatColVectorExprs<Self::Unwrapped>, MatrixColumn<Self::Unwrapped>, Self::Builder>> where Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_trans_vec(MatColWrapper{mat: MatColVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
     }
 
     #[inline]
-    fn rows(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::VectorWrapped<MatRowWrapper<MatRowVectorExprs<Self::Unwrapped>, MatrixRow<Self::Unwrapped>, Self::WrapperBuilder>> where Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_vec(MatRowWrapper{mat: MatRowVectorExprs{mat: self.unwrap()}, wrapper_builder: wrapper_builder.clone()}) }
+    fn rows(self) -> <Self::Builder as MatrixBuilder>::VectorWrapped<MatRowWrapper<MatRowVectorExprs<Self::Unwrapped>, MatrixRow<Self::Unwrapped>, Self::Builder>> where Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_vec(MatRowWrapper{mat: MatRowVectorExprs{mat: self.unwrap()}, builder: builder.clone()}) }
     }
 
 
     #[inline]
-    fn entry_map<F: FnMut(<Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatEntryMap<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatEntryMap{mat: self.unwrap(), f}) }
+    fn entry_map<F: FnMut(<Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryMap<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryMap{mat: self.unwrap(), f}) }
     }
 
     #[inline]
-    fn entry_fold<F: FnMut(O, <Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F, init: O) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatEntryFold<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatEntryFold{mat: self.unwrap(), f, cell: Some(init)}) }
+    fn entry_fold<F: FnMut(O, <Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryFold<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryFold{mat: self.unwrap(), f, cell: Some(init)}) }
     }
 
     #[inline]
-    fn entry_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatEntryFoldRef<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatEntryFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+    fn entry_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryFoldRef<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
     }
 
     #[inline]
-    fn entry_copied_fold<F: FnMut(O, <Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F, init: O) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatEntryCopiedFold<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatEntryCopiedFold{mat: self.unwrap(), f, cell: Some(init)}) }
+    fn entry_copied_fold<F: FnMut(O, <Self::Unwrapped as Get2D>::Item) -> O, O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryCopiedFold<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryCopiedFold{mat: self.unwrap(), f, cell: Some(init)}) }
     }
 
     #[inline]
-    fn entry_copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatEntryCopiedFoldRef<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatEntryCopiedFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+    fn entry_copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryCopiedFoldRef<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryCopiedFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
     }
 
     #[inline]
-    fn copied<'a, I: 'a + Copy>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatCopy<'a, Self::Unwrapped, I>> where Self::Unwrapped: Get2D<Item = &'a I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatCopy{mat: self.unwrap()}) }
+    fn copied<'a, I: 'a + Copy>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopy<'a, Self::Unwrapped, I>> where Self::Unwrapped: Get2D<Item = &'a I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCopy{mat: self.unwrap()}) }
     }
 
     #[inline]
-    fn cloned<'a, I: 'a + Clone>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatClone<'a, Self::Unwrapped, I>> where Self::Unwrapped: Get2D<Item = &'a I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatClone{mat: self.unwrap()}) }
+    fn cloned<'a, I: 'a + Clone>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatClone<'a, Self::Unwrapped, I>> where Self::Unwrapped: Get2D<Item = &'a I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatClone{mat: self.unwrap()}) }
     }
 
     #[inline] 
-    fn neg(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatNeg<Self::Unwrapped>> where <Self::Unwrapped as Get2D>::Item: Neg, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatNeg{mat: self.unwrap()})}
+    fn neg(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatNeg<Self::Unwrapped>> where <Self::Unwrapped as Get2D>::Item: Neg, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatNeg{mat: self.unwrap()})}
     }
 
     #[inline]
-    fn mul_r<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatMulR<Self::Unwrapped, S>> where S: Mul<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatMulR{mat: self.unwrap(), scalar})}
+    fn mul_r<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMulR<Self::Unwrapped, S>> where S: Mul<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMulR{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn div_r<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatDivR<Self::Unwrapped, S>> where S: Div<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatDivR{mat: self.unwrap(), scalar})}
+    fn div_r<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatDivR<Self::Unwrapped, S>> where S: Div<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatDivR{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn rem_r<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatRemR<Self::Unwrapped, S>> where S: Rem<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatRemR{mat: self.unwrap(), scalar})}
+    fn rem_r<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRemR<Self::Unwrapped, S>> where S: Rem<<Self::Unwrapped as Get2D>::Item>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRemR{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn mul_l<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatMulL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Mul<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatMulL{mat: self.unwrap(), scalar})}
+    fn mul_l<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMulL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Mul<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMulL{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn div_l<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatDivL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Div<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatDivL{mat: self.unwrap(), scalar})}
+    fn div_l<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatDivL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Div<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatDivL{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn rem_l<S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatRemL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Rem<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatRemL{mat: self.unwrap(), scalar})}
+    fn rem_l<S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRemL<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Rem<S>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRemL{mat: self.unwrap(), scalar})}
     }
 
     #[inline]
-    fn mul_assign<'a, I: 'a + MulAssign<S>, S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatMulAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatMulAssign{mat: self.unwrap(), scalar}) }
+    fn mul_assign<'a, I: 'a + MulAssign<S>, S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMulAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMulAssign{mat: self.unwrap(), scalar}) }
     }
 
     #[inline]
-    fn div_assign<'a, I: 'a + DivAssign<S>, S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatDivAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatDivAssign{mat: self.unwrap(), scalar}) }
+    fn div_assign<'a, I: 'a + DivAssign<S>, S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatDivAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatDivAssign{mat: self.unwrap(), scalar}) }
     }
 
     #[inline]
-    fn rem_assign<'a, I: 'a + RemAssign<S>, S: Copy>(self, scalar: S) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatRemAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatRemAssign{mat: self.unwrap(), scalar}) }
+    fn rem_assign<'a, I: 'a + RemAssign<S>, S: Copy>(self, scalar: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRemAssign<'a, Self::Unwrapped, I, S>> where Self::Unwrapped: Get2D<Item = &'a mut I>, (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRemAssign{mat: self.unwrap(), scalar}) }
     }
 
     ///NOTE: WILL BE MOVED
     #[inline]
-    fn mat_mul<M: MatrixOps>(self, other: M) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped, M::Unwrapped>> where 
+    fn mat_mul<M: MatrixOps>(self, other: M) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped, M::Unwrapped>> where 
         Self::Unwrapped: IsRepeatable,
         M::Unwrapped: IsRepeatable,
         <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
@@ -575,52 +575,52 @@ pub trait MatrixOps {
     {
         if self.dimensions().1 != other.dimensions().0 {panic!("math_vector Error: cannot multiply matrices with incompatible sizes")}
         let shared_size = self.dimensions().1;
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(FullMatMul{l_mat: self.unwrap(), r_mat: other.unwrap(), shared_size}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(FullMatMul{l_mat: self.unwrap(), r_mat: other.unwrap(), shared_size}) }
     }
 }
 
 pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     #[inline]
-    fn attach_2d_buf<'a, T>(self, buf: &'a mut MathMatrix<T, D1, D2>) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttach2DBuf<'a, Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatAttach2DBuf{mat: self.unwrap(), buf}) }
+    fn attach_2d_buf<'a, T>(self, buf: &'a mut MathMatrix<T, D1, D2>) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttach2DBuf<'a, Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatAttach2DBuf{mat: self.unwrap(), buf}) }
     }
 
     #[inline]
-    fn create_2d_buf<T>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatCreate2DBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+    fn create_2d_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
     #[inline]
-    fn create_2d_heap_buf<T>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+    fn create_2d_heap_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 
     #[inline]
-    fn maybe_create_2d_buf<T>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatMaybeCreate2DBuf<Self::Unwrapped, T, D1, D2>> 
+    fn maybe_create_2d_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMaybeCreate2DBuf<Self::Unwrapped, T, D1, D2>> 
     where 
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
         (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
         Self: Sized
     {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatMaybeCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMaybeCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
     #[inline]
-    fn maybe_create_2d_heap_buf<T>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatMaybeCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> 
+    fn maybe_create_2d_heap_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMaybeCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> 
     where 
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
         (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
         Self: Sized
     {
-        let wrapper_builder = self.get_wrapper_builder();
-        unsafe { wrapper_builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 }
 
@@ -629,7 +629,7 @@ pub trait RepeatableMatrixOps: MatrixOps {
     type UsedMatrix: MatrixLike;
     //type HeapedUsedMatrix: MatrixLike;
 
-    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
+    fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
         Self: 'a,
         (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool, <Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
         (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool, <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
@@ -684,7 +684,7 @@ macro_rules! overload_operators {
  
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for MatrixExpr<M, D1, D2> {
     type Unwrapped = M;
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -697,7 +697,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for MatrixExpr<M
         unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) } 
     }
 
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<M: MatrixLike, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for MatrixExpr<M, D1, D2> {}
@@ -715,7 +715,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     type RepeatableMatrix<'a> = Referring2DArray<'a, M::Item, D1, D2> where Self: 'a;
     type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>;
 
-    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
+    fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
         Self: 'a,
         (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool, <Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
         (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool, <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
@@ -729,7 +729,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
         (<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
         <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
     {
-        let builder = self.get_wrapper_builder();
+        let builder = self.get_builder();
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
@@ -742,7 +742,7 @@ overload_operators!(<M: MatrixLike, {D1, D2}>, MatrixExpr<M, D1, D2>, matrix: M,
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for Box<MatrixExpr<M, D1, D2>> {
     type Unwrapped = Box<M>;
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -757,7 +757,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for Box<MatrixEx
         unsafe { Box::new(std::ptr::read(&std::mem::ManuallyDrop::new(self).0)) } 
     }
     
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<M: MatrixLike, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for Box<MatrixExpr<M, D1, D2>> {}
@@ -775,7 +775,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
     type RepeatableMatrix<'a> = Referring2DArray<'a, M::Item, D1, D2> where Self: 'a;
     type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<Box<M>, M::Item, D1, D2>>;
 
-    fn make_repeatable<'a>(self) -> <Self::WrapperBuilder as MatrixWrapperBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
+    fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
         Self: 'a,
         (<Self::RepeatableMatrix<'a> as HasOutput>::OutputBool, <Self::UsedMatrix as HasOutput>::OutputBool): FilterPair,
         (<Self::RepeatableMatrix<'a> as Has2DReuseBuf>::FstHandleBool, <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
@@ -789,7 +789,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
         (<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
         <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
     {
-        let builder = self.get_wrapper_builder();
+        let builder = self.get_builder();
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
@@ -803,10 +803,10 @@ overload_operators!(<M: MatrixLike, {D1, D2}>, Box<MatrixExpr<M, D1, D2>>, matri
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1, D2> {
     type Unwrapped = &'a [[T; D1]; D2];
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
     
     #[inline] fn unwrap(self) -> Self::Unwrapped {&self.0}
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a MathMatrix<T, D1, D2> {}
@@ -814,10 +814,10 @@ overload_operators!(<'a, T, {D1, D2}>, &'a MathMatrix<T, D1, D2>, matrix: &'a [[
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T, D1, D2> {
     type Unwrapped = &'a mut [[T; D1]; D2];
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
     
     #[inline] fn unwrap(self) -> Self::Unwrapped {&mut self.0}
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut MathMatrix<T, D1, D2> {}
@@ -825,10 +825,10 @@ overload_operators!(<'a, T, {D1, D2}>, &'a mut MathMatrix<T, D1, D2>, matrix: &'
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a [[T; D1]; D2];
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
     
     #[inline] fn unwrap(self) -> Self::Unwrapped {&self.0}
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a Box<MathMatrix<T, D1, D2>> {}
@@ -836,10 +836,10 @@ overload_operators!(<'a, T, {D1, D2}>, &'a Box<MathMatrix<T, D1, D2>>, matrix: &
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a mut [[T; D1]; D2];
-    type WrapperBuilder = MatrixExprBuilder<D1, D2>;
+    type Builder = MatrixExprBuilder<D1, D2>;
     
     #[inline] fn unwrap(self) -> Self::Unwrapped {&mut self.0}
-    #[inline] fn get_wrapper_builder(&self) -> Self::WrapperBuilder {MatrixExprBuilder}
+    #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut Box<MathMatrix<T, D1, D2>> {}

@@ -1,7 +1,7 @@
 //use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use crate::vector::{vec_util_traits::*, MathVector};
-use super::mat_util_traits::MatrixWrapperBuilder;
+use super::mat_util_traits::MatrixBuilder;
 
 
 
@@ -12,9 +12,9 @@ pub unsafe trait VectorizedMatrix: VectorLike {}
 
 pub type MathVectoredMatrix<T, const D1: usize, const D2: usize> = MathVector<MathVector<T, D1>, D2>;
 
-pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder>{pub(crate) mat: M, pub(crate) wrapper_builder: Wrap}
+pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder>{pub(crate) mat: M, pub(crate) builder: Wrap}
 
-unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> Get for MatColWrapper<M, V, Wrap> {
+unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for MatColWrapper<M, V, Wrap> {
     type GetBool = M::GetBool;
     type Inputs = M::Inputs;
     type Item = Wrap::VectorWrapped<M::Item>;
@@ -24,13 +24,13 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
-        (unsafe { self.wrapper_builder.wrap_vec(col) }, bound)
+        (unsafe { self.builder.wrap_vec(col) }, bound)
     }
 }
 
-unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixWrapperBuilder> IsRepeatable for MatColWrapper<M, V, Wrap> {}
+unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixBuilder> IsRepeatable for MatColWrapper<M, V, Wrap> {}
 
-impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutput for MatColWrapper<M, V, Wrap> {
+impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasOutput for MatColWrapper<M, V, Wrap> {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
@@ -38,7 +38,7 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutp
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.mat.drop_output();}}
 }
 
-impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReuseBuf for MatColWrapper<M, V, Wrap> { 
+impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf for MatColWrapper<M, V, Wrap> { 
     type FstHandleBool = M::FstHandleBool;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -62,9 +62,9 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReus
 
 
 
-pub struct MatRowWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder>{pub(crate) mat: M, pub(crate) wrapper_builder: Wrap}
+pub struct MatRowWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder>{pub(crate) mat: M, pub(crate) builder: Wrap}
 
-unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> Get for MatRowWrapper<M, V, Wrap> {
+unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for MatRowWrapper<M, V, Wrap> {
     type GetBool = M::GetBool;
     type Inputs = M::Inputs;
     type Item = Wrap::TransposedVectorWrapped<M::Item>;
@@ -74,13 +74,13 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         let (col, bound) =  self.mat.process(inputs);
-        (unsafe { self.wrapper_builder.wrap_trans_vec(col) }, bound)
+        (unsafe { self.builder.wrap_trans_vec(col) }, bound)
     }
 }
 
-unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixWrapperBuilder> IsRepeatable for MatRowWrapper<M, V, Wrap> {}
+unsafe impl<M: VectorLike<Item = V> + IsRepeatable, V: VectorLike, Wrap: MatrixBuilder> IsRepeatable for MatRowWrapper<M, V, Wrap> {}
 
-impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutput for MatRowWrapper<M, V, Wrap> {
+impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasOutput for MatRowWrapper<M, V, Wrap> {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
 
@@ -88,7 +88,7 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasOutp
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.mat.drop_output();}}
 }
 
-impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReuseBuf for MatRowWrapper<M, V, Wrap> { 
+impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf for MatRowWrapper<M, V, Wrap> { 
     type FstHandleBool = M::FstHandleBool;
     type SndHandleBool = M::SndHandleBool;
     type BoundHandlesBool = M::BoundHandlesBool;
@@ -110,7 +110,7 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixWrapperBuilder> HasReus
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.mat.drop_bound_bufs_index(index)}}    
 }
 
-//TODO: add lazy Mat multiplication
+//TODO: col by col and row by row
 //pub struct MatMul<M1: VectorizedMatrix<Vector = V1>, V1: VectorLike, M2: VectorizedMatrix<Vector = V2, IsRepeatable = Y>, V2: VectorLike>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_dimension: usize}
 //
 //unsafe impl<M1: VectorizedMatrix<Vector = V1>, V1: VectorLike, M2: VectorizedMatrix<Vector = V2, IsRepeatable = Y>, V2: VectorLike> Get for MatMul<M1, V1, M2, V2> where 
