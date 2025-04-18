@@ -1,4 +1,4 @@
-use crate::{util_traits::{HasOutput, IsRepeatable}, vector::{vec_util_traits::VectorLike, MathVector, VectorExpr}};
+use crate::{util_traits::{HasOutput, IsRepeatable}, vector::MathVector};
 use std::mem::ManuallyDrop;
 use crate::trait_specialization_utils::*;
 use std::ops::*;
@@ -8,7 +8,7 @@ pub mod matrix_structs;
 pub mod vectorized_matrix_structs;
 pub mod matrix_builders;
 
-use mat_util_traits::{Get2D, Has2DReuseBuf, MatrixLike, MatrixBuilder};
+use mat_util_traits::*;
 use matrix_builders::*;
 use matrix_structs::*;
 use vectorized_matrix_structs::*;
@@ -564,6 +564,249 @@ pub trait MatrixOps {
         let builder = self.get_builder();
         unsafe { builder.wrap_mat(FullMatMul{l_mat: self.unwrap(), r_mat: other.unwrap(), shared_size}) }
     }
+
+
+    #[inline]
+    fn zip<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatZip<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatZip{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn add<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatAdd<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        <Self::Unwrapped as Get2D>::Item: Add<<M::Unwrapped as Get2D>::Item>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatAdd{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn sub<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatSub<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        <Self::Unwrapped as Get2D>::Item: Sub<<M::Unwrapped as Get2D>::Item>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatSub{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_mul<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompMul<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompMul{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_div<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompDiv<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        <Self::Unwrapped as Get2D>::Item: Div<<M::Unwrapped as Get2D>::Item>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompDiv{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_rem<M: MatrixOps>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompRem<Self::Unwrapped, M::Unwrapped>>
+    where
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        <Self::Unwrapped as Get2D>::Item: Rem<<M::Unwrapped as Get2D>::Item>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompRem{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn add_assign<'a, M: MatrixOps, I: 'a + AddAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatAddAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
+    where 
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        Self::Unwrapped: Get2D<Item = &'a mut I>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatAddAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn sub_assign<'a, M: MatrixOps, I: 'a + SubAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatSubAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
+    where 
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        Self::Unwrapped: Get2D<Item = &'a mut I>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatSubAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_mul_assign<'a, M: MatrixOps, I: 'a + MulAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompMulAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
+    where 
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        Self::Unwrapped: Get2D<Item = &'a mut I>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompMulAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_div_assign<'a, M: MatrixOps, I: 'a + DivAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompDivAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
+    where 
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        Self::Unwrapped: Get2D<Item = &'a mut I>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompDivAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
+    #[inline]
+    fn comp_rem_assign<'a, M: MatrixOps, I: 'a + RemAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> <<Self::Builder as MatrixBuilderUnion<M::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatCompRemAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
+    where 
+        Self: Sized,
+        Self::Builder: MatrixBuilderUnion<M::Builder>, 
+        Self::Unwrapped: Get2D<Item = &'a mut I>,
+        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap_mat(MatCompRemAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
+    }
+
 }
 
 pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
@@ -832,537 +1075,101 @@ impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut
 overload_operators!(<'a, T, {D1, D2}>, &'a mut Box<MathMatrix<T, D1, D2>>, matrix: &'a mut [[T; D1]; D2], item: &'a mut T);
 
 
-pub trait EqDimMatrixMatrixOps<M: MatrixOps>: MatrixOps {
-    type MatrixDoubleWrapped<T: MatrixLike>;
-    type TransposedMatrixDoubleWrapped<T: MatrixLike>;
-    type VectorDoubleWrapped<T: VectorLike>;
-    type TransposedVectorDoubleWrapped<T: VectorLike>;
-
-    fn assert_eq_dim(&self, other: &M);
-    unsafe fn double_wrap_mat<T: MatrixLike>(mat: T) -> Self::MatrixDoubleWrapped<T>;
-    unsafe fn double_wrap_trans_mat<T: MatrixLike>(mat: T) -> Self::TransposedMatrixDoubleWrapped<T>;
-    unsafe fn double_wrap_col_vec<T: VectorLike>(vec: T) -> Self::VectorDoubleWrapped<T>;
-    unsafe fn double_wrap_row_vec<T: VectorLike>(vec: T) -> Self::TransposedVectorDoubleWrapped<T>;
-
-    #[inline]
-    fn zip(self, other: M) -> Self::MatrixDoubleWrapped<MatZip<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatZip{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn add(self, other: M) -> Self::MatrixDoubleWrapped<MatAdd<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        <Self::Unwrapped as Get2D>::Item: Add<<M::Unwrapped as Get2D>::Item>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatAdd{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn sub(self, other: M) -> Self::MatrixDoubleWrapped<MatSub<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        <Self::Unwrapped as Get2D>::Item: Sub<<M::Unwrapped as Get2D>::Item>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatSub{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_mul(self, other: M) -> Self::MatrixDoubleWrapped<MatCompMul<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompMul{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_div(self, other: M) -> Self::MatrixDoubleWrapped<MatCompDiv<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        <Self::Unwrapped as Get2D>::Item: Div<<M::Unwrapped as Get2D>::Item>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompDiv{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_rem(self, other: M) -> Self::MatrixDoubleWrapped<MatCompRem<Self::Unwrapped, M::Unwrapped>>
-    where
-        Self: Sized, 
-        <Self::Unwrapped as Get2D>::Item: Rem<<M::Unwrapped as Get2D>::Item>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompRem{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn add_assign<'a, I: 'a + AddAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> Self::MatrixDoubleWrapped<MatAddAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
-    where 
-        Self: Sized, 
-        Self::Unwrapped: Get2D<Item = &'a mut I>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatAddAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn sub_assign<'a, I: 'a + SubAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> Self::MatrixDoubleWrapped<MatSubAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
-    where 
-        Self: Sized, 
-        Self::Unwrapped: Get2D<Item = &'a mut I>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatSubAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_mul_assign<'a, I: 'a + MulAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> Self::MatrixDoubleWrapped<MatCompMulAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
-    where 
-        Self: Sized, 
-        Self::Unwrapped: Get2D<Item = &'a mut I>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompMulAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_div_assign<'a, I: 'a + DivAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> Self::MatrixDoubleWrapped<MatCompDivAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
-    where 
-        Self: Sized, 
-        Self::Unwrapped: Get2D<Item = &'a mut I>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompDivAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-
-    #[inline]
-    fn comp_rem_assign<'a, I: 'a + RemAssign<<M::Unwrapped as Get2D>::Item>>(self, other: M) -> Self::MatrixDoubleWrapped<MatCompRemAssign<'a, Self::Unwrapped, M::Unwrapped, I>>
-    where 
-        Self: Sized, 
-        Self::Unwrapped: Get2D<Item = &'a mut I>,
-        (<Self::Unwrapped as Get2D>::AreInputsTransposed, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <M::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, <M::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::SndHandleBool, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-        (<Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-    {
-        self.assert_eq_dim(&other);
-        unsafe { Self::double_wrap_mat(MatCompRemAssign{ l_mat: self.unwrap(), r_mat: other.unwrap() }) }
-    }
-}
-
-macro_rules! impl_const_sized_eq_dim_mat_mat_ops {
+macro_rules! impl_binary_ops_for_wrapper {
     (
-        $d1:ident;
-        $d2:ident;
-        <$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        matrix: $l_matrix:ty,
-        item: $l_item:ty;
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        matrix: $r_matrix:ty,
-        item: $r_item:ty
+        $(
+            $($d1:ident, $d2:ident;)?
+            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+ $(, {$tt:tt})?>,
+            $ty:ty,
+            trait_matrix: $trait_matrix:ty,
+            true_matrix: $true_matrix:ty;
+        )*
     ) => {
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            $($l_tt, )?
-            $($r_tt, )?
-            const $d1: usize,
-            const $d2: usize
-        > EqDimMatrixMatrixOps<$r_ty> for $l_ty {
-            type MatrixDoubleWrapped<Z: MatrixLike> = MatrixExpr<Z, $d1, $d2>;
-            type TransposedMatrixDoubleWrapped<Z: MatrixLike> = MatrixExpr<Z, $d2, $d1>;
-            type VectorDoubleWrapped<Z: VectorLike> = VectorExpr<Z, $d1>;
-            type TransposedVectorDoubleWrapped<Z: VectorLike> = VectorExpr<Z, $d2>;
+        $(
+            impl<
+                $($($lifetime),+, )? 
+                $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                M2: MatrixOps
+                $(, const $d1: usize, const $d2: usize)?
+            > Add<M2> for $ty where
+                <$ty as MatrixOps>::Builder: MatrixBuilderUnion<M2::Builder>, 
+                <$trait_matrix as Get2D>::Item: Add<<M2::Unwrapped as Get2D>::Item>,
+                (<$trait_matrix as Get2D>::AreInputsTransposed, <M2::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+                (<$trait_matrix as HasOutput>::OutputBool, <M2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(<$trait_matrix as HasOutput>::OutputBool, <M2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (<$trait_matrix as Has2DReuseBuf>::BoundHandlesBool, <M2::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                (<$trait_matrix as Has2DReuseBuf>::FstOwnedBufferBool, <M2::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::SndOwnedBufferBool, <M2::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::FstHandleBool, <M2::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::SndHandleBool, <M2::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::IsFstBufferTransposed, <M2::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                (<$trait_matrix as Has2DReuseBuf>::IsSndBufferTransposed, <M2::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                (<$trait_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, <M2::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(N, <M2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+            {
+                type Output = <<<$ty as MatrixOps>::Builder as MatrixBuilderUnion<M2::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatAdd<$true_matrix, M2::Unwrapped>>;
 
-            #[inline] fn assert_eq_dim(&self, _: &$r_ty) {} //compile time checked through const equivalence
-            #[inline] unsafe fn double_wrap_mat<Z: MatrixLike>(mat: Z) -> Self::MatrixDoubleWrapped<Z> {MatrixExpr(mat)}
-            #[inline] unsafe fn double_wrap_trans_mat<Z: MatrixLike>(mat: Z) -> Self::TransposedMatrixDoubleWrapped<Z> {MatrixExpr(mat)}
-            #[inline] unsafe fn double_wrap_col_vec<Z: VectorLike>(vec: Z) -> Self::VectorDoubleWrapped<Z> {VectorExpr(vec)}
-            #[inline] unsafe fn double_wrap_row_vec<Z: VectorLike>(vec: Z) -> Self::TransposedVectorDoubleWrapped<Z> {VectorExpr(vec)}
-        }
-
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            $($l_tt, )?
-            $($r_tt, )?
-            const $d1: usize,
-            const $d2: usize
-        > Add<$r_ty> for $l_ty 
-        where
-            $l_item: Add<$r_item>,
-            (<$l_matrix as Get2D>::AreInputsTransposed, N): TyBoolPair,
-            (<$l_matrix as HasOutput>::OutputBool, N): FilterPair,
-            (<(<$l_matrix as HasOutput>::OutputBool, N) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::BoundHandlesBool, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::FstOwnedBufferBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndOwnedBufferBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::FstHandleBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndHandleBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::IsFstBufferTransposed, N): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::IsSndBufferTransposed, N): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, N): TyBoolPair,
-            (N, <$r_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
-            (N, <$r_matrix as HasOutput>::OutputBool): FilterPair,
-            (<(N, <$r_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (N, <$r_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-            (N, <$r_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-            (N, <$r_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-            (N, <$r_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-            (<$l_matrix as Get2D>::AreInputsTransposed, <$r_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
-            (<$l_matrix as HasOutput>::OutputBool, <$r_matrix as HasOutput>::OutputBool): FilterPair,
-            (<(<$l_matrix as HasOutput>::OutputBool, <$r_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::BoundHandlesBool, <$r_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::FstOwnedBufferBool, <$r_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndOwnedBufferBool, <$r_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::FstHandleBool, <$r_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndHandleBool, <$r_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::IsFstBufferTransposed, <$r_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::IsSndBufferTransposed, <$r_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, <$r_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-        {
-            type Output = MatrixExpr<MatAdd<<$l_ty as MatrixOps>::Unwrapped, <$r_ty as MatrixOps>::Unwrapped>, $d1, $d2>;
-
-            #[inline]
-            fn add(self, rhs: $r_ty) -> Self::Output {
-                <Self as EqDimMatrixMatrixOps<$r_ty>>::add(self, rhs)
+                fn add(self, rhs: M2) -> Self::Output {
+                    MatrixOps::add(self, rhs)
+                }
             }
-        }
 
-        impl<
-            $($($l_lifetime),+, )? 
-            $($($r_lifetime),+, )?
-            $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+,
-            $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+,
-            $($l_tt, )?
-            $($r_tt, )?
-            const $d1: usize,
-            const $d2: usize
-        > Sub<$r_ty> for $l_ty 
-        where
-            $l_item: Sub<$r_item>,
-            (<$l_matrix as Get2D>::AreInputsTransposed, N): TyBoolPair,
-            (<$l_matrix as HasOutput>::OutputBool, N): FilterPair,
-            (<(<$l_matrix as HasOutput>::OutputBool, N) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::BoundHandlesBool, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::FstOwnedBufferBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndOwnedBufferBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::FstHandleBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndHandleBool, N): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::IsFstBufferTransposed, N): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::IsSndBufferTransposed, N): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, N): TyBoolPair,
-            (N, <$r_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
-            (N, <$r_matrix as HasOutput>::OutputBool): FilterPair,
-            (<(N, <$r_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (N, <$r_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-            (N, <$r_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
-            (N, <$r_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-            (N, <$r_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-            (N, <$r_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-            (<$l_matrix as Get2D>::AreInputsTransposed, <$r_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
-            (<$l_matrix as HasOutput>::OutputBool, <$r_matrix as HasOutput>::OutputBool): FilterPair,
-            (<(<$l_matrix as HasOutput>::OutputBool, <$r_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::BoundHandlesBool, <$r_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
-            (<$l_matrix as Has2DReuseBuf>::FstOwnedBufferBool, <$r_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndOwnedBufferBool, <$r_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::FstHandleBool, <$r_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::SndHandleBool, <$r_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
-            (<$l_matrix as Has2DReuseBuf>::IsFstBufferTransposed, <$r_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::IsSndBufferTransposed, <$r_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
-            (<$l_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, <$r_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
-        {
-            type Output = MatrixExpr<MatSub<<$l_ty as MatrixOps>::Unwrapped, <$r_ty as MatrixOps>::Unwrapped>, $d1, $d2>;
+            impl<
+                $($($lifetime),+, )? 
+                $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                M2: MatrixOps
+                $(, const $d1: usize, const $d2: usize)?
+            > Sub<M2> for $ty where
+                <$ty as MatrixOps>::Builder: MatrixBuilderUnion<M2::Builder>, 
+                <$trait_matrix as Get2D>::Item: Sub<<M2::Unwrapped as Get2D>::Item>,
+                (<$trait_matrix as Get2D>::AreInputsTransposed, <M2::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+                (<$trait_matrix as HasOutput>::OutputBool, <M2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(<$trait_matrix as HasOutput>::OutputBool, <M2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (<$trait_matrix as Has2DReuseBuf>::BoundHandlesBool, <M2::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                (<$trait_matrix as Has2DReuseBuf>::FstOwnedBufferBool, <M2::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::SndOwnedBufferBool, <M2::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::FstHandleBool, <M2::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::SndHandleBool, <M2::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                (<$trait_matrix as Has2DReuseBuf>::IsFstBufferTransposed, <M2::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                (<$trait_matrix as Has2DReuseBuf>::IsSndBufferTransposed, <M2::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                (<$trait_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed, <M2::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as HasOutput>::OutputBool): FilterPair,
+                (<(N, <M2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                (N, <M2::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+            {
+                type Output = <<<$ty as MatrixOps>::Builder as MatrixBuilderUnion<M2::Builder>>::Union as MatrixBuilder>::MatrixWrapped<MatSub<$true_matrix, M2::Unwrapped>>;
 
-            #[inline]
-            fn sub(self, rhs: $r_ty) -> Self::Output {
-                <Self as EqDimMatrixMatrixOps<$r_ty>>::sub(self, rhs)
+                fn sub(self, rhs: M2) -> Self::Output {
+                    MatrixOps::sub(self, rhs)
+                }
             }
-        }
+        )*
     };
 }
 
-macro_rules! impl_some_const_sized_eq_dim_mat_mat_ops {
-    (
-        $d1:ident;
-        $d2:ident
-        |
-        | 
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        matrix: $r_matrix:ty,
-        item: $r_item:ty
-    ) => {};
-    (
-        $d1:ident;
-        $d2:ident
-        |
-        <$($($fst_l_lifetime:lifetime),+, )? $($fst_l_generic:ident $(:)? $($fst_l_lifetime_bound:lifetime |)? $($fst_l_fst_trait_bound:path $(| $fst_l_trait_bound:path)*)?),+ $(, {$fst_l_tt:tt})?>,
-        $fst_l_ty:ty,
-        matrix: $fst_l_matrix:ty,
-        item: $fst_l_item:ty
-        $(; <$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        matrix: $l_matrix:ty,
-        item: $l_item:ty)* 
-        |
-        <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        matrix: $r_matrix:ty,
-        item: $r_item:ty
-    ) => {
-        impl_const_sized_eq_dim_mat_mat_ops!(
-            $d1;
-            $d2;
-            <$($($fst_l_lifetime),+, )? $($fst_l_generic: $($fst_l_lifetime_bound |)? $($fst_l_fst_trait_bound $(| $fst_l_trait_bound)*)?),+ $(, {$fst_l_tt})?>,
-            $fst_l_ty,
-            matrix: $fst_l_matrix,
-            item: $fst_l_item;
-            <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-            $r_ty,
-            matrix: $r_matrix,
-            item: $r_item
-        );
-
-        impl_some_const_sized_eq_dim_mat_mat_ops!(
-            $d1;
-            $d2
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                matrix: $l_matrix,
-                item: $l_item
-            );*
-            |
-            <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-            $r_ty,
-            matrix: $r_matrix,
-            item: $r_item
-        );
-    };
-}
-
-macro_rules! impl_all_const_sized_eq_dim_mat_mat_ops {
-    (
-        $d1:ident;
-        $d2:ident
-        |
-        $(<$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        matrix: $l_matrix:ty,
-        item: $l_item:ty);+
-        |
-    ) => {};
-    (
-        $d1:ident;
-        $d2:ident 
-        |
-        $(<$($($l_lifetime:lifetime),+, )? $($l_generic:ident $(:)? $($l_lifetime_bound:lifetime |)? $($l_fst_trait_bound:path $(| $l_trait_bound:path)*)?),+ $(, {$l_tt:tt})?>,
-        $l_ty:ty,
-        matrix: $l_matrix:ty,
-        item: $l_item:ty);+
-        |
-        <$($($fst_r_lifetime:lifetime),+, )? $($fst_r_generic:ident $(:)? $($fst_r_lifetime_bound:lifetime |)? $($fst_r_fst_trait_bound:path $(| $fst_r_trait_bound:path)*)?),+ $(, {$fst_r_tt:tt})?>,
-        $fst_r_ty:ty,
-        matrix: $fst_r_matrix:ty,
-        item: $fst_r_item:ty
-        $(; <$($($r_lifetime:lifetime),+, )? $($r_generic:ident $(:)? $($r_lifetime_bound:lifetime |)? $($r_fst_trait_bound:path $(| $r_trait_bound:path)*)?),+ $(, {$r_tt:tt})?>,
-        $r_ty:ty,
-        matrix: $r_matrix:ty,
-        item: $r_item:ty)*
-    ) => {
-        impl_some_const_sized_eq_dim_mat_mat_ops!(
-            $d1;
-            $d2
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                matrix: $l_matrix,
-                item: $l_item
-            );+
-            |
-            <$($($fst_r_lifetime),+, )? $($fst_r_generic: $($fst_r_lifetime_bound |)? $($fst_r_fst_trait_bound $(| $fst_r_trait_bound)*)?),+ $(, {$fst_r_tt})?>,
-            $fst_r_ty,
-            matrix: $fst_r_matrix,
-            item: $fst_r_item
-        );
-
-        impl_all_const_sized_eq_dim_mat_mat_ops!{
-            $d1;
-            $d2
-            |
-            $(
-                <$($($l_lifetime),+, )? $($l_generic: $($l_lifetime_bound |)? $($l_fst_trait_bound $(| $l_trait_bound)*)?),+ $(, {$l_tt})?>,
-                $l_ty,
-                matrix: $l_matrix,
-                item: $l_item
-            );+
-            |
-            $(
-                <$($($r_lifetime),+, )? $($r_generic: $($r_lifetime_bound |)? $($r_fst_trait_bound $(| $r_trait_bound)*)?),+ $(, {$r_tt})?>,
-                $r_ty,
-                matrix: $r_matrix,
-                item: $r_item
-            );*
-        }
-    };
-}
-
-impl_all_const_sized_eq_dim_mat_mat_ops!(
-    D1;
-    D2 
-    |
-    <M1: MatrixLike>, MatrixExpr<M1, D1, D2>, matrix: M1, item: M1::Item;
-    <M1: MatrixLike>, Box<MatrixExpr<M1, D1, D2>>, matrix: M1, item: M1::Item;
-    <'a, T1>, &'a MathMatrix<T1, D1, D2>, matrix: &'a [[T1; D1]; D2], item: &'a T1;
-    <'a, T1>, &'a mut MathMatrix<T1, D1, D2>, matrix: &'a mut [[T1; D1]; D2], item: &'a mut T1;
-    <'a, T1>, &'a Box<MathMatrix<T1, D1, D2>>, matrix: &'a [[T1; D1]; D2], item: &'a T1;
-    <'a, T1>, &'a mut Box<MathMatrix<T1, D1, D2>>, matrix: &'a mut [[T1; D1]; D2], item: &'a mut T1
-    |
-    <M2: MatrixLike>, MatrixExpr<M2, D1, D2>, matrix: M2, item: M2::Item;
-    <M2: MatrixLike>, Box<MatrixExpr<M2, D1, D2>>, matrix: M2, item: M2::Item;
-    <'b, T2>, &'b MathMatrix<T2, D1, D2>, matrix: &'b [[T2; D1]; D2], item: &'b T2;
-    <'b, T2>, &'b mut MathMatrix<T2, D1, D2>, matrix: &'b mut [[T2; D1]; D2], item: &'b mut T2;
-    <'b, T2>, &'b Box<MathMatrix<T2, D1, D2>>, matrix: &'b [[T2; D1]; D2], item: &'b T2;
-    <'b, T2>, &'b mut Box<MathMatrix<T2, D1, D2>>, matrix: &'b mut [[T2; D1]; D2], item: &'b mut T2
+impl_binary_ops_for_wrapper!(
+    D1, D2; <M1: MatrixLike>, MatrixExpr<M1, D1, D2>, trait_matrix: M1, true_matrix: M1;
+    D1, D2; <M1: MatrixLike>, Box<MatrixExpr<M1, D1, D2>>, trait_matrix: M1, true_matrix: Box<M1>;
+    D1, D2; <'a, T1>, &'a MathMatrix<T1, D1, D2>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
+    D1, D2; <'a, T1>, &'a mut MathMatrix<T1, D1, D2>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
+    D1, D2; <'a, T1>, &'a Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
+    D1, D2; <'a, T1>, &'a mut Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
 );
