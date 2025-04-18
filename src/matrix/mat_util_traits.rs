@@ -73,11 +73,18 @@ pub trait MatrixBuilder: Clone {
 
     //FIXME (above is source of issue): currently requires correct implementation even though trait is not unsafe
     fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder);
-    fn compose(col: Self::ColBuilder, row: Self::RowBuilder) -> Self;
 }
 
 pub trait MatrixBuilderUnion<T: MatrixBuilder>: MatrixBuilder {
     type Union: MatrixBuilder;
 
     fn union(self, other: T) -> Self::Union;
+}
+
+/// syntax: ColBuilder: MatrixBuilderCompose<RowBuilder>
+pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
+    //FIXME (HRTBs): for<T: VectorLike> Self::Composition::ColBuilder::Wrapped<T> == Self::Wrapped
+    type Composition: MatrixBuilder;
+
+    fn compose(self, other: T) -> Self::Composition;
 }
