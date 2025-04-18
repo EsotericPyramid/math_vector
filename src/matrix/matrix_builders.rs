@@ -3,7 +3,7 @@ use crate::{
     vector::{vec_util_traits::VectorLike, VectorExpr, vector_builders::VectorExprBuilder}
 };
 
-use super::mat_util_traits::MatrixBuilderUnion;
+use super::mat_util_traits::{MatrixBuilderCompose, MatrixBuilderUnion};
 
 #[derive(Clone)]
 pub struct MatrixExprBuilder<const D1: usize, const D2: usize>;
@@ -23,12 +23,17 @@ impl<const D1: usize, const D2: usize> MatrixBuilder for MatrixExprBuilder<D1, D
     #[inline] unsafe fn wrap_row_vec<T: VectorLike>(&self, vec: T) -> Self::RowWrapped<T> {VectorExpr(vec)}
 
     #[inline] fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder) {(VectorExprBuilder, VectorExprBuilder)}
-    #[inline] fn compose(_: Self::ColBuilder, _: Self::RowBuilder) -> Self {Self}
 }
 
-impl<const D1: usize, const D2: usize> MatrixBuilderUnion<MatrixExprBuilder<D1,D2>> for MatrixExprBuilder<D1,D2> {
+impl<const D1: usize, const D2: usize> MatrixBuilderUnion<MatrixExprBuilder<D1, D2>> for MatrixExprBuilder<D1, D2> {
     type Union = Self;
 
-    fn union(self, _: MatrixExprBuilder<D1,D2>) -> Self::Union {self}
+    fn union(self, _: MatrixExprBuilder<D1, D2>) -> Self::Union {self}
+}
+
+impl<const D1: usize, const D2: usize> MatrixBuilderCompose<VectorExprBuilder<D2>> for VectorExprBuilder<D1> {
+    type Composition = MatrixExprBuilder<D1, D2>;
+
+    fn compose(self, _: VectorExprBuilder<D2>) -> Self::Composition {MatrixExprBuilder}
 }
 
