@@ -21,6 +21,57 @@ pub struct MatrixExpr<M: MatrixLike, const D1: usize, const D2: usize>(M);
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     #[inline] 
+    pub fn make_dynamic(self) -> MatrixExpr<Box<dyn MatrixLike<
+        GetBool = M::GetBool,
+        AreInputsTransposed = N,
+        Inputs = (),
+        Item = M::Item,
+        BoundItems = M::BoundItems,
+
+        OutputBool = M::OutputBool,
+        Output = M::Output,
+
+        FstHandleBool = M::FstHandleBool,
+        SndHandleBool = M::SndHandleBool,
+        BoundHandlesBool = M::BoundHandlesBool,
+        FstOwnedBufferBool = M::FstOwnedBufferBool,
+        SndOwnedBufferBool = M::SndOwnedBufferBool,
+        IsFstBufferTransposed = M::IsFstBufferTransposed,
+        IsSndBufferTransposed = M::IsSndBufferTransposed,
+        AreBoundBuffersTransposed = M::AreBoundBuffersTransposed,
+        FstOwnedBuffer = M::FstOwnedBuffer,
+        SndOwnedBuffer = M::SndOwnedBuffer,
+        FstType = M::FstType,
+        SndType = M::SndType,
+        BoundTypes = M::BoundTypes,
+    >>, D1, D2> where M: 'static {
+        MatrixExpr(Box::new(DynamicMatrixLike{mat: self.unwrap(), inputs: None}) as Box<dyn MatrixLike<
+            GetBool = M::GetBool,
+            AreInputsTransposed = N,
+            Inputs = (),
+            Item = M::Item,
+            BoundItems = M::BoundItems,
+
+            OutputBool = M::OutputBool,
+            Output = M::Output,
+
+            FstHandleBool = M::FstHandleBool,
+            SndHandleBool = M::SndHandleBool,
+            BoundHandlesBool = M::BoundHandlesBool,
+            FstOwnedBufferBool = M::FstOwnedBufferBool,
+            SndOwnedBufferBool = M::SndOwnedBufferBool,
+            IsFstBufferTransposed = M::IsFstBufferTransposed,
+            IsSndBufferTransposed = M::IsSndBufferTransposed,
+            AreBoundBuffersTransposed = M::AreBoundBuffersTransposed,
+            FstOwnedBuffer = M::FstOwnedBuffer,
+            SndOwnedBuffer = M::SndOwnedBuffer,
+            FstType = M::FstType,
+            SndType = M::SndType,
+            BoundTypes = M::BoundTypes,
+        >>)
+    }
+
+    #[inline] 
     pub fn consume(self) -> M::Output where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
         self.into_entry_iter().consume()
     }
