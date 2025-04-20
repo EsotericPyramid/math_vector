@@ -162,7 +162,7 @@ unsafe impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: 
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<'a, M: IsRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> IsRepeatable for MatAttach2DBuf<'a, M, T, D1, D2> {}
+unsafe impl<'a, M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatAttach2DBuf<'a, M, T, D1, D2> {}
 
 impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput for MatAttach2DBuf<'a, M, T, D1, D2> {
     type OutputBool = M::OutputBool;
@@ -212,7 +212,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> IsRepeatable for MatCreate2DBuf<M, T, D1, D2> {}
+unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatCreate2DBuf<M, T, D1, D2> {}
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput for MatCreate2DBuf<M, T, D1, D2> {
     type OutputBool = M::OutputBool;
@@ -264,7 +264,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> IsRepeatable for MatCreate2DHeapBuf<M, T, D1, D2> {}
+unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatCreate2DHeapBuf<M, T, D1, D2> {}
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput for MatCreate2DHeapBuf<M, T, D1, D2> {
     type OutputBool = M::OutputBool;
@@ -316,7 +316,7 @@ unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMay
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike, T, const D1: usize, const D2: usize> IsRepeatable for MatMaybeCreate2DBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
+unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable for MatMaybeCreate2DBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> HasOutput for MatMaybeCreate2DBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = M::OutputBool;
@@ -380,7 +380,7 @@ unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMay
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike, T, const D1: usize, const D2: usize> IsRepeatable for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
+unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> HasOutput for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = M::OutputBool;

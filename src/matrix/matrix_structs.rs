@@ -72,7 +72,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Owned2DArray<T, D1, D
     }}
 }
 
-unsafe impl<T: Copy, const D1: usize, const D2: usize> IsRepeatable for Owned2DArray<T, D1, D2> {}
+unsafe impl<T: Copy, const D1: usize, const D2: usize> Is2DRepeatable for Owned2DArray<T, D1, D2> {}
 
 impl<T, const D1: usize, const D2: usize> HasOutput for Owned2DArray<T, D1, D2> {
     type OutputBool = N;
@@ -121,7 +121,7 @@ unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> Get2D for Referring2DAr
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> IsRepeatable for Referring2DArray<'a, T, D1, D2> {}
+unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> Is2DRepeatable for Referring2DArray<'a, T, D1, D2> {}
 
 impl<'a, T: 'a, const D1: usize, const D2: usize> HasOutput for Referring2DArray<'a, T, D1, D2> {
     type OutputBool = N;
@@ -158,7 +158,6 @@ impl<'a, T: 'a, const D1: usize, const D2: usize> Has2DReuseBuf for Referring2DA
 
 
 //Note: these 2 technically impl HasOutput via vector_structs' impls on &[T; D], fine since none actually output anything
-//Note: impls IsRepeatable through vector_structs' impl, still correct though
 unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a [[T; D1]; D2] {
     type GetBool = Y;
     type AreInputsTransposed = N;
@@ -170,6 +169,8 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a [[T; D1]; D2]
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
+
+unsafe impl<'a, T, const D1: usize, const D2: usize> Is2DRepeatable for &'a [[T; D1]; D2] {}
 
 impl<'a, T, const D1: usize, const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
     type FstHandleBool = N;
@@ -209,6 +210,8 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a mut [[T; D1];
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
+unsafe impl<'a, T, const D1: usize, const D2: usize> Is2DRepeatable for &'a mut [[T; D1]; D2] {}
+
 impl<'a, T, const D1: usize, const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
@@ -235,6 +238,9 @@ impl<'a, T, const D1: usize, const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]
 }
 
 
+
+
+
 #[inline] fn debox<T: ?Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
 
 unsafe impl<M: MatrixLike + ?Sized> Get2D for Box<M> {
@@ -248,6 +254,8 @@ unsafe impl<M: MatrixLike + ?Sized> Get2D for Box<M> {
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {(debox(self)).drop_inputs(col_index, row_index)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
 }
+
+unsafe impl<M: MatrixLike + ?Sized> Is2DRepeatable for Box<M> {}
 
 impl<M: MatrixLike + ?Sized> Has2DReuseBuf for Box<M> {
     type FstHandleBool = M::FstHandleBool;

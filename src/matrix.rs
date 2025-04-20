@@ -1,4 +1,4 @@
-use crate::{util_traits::{HasOutput, IsRepeatable}, vector::MathVector};
+use crate::{util_traits::HasOutput, vector::MathVector};
 use std::mem::ManuallyDrop;
 use crate::trait_specialization_utils::*;
 use std::ops::*;
@@ -116,7 +116,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     }
 }
 
-impl<M: MatrixLike + IsRepeatable, const D1: usize, const D2: usize> MatrixExpr<M,D1,D2> {
+impl<M: MatrixLike + Is2DRepeatable, const D1: usize, const D2: usize> MatrixExpr<M,D1,D2> {
     /// Note:   This method does NOT fill any buffers bound to the matrix, if you need that, see binding_get
     pub fn get(&mut self, col_index: usize, row_index: usize) -> M::Item {
         if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
@@ -590,8 +590,8 @@ pub trait MatrixOps {
     ///NOTE: WILL BE MOVED
     #[inline]
     fn mat_mul<M: MatrixOps>(self, other: M) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped, M::Unwrapped>> where 
-        Self::Unwrapped: IsRepeatable,
-        M::Unwrapped: IsRepeatable,
+        Self::Unwrapped: Is2DRepeatable,
+        M::Unwrapped: Is2DRepeatable,
         <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
         <<Self::Unwrapped as Get2D>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output: AddAssign,
 
@@ -905,7 +905,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
 }
 
 pub trait RepeatableMatrixOps: MatrixOps {
-    type RepeatableMatrix<'a>: MatrixLike + IsRepeatable where Self: 'a;
+    type RepeatableMatrix<'a>: MatrixLike + Is2DRepeatable where Self: 'a;
     type UsedMatrix: MatrixLike;
     //type HeapedUsedMatrix: MatrixLike;
 

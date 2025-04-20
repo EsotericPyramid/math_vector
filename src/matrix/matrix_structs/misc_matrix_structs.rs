@@ -16,7 +16,7 @@ unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatBufSwap<M> {}
+unsafe impl<M: Is2DRepeatable + MatrixLike> Is2DRepeatable for MatBufSwap<M> {}
 
 impl<M: MatrixLike> HasOutput for MatBufSwap<M> {
     type OutputBool = M::OutputBool;
@@ -68,7 +68,7 @@ unsafe impl<M: MatrixLike, USEDM: MatrixLike> Get2D for MatAttachUsedMat<M, USED
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
 }
 
-unsafe impl<M: IsRepeatable + MatrixLike, USEDM: MatrixLike> IsRepeatable for MatAttachUsedMat<M, USEDM> {}
+unsafe impl<M: Is2DRepeatable + MatrixLike, USEDM: MatrixLike> Is2DRepeatable for MatAttachUsedMat<M, USEDM> {}
 
 impl<M: MatrixLike, USEDM: MatrixLike> HasOutput for MatAttachUsedMat<M, USEDM> where (M::OutputBool, USEDM::OutputBool): FilterPair {
     type OutputBool = <(M::OutputBool, USEDM::OutputBool) as TyBoolPair>::Or;
