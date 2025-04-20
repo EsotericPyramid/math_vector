@@ -223,6 +223,52 @@ impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
 }
 
 
+unsafe impl<T> Get for Box<[T]> {
+    type GetBool = Y;
+    type Inputs = T;
+    type Item = T;
+    type BoundItems = ();
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {std::ptr::read(self.get_unchecked(index))}}
+    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.get_unchecked_mut(index))}}
+}
+
+//Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
+unsafe impl<T: Copy> IsRepeatable for Box<[T]> {}
+
+impl<T> HasOutput for Box<[T]> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+impl<T> HasReuseBuf for Box<[T]> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
+
+
 unsafe impl<'a, T> Get for &'a [T] {
     type GetBool = Y;
     type Inputs = &'a T;
@@ -346,5 +392,3 @@ impl<V: VectorLike + ?Sized> HasReuseBuf for Box<V> {
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {(debox(self)).drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {(debox(self)).drop_bound_bufs_index(index)}}
 }
-
-
