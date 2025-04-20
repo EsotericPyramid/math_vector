@@ -163,7 +163,7 @@ macro_rules! mat_struct {
             }
         }
 
-        if_present!({unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike + IsRepeatable, $r_mat_generic: MatrixLike + IsRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> IsRepeatable for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
+        if_present!({unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike + Is2DRepeatable, $r_mat_generic: MatrixLike + Is2DRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Is2DRepeatable for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
     
         impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::OutputBool, $r_mat_generic::OutputBool): FilterPair, (<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
             type OutputBool = optimized_or!(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, $($outputted_field)?);

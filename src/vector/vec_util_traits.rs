@@ -66,3 +66,6 @@ pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
 
     fn union(self, other: T) -> Self::Union;
 }
+
+/// Implies that the struct's impl of Get is repeatable & can be called multiple times at a given idx
+pub unsafe trait IsRepeatable {}

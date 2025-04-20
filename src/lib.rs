@@ -139,9 +139,6 @@ pub mod util_traits {
         #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {(debox(self)).output()}}
         #[inline] unsafe fn drop_output(&mut self) { unsafe {(debox(self)).drop_output()}}
     }
-
-    /// Implies that the struct's impl of Get &/| Get2D is repeatable & can be called multiple times at a given idx
-    pub unsafe trait IsRepeatable {}
 }
 
 pub(crate) mod util_structs {

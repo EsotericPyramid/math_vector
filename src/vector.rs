@@ -1,4 +1,4 @@
-use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::{HasOutput, IsRepeatable}};
+use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::HasOutput};
 use std::{mem::ManuallyDrop, ops::*};
 
 pub mod vec_util_traits;

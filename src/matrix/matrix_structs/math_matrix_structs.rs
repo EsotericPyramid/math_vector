@@ -5,9 +5,9 @@ use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 use std::ops::*;
 
-pub struct FullMatMul<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
+pub struct FullMatMul<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
 
-unsafe impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> Get2D for FullMatMul<M1, M2> where 
+unsafe impl<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable> Get2D for FullMatMul<M1, M2> where 
     M1::Item: Mul<M2::Item>,
     <M1::Item as Mul<M2::Item>>::Output: AddAssign,
     (M1::BoundHandlesBool, M2::BoundHandlesBool): FilterPair,
@@ -36,7 +36,7 @@ unsafe impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> Get2D 
     }
 }
 
-impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> HasOutput for FullMatMul<M1, M2> where (M1::OutputBool, M2::OutputBool): FilterPair {
+impl<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable> HasOutput for FullMatMul<M1, M2> where (M1::OutputBool, M2::OutputBool): FilterPair {
     type OutputBool = <(M1::OutputBool, M2::OutputBool) as TyBoolPair>::Or;
     type Output = <(M1::OutputBool, M2::OutputBool) as FilterPair>::Filtered<M1::Output, M2::Output>;
 
@@ -52,7 +52,7 @@ impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> HasOutput for
     }}
 } 
 
-impl<M1: MatrixLike + IsRepeatable, M2: MatrixLike + IsRepeatable> Has2DReuseBuf for FullMatMul<M1, M2>
+impl<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable> Has2DReuseBuf for FullMatMul<M1, M2>
 where 
     (M1::FstOwnedBufferBool, M2::FstOwnedBufferBool): SelectPair,
     (M1::SndOwnedBufferBool, M2::SndOwnedBufferBool): SelectPair,

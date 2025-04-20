@@ -88,3 +88,7 @@ pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
 
     fn compose(self, other: T) -> Self::Composition;
 }
+
+
+/// Implies that the struct's impl of Get2D is repeatable & can be called multiple times at a given idx
+pub unsafe trait Is2DRepeatable {}
