@@ -460,17 +460,51 @@ pub trait MatrixOps {
     }
 
     #[inline]
-    fn offset_columns(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatColOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_right(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatColOffset<Self::Unwrapped>> where Self: Sized {
         let (_, cols) = self.dimensions();
         let builder = self.get_builder();
         unsafe { builder.wrap_mat(MatColOffset{mat: self.unwrap(), offset: offset % cols, num_columns: cols}) }
     }
 
     #[inline]
-    fn offset_rows(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRowOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_down(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRowOffset<Self::Unwrapped>> where Self: Sized {
         let (rows, _) = self.dimensions();
         let builder = self.get_builder();
         unsafe { builder.wrap_mat(MatRowOffset{mat: self.unwrap(), offset: offset % rows, num_rows: rows}) }
+    }
+
+    #[inline]
+    fn offset_left(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatColOffset<Self::Unwrapped>> where Self: Sized {
+        let (_, cols) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatColOffset{mat: self.unwrap(), offset: cols - (offset % cols), num_columns: cols}) }
+    }
+
+    #[inline]
+    fn offset_up(self, offset: usize) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRowOffset<Self::Unwrapped>> where Self: Sized {
+        let (rows, _) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRowOffset{mat: self.unwrap(), offset: rows - (offset % rows), num_rows: rows}) }
+    }
+
+    #[inline] 
+    fn reverse_cols(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatColReverse<Self::Unwrapped>> where Self: Sized {
+        let (_, cols) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatColReverse { mat: self.unwrap(), max_col_index: cols -1 })}
+    }
+
+    #[inline] 
+    fn reverse_rows(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatRowReverse<Self::Unwrapped>> where Self: Sized {
+        let (rows, _) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatRowReverse { mat: self.unwrap(), max_row_index: rows -1 })}
+    }
+
+    #[inline]
+    fn transpose(self) -> <Self::Builder as MatrixBuilder>::TransposedMatrixWrapped<MatTranspose<Self::Unwrapped>> where Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_trans_mat(MatTranspose { mat: self.unwrap() })}
     }
 
     #[inline]

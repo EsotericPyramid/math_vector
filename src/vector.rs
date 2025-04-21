@@ -465,10 +465,24 @@ pub unsafe trait VectorOps {
     }
 
     #[inline] 
-    fn offset(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_down(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
         let size = self.size();
         let builder = self.get_builder();
         unsafe { builder.wrap(VecOffset{vec: self.unwrap(), offset: offset % size, size}) }
+    }
+
+    #[inline] 
+    fn offset_up(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
+        let size = self.size();
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecOffset{vec: self.unwrap(), offset: size - (offset % size), size}) }
+    }
+
+    #[inline]
+    fn reverse(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecReverse<Self::Unwrapped>> where Self: Sized {
+        let max_index = self.size() -1;
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecReverse{vec: self.unwrap(), max_index})}
     }
 
 
