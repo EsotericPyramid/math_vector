@@ -5,13 +5,12 @@ use std::ops::*;
 
 pub mod mat_util_traits;
 pub mod matrix_structs;
-pub mod vectorized_matrix_structs;
 pub mod matrix_builders;
 
 use mat_util_traits::*;
 use matrix_builders::*;
 use matrix_structs::*;
-use vectorized_matrix_structs::*;
+
 
 
 /// D1: # rows (dimension of vectors), D2: # columns (# of vectors)
@@ -409,6 +408,8 @@ impl<T, I, const D1: usize, const D2: usize> IndexMut<I> for MathMatrix<T, D1, D
     }
 }
 
+
+pub type MathVectoredMatrix<T, const D1: usize, const D2: usize> = MathVector<MathVector<T, D1>, D2>;
 
 
 pub fn matrix_gen<F: FnMut() -> O, O, const D1: usize, const D2: usize>(f: F) -> MatrixExpr<MatGenerator<F, O>, D1, D2> {
