@@ -149,14 +149,6 @@ unsafe impl<'a, T, const D: usize> Get for &'a [T; D] {
 
 unsafe impl<'a, T, const D: usize> IsRepeatable for &'a [T; D] {}
 
-impl<'a, T, const D: usize> HasOutput for &'a [T; D] {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
 impl<'a, T, const D: usize> HasReuseBuf for &'a [T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
@@ -190,14 +182,6 @@ unsafe impl<'a, T, const D: usize> Get for &'a mut [T; D] {
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&mut*(self.get_unchecked_mut(index) as *mut T)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-}
-
-impl<'a, T, const D: usize> HasOutput for &'a mut [T; D] {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
 }
 
 impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
@@ -282,14 +266,6 @@ unsafe impl<'a, T> Get for &'a [T] {
 
 unsafe impl<'a, T> IsRepeatable for &'a [T] {}
 
-impl<'a, T> HasOutput for &'a [T] {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
-}
-
 impl<'a, T> HasReuseBuf for &'a [T] {
     type FstHandleBool = N;
     type SndHandleBool = N;
@@ -323,14 +299,6 @@ unsafe impl<'a, T> Get for &'a mut [T] {
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&mut*(self.get_unchecked_mut(index) as *mut T)}}
     #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-}
-
-impl<'a, T> HasOutput for &'a mut [T] {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline] unsafe fn output(&mut self) -> Self::Output {}
-    #[inline] unsafe fn drop_output(&mut self) {}
 }
 
 impl<'a, T> HasReuseBuf for &'a mut [T] {
