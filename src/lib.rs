@@ -139,6 +139,25 @@ pub mod util_traits {
         #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {(debox(self)).output()}}
         #[inline] unsafe fn drop_output(&mut self) { unsafe {(debox(self)).drop_output()}}
     }
+
+    // NOTE: blanket impls bc outputting implies some level of ownership which 
+    //      can only claimed once and so it shouldnt _really_ be done from 
+    //      a reference, thus these impls just force the no output impl
+    impl<'a, T: ?Sized> HasOutput for &'a T {
+        type OutputBool = N;
+        type Output = ();
+
+        #[inline] unsafe fn output(&mut self) -> Self::Output {}
+        #[inline] unsafe fn drop_output(&mut self) {}
+    }
+
+    impl<'a, T: ?Sized> HasOutput for &'a mut T {
+        type OutputBool = N;
+        type Output = ();
+
+        #[inline] unsafe fn output(&mut self) -> Self::Output {}
+        #[inline] unsafe fn drop_output(&mut self) {}
+    }
 }
 
 pub(crate) mod util_structs {
