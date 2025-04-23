@@ -1,7 +1,10 @@
+//! Structs implementing VectorBuilder to wrap VectorLikes with sizing information
+
 use super::vec_util_traits::{VectorBuilder, VectorBuilderUnion, VectorLike};
 use super::{VectorExpr, RSVectorExpr};
 
-#[derive(Clone)]
+/// a simple const sized VectorBuilder
+#[derive(Clone, Copy)]
 pub struct VectorExprBuilder<const D: usize>;
 
 impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
@@ -10,8 +13,8 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {VectorExpr(vec)}
 }
 
-
-#[derive(Clone)]
+/// a simple runtime sized VectorBuilder
+#[derive(Clone, Copy)]
 pub struct RSVectorExprBuilder{size: usize}
 
 impl VectorBuilder for RSVectorExprBuilder {
@@ -38,6 +41,7 @@ impl VectorBuilderUnion<RSVectorExprBuilder> for RSVectorExprBuilder {
         self
     }
 }
+
 
 impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for RSVectorExprBuilder {
     type Union = VectorExprBuilder<D>;

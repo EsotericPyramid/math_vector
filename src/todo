@@ -33,7 +33,6 @@ To Do's:
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
-            - add documentation
         + vector_structs.rs:
             - add documentation
             - make the assign structs maintain the &'a mut T item
