@@ -6,6 +6,7 @@ use crate::vector::VectorExpr;
 use super::OwnedArray;
 use std::mem::ManuallyDrop;
 
+/// an owned array which additionally acts as an buffer for HasReuseBuf (in the first slot)
 pub struct ReplaceArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
 unsafe impl<T, const D: usize> Get for ReplaceArray<T, D> {
@@ -130,6 +131,7 @@ impl<T, const D: usize> HasReuseBuf for ReplaceHeapArray<T, D> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+/// struct attaching an array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
 pub struct VecAttachBuf<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: &'a mut [T; D]} 
 
 unsafe impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecAttachBuf<'a, V, T, D> {
@@ -177,7 +179,7 @@ impl<'b, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for Ve
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
-
+/// struct attaching an initially uninitiallized array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
 pub struct VecCreateBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<T>; D]}
 
 unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateBuf<V, T, D> {
@@ -277,7 +279,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
-
+/// struct attaching an initially uninitiallized array to a VectorLike to be used as a HasReuseBuf buffer if there isn't already a buffer (first slot)
 pub struct VecMaybeCreateBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]}
 
 unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
