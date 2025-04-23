@@ -284,8 +284,13 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
         unsafe { std::mem::transmute::<Box<Self>, Box<[[T; D1]; D2]>>(self) }
     }
     #[inline] pub fn reuse(self) -> MatrixExpr<Replace2DArray<T, D1, D2>, D1, D2> {MatrixExpr(Replace2DArray(self.unwrap().0))}
-    #[inline] pub fn heap_reuse(self: Box<Self>) -> MatrixExpr<Replace2DHeapArray<T, D1, D2>, D1, D2> {
-        unsafe { MatrixExpr(Replace2DHeapArray(std::mem::transmute::<Box<Self>, std::mem::ManuallyDrop<Box<[[T; D1]; D2]>>>(self))) }
+    #[inline] pub fn heap_reuse(self: Box<Self>) -> MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2> {
+        // Safety, series of equivilent types:
+        // Box<MathMatrix<T, D1, D2>>
+        // Box<MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>>, de-alias MathMatrix
+        // Box<ManuallyDrop<[[T; D1]; D2]>>, MatrixExpr and Owned2DArray are transparent
+        // MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>, MatrixExpr and Replace2DArray are transparent
+        unsafe { std::mem::transmute::<Box<Self>, MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>>(self) }
     } 
     
     #[inline] pub fn referred<'a>(self) -> MatrixExpr<Referring2DArray<'a, T, D1, D2>, D1, D2> where T: 'a {
@@ -911,7 +916,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     #[inline]
     fn create_2d_heap_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
     }
 
     #[inline]
@@ -935,7 +940,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
     }
 }
 

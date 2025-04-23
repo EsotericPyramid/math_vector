@@ -7,6 +7,7 @@ use super::OwnedArray;
 use std::mem::ManuallyDrop;
 
 /// an owned array which additionally acts as an buffer for HasReuseBuf (in the first slot)
+#[repr(transparent)]
 pub struct ReplaceArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
 unsafe impl<T, const D: usize> Get for ReplaceArray<T, D> {
@@ -65,71 +66,6 @@ impl<T, const D: usize> HasReuseBuf for ReplaceArray<T, D> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-
-pub struct ReplaceHeapArray<T, const D: usize>(pub(crate) ManuallyDrop<Box<[T; D]>>);
-
-unsafe impl<T, const D: usize> Get for ReplaceHeapArray<T, D> {
-    type GetBool = Y;
-    type Inputs = T;
-    type Item = T;
-    type BoundItems = ();
-
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {
-        std::ptr::read(self.0.get_unchecked(index))
-    }}
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, index: usize) { unsafe {
-        std::ptr::drop_in_place(self.0.get_unchecked_mut(index))
-    }}
-
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
-}
-
-impl<T: Sized, const D: usize> HasOutput for ReplaceHeapArray<T, D> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline]
-    unsafe fn output(&mut self) -> Self::Output {}
-
-    #[inline]
-    unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
-}
-
-impl<T, const D: usize> HasReuseBuf for ReplaceHeapArray<T, D> {
-    type FstHandleBool = Y;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = Y;
-    type SndOwnedBufferBool = N;
-    type FstOwnedBuffer = Box<MathVector<T, D>>;
-    type SndOwnedBuffer = ();
-    type FstType = T;
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {std::ptr::write(self.0.get_unchecked_mut(index), val)}}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {
-        //  safety, equivilent types in order:
-        //      ManuallyDrop<Box<[T; D]>>
-        //      Box<[T; D]>
-        //      Box<ManuallyDrop<[T; D]>>
-        //      Box<OwnedArray<[T; D]>>
-        //      Box<VectorExpr<OwnedArray<[T; D]>, D>>
-        //      Box<MathVector<T, D>>
-        std::mem::transmute_copy::<ManuallyDrop<Box<[T; D]>>, Box<MathVector<T, D>>>(&self.0)
-    }}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
-}
 
 /// struct attaching an array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
 pub struct VecAttachBuf<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: &'a mut [T; D]} 
@@ -230,7 +166,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
 }
 
 
-pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: ManuallyDrop<Box<[std::mem::MaybeUninit<T>; D]>>}
+pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<T>; D]>}
 
 unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateHeapBuf<V, T, D> {
     type GetBool = V::GetBool;
@@ -346,7 +282,7 @@ where
 }
 
 
-pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: ManuallyDrop<Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>>}
+pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>}
 
 unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
