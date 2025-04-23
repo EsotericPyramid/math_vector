@@ -1,0 +1,26 @@
+To Do's:
++ lib.rs:
+    + test:
+        - Update mat_vec_mul to use matrix types
+    + matrix.rs:
+        - Add documentation
+        - Add Matrix and vector multiplication
+        + mat_util_traits.rs:
+        + matrix_builders.rs:
+        + matrix_structs.rs:
+    + vector.rs:
+        - Add documentation
+        + vec_util_traits.rs:
+        + vector_builders.rs:
+        + vector_structs.rs:
+
+Fix Me's:
++ lib.rs:
+    + matrix.rs:
+        + mat_util_traits.rs:
+        + matrix_builders.rs:
+        + matrix_structs.rs:
+    + vector.rs:
+        + vec_util_traits.rs:
+        + vector_builders.rs:
+        + vector_structs.rs:

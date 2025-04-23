@@ -1,17 +1,37 @@
+
+/// provides utilities for helping with trait specialization
+/// 
+/// Y and N boolean types
+/// binary boolean operators via TyBoolPair
+/// Filter & Select to use boolean pairs to trim down types if unused
 pub mod trait_specialization_utils {
     use std::mem::transmute_copy;
 
-    pub trait TyBool {type Neg: TyBool; fn as_bool() -> bool;}
+    /// a trait describing a single boolean type
+    pub trait TyBool { 
+        /// The inverse of Self (ie. N -> Y, Y -> N) 
+        type Neg: TyBool; 
+
+        /// Converts the type into a normal boolean
+        fn as_bool() -> bool;
+    }
+
+    /// the provided "true" boolean type
     pub struct Y;
+
+    /// the provided "false" boolean type
     pub struct N;
 
     impl TyBool for Y {type Neg = N; #[inline] fn as_bool() -> bool {false}}
     impl TyBool for N {type Neg = Y; #[inline] fn as_bool() -> bool {true}}
 
-    pub trait IsTrue {}
+    /// a trait indicating if the boolean type is true
+    pub trait IsTrue: TyBool {}
 
     impl IsTrue for Y {}
 
+    /// A pair (ie. tuple w/ 2 elements) of boolean types
+    /// can preform binary operators via the And, Or, and Xor Assoc types
     pub trait TyBoolPair {
         type And: TyBool; 
         type Or: TyBool;
@@ -23,17 +43,37 @@ pub mod trait_specialization_utils {
     impl TyBoolPair for (Y, N) {type And = N; type Or = Y; type Xor = Y;}
     impl TyBoolPair for (Y, Y) {type And = Y; type Or = Y; type Xor = N;}
 
-    pub trait Filter {
+    /// a trait allowing a boolean type to filter a type
+    /// 
+    /// Y filter T -> T
+    /// N filter T -> ()
+    pub trait Filter: TyBool {
+        /// the type T after filtering
         type Filtered<T>;
 
+        /// filters the given value
         fn filter<T>(x: T) -> Self::Filtered<T>;
     }
 
+    /// a trait allowing a boolean pair to filter a pair of types
+    /// 
+    /// Y, Y filter T1, T2 -> (T1, T2)
+    /// Y, N filter T1, T2 -> T1
+    /// N, Y filter T1, T2 -> T2
+    /// N, N filter T1, T2 -> ()
     pub trait FilterPair: TyBoolPair {
+        /// the returned type after filtering T1 and T2
         type Filtered<T1, T2>;
 
+        /// filters the given T1 and T2 values
         fn filter<T1, T2>(x1: T1, x2: T2) -> Self::Filtered<T1, T2>;
-        ///Safety: requires that T1 & T2 are a ZST if the corresponding bool in the FilterPair is false
+
+        /// defilters the given filtered value
+        /// ie. Y, N defilter T1 -> (T1, T2)
+        /// 
+        /// Safety: 
+        /// requires that T1 and T2 are a ZST if the corresponding bool in the FilterPair is false
+        /// ie. when doing Y, N defilter T1 -> (T1, T2), T2 must be a ZST (like ())
         unsafe fn defilter<T1, T2>(filtered: Self::Filtered<T1, T2>) -> (T1, T2);
     }
 
@@ -65,13 +105,25 @@ pub mod trait_specialization_utils {
         #[inline] unsafe fn defilter<T1, T2>(filtered: Self::Filtered<T1, T2>) -> (T1, T2) {filtered}
     }
 
-    pub trait SelectPair: TyBoolPair { //A more specific version of filter where at most 1 of the inputs is outputted
+    /// A more specific version of filter where at most 1 of the inputs is outputted
+    pub trait SelectPair: TyBoolPair { 
+        /// the returned type after selecting T1 & T2
         type Selected<T1, T2>;
 
+        /// selects the given T1 and T2 values
         fn select<T1, T2>(x1: T1, x2: T2) -> Self::Selected<T1, T2>;
-        unsafe fn deselect<T1, T2>(filtered: Self::Selected<T1, T2>) -> (T1, T2);
+        /// selects the given &'a T1 and &'a T2 values
         fn select_ref<'a, T1, T2>(x1: &'a T1, x2: &'a T2) -> &'a Self::Selected<T1, T2>;
+        /// selects the given &'a mut T1 and &'a mut T2 values
         fn select_ref_mut<'a, T1, T2>(x1: &'a mut T1, x2: &'a mut T2) -> &'a mut Self::Selected<T1, T2>;
+
+        /// deselectss the given selected value
+        /// ie. Y, N deselect T1 -> (T1, T2)
+        /// 
+        /// Safety: 
+        /// requires that T1 and T2 are a ZST if the corresponding bool in the SelctPair is false
+        /// ie. when doing Y, N deselect T1 -> (T1, T2), T2 must be a ZST (like ())
+        unsafe fn deselect<T1, T2>(filtered: Self::Selected<T1, T2>) -> (T1, T2);
     }
 
     impl SelectPair for (N, N) {
@@ -102,18 +154,33 @@ pub mod trait_specialization_utils {
     }
 }
 
+/// provides utility traits for the library
 pub mod util_traits {
     use crate::trait_specialization_utils::*;
 
+    /// a trait allowing a type to (possibly) "output" an owned value
+    /// Note:
+    /// a type implementing this should be assumed to be leaky
+    /// to prevent leaks, you must call either output or drop_output
     pub trait HasOutput {
+        /// does the type actually output a type (generally non-ZST)
         type OutputBool: TyBool;
+        /// what type is outputted
         type Output;
 
+        /// Makes the type output its value
+        /// Safety: 
+        /// can be called once (further calls may be safe depending on implementing type)
+        /// mutually exclusive with `drop_output`
         unsafe fn output(&mut self) -> Self::Output;
-        unsafe fn drop_output(&mut self); // &mut for std::ptr::drop_in_place which needs a *mut and not a *const
+        /// Make the type drop its output
+        /// Safety:
+        /// can be called once
+        /// mutually exclusive with `output`
+        unsafe fn drop_output(&mut self); 
     }
 
-    // implementation assumes that the value is always valid unless output is called
+    /// implementation assumes that the value is always valid unless output is called
     impl<T> HasOutput for std::mem::ManuallyDrop<T> {
         type OutputBool = Y;
         type Output = T;
@@ -160,8 +227,11 @@ pub mod util_traits {
     }
 }
 
+/// provides utility structs for the Library
 pub(crate) mod util_structs {
-    pub struct NoneIter<T>(std::marker::PhantomData<T>); // used to abuse Sum and Product to get the additive & multiplicative identity values
+    /// an iterator which always return None
+    /// used internally to abuse `Sum` and `Product` to get the additive & multiplicative identity values
+    pub struct NoneIter<T>(std::marker::PhantomData<T>); 
 
     impl<T> NoneIter<T> {
         #[inline] pub fn new() -> NoneIter<T> {NoneIter(std::marker::PhantomData)} 
@@ -185,7 +255,12 @@ mod test {
     use std::time::*;
 
 
-    
+    /// preforms a multiplication between a matrix and a vector
+    /// prints:
+    ///     a value from the resulting vector
+    ///     duration of the calculation in nanoseconds
+    /// 
+    // TODO: update this use a proper Matrix type
     #[test]
     fn mat_vec_mul() {
         let mut rng = rand::rng();
@@ -198,18 +273,11 @@ mod test {
         println!("Elapsed: {}", elapsed.as_nanos());
     }
 
-    #[test]
-    fn mat_mat_mul() {
-        let mut rng = rand::rng();
-        let mat1: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
-        let mat2: Box<MathVector<MathVector<f64, 1000>, 1000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
-        let now = Instant::now();
-        let out = mat2.map(|vec| (&mat1).zip(vec).map(|(mat_vec, scalar)| (mat_vec * scalar).eval()).sum::<MathVector<f64, 1000>>().consume()).heap_eval();
-        let elapsed = now.elapsed();
-        println!("{}", out.map(|vec| vec.into_array()).heap_eval()[0][0]);
-        println!("Elapsed: {}", elapsed.as_nanos());
-    }
-
+    /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
+    /// meant to test stacking outputs
+    /// prints:
+    ///     the total of the cosines
+    ///     the time elapsed in nanoseconds
     #[test]
     fn vec_angle_cos() {
         let mut rng = rand::rng();
@@ -229,6 +297,12 @@ mod test {
         println!("Elapsed: {}", time.as_nanos());
     }
 
+    /// component-wise multiplies 2 vectors and gets the sum and product of all the elements
+    /// and grabs 200 random values from the multiplication of the 2 vectors
+    /// tests the ability to grab arbitrary values from a repeatable vector
+    /// prints:
+    ///     200 random values from the multiplication of 2 vectors
+    ///     sum and product of all the elemements
     #[test]
     fn repeatable_vectors_test() {
         // although IsRepeatable would likely mostly be only used internally, it has minimal external use
@@ -243,8 +317,12 @@ mod test {
         println!("sum: {}, product: {}", sum, product);
     }
 
+    /// preforms a multiplication between a matrix and a matrix
+    /// prints:
+    ///     a value from the resulting matrix
+    ///     duration of the calculation in nanoseconds
     #[test]
-    fn full_matrix_mul_test() {
+    fn mat_mat_mul_test() {
         let mut rng = rand::rng();
         let mat1: Box<MathMatrix<f64, 1000, 1000>> = matrix_gen(|| rng.random()).heap_eval();
         let mat2: Box<MathMatrix<f64, 1000, 1000>> = matrix_gen(|| rng.random()).heap_eval(); 
@@ -255,6 +333,13 @@ mod test {
         println!("Elapsed: {}", elapsed.as_nanos());
     }
 
+    /// tests the preformance difference of a light calculation between different vector variants 
+    /// variants tested:
+    ///     Normal: `VectorExpr<_>`
+    ///     Heaped: `Box<VectorExpr<_>>`
+    ///     Dynamic: `VectorExpr<dyn VectorLike>`
+    ///     Heaped Dynamic: `Box<VectorExpr<dyn VectorLike>>`
+    /// prints preformance of each in nanoseconds
     #[test]
     fn vector_variation_test() {
         let mut rng = rand::rng();
