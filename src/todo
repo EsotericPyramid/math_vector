@@ -31,7 +31,7 @@ To Do's:
         - merge overload_operators! with impl_binary_ops_for_wrapper!
 
         + vec_util_traits.rs:
-            - add documentation
+            ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
             - add documentation
         + vector_structs.rs:
