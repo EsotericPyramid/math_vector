@@ -45,14 +45,8 @@ Fix Me's:
         + mat_util_traits.rs:
         + matrix_builders.rs:
         + matrix_structs.rs:
-            - Replace2DHeapArray: fails to drop a Box
-            - MatCreate2DHeapBuf: fails to drop a Box
-            - MatMaybeCreate2DBuf: fails to drop a Box
     + vector.rs:
         + vec_util_traits.rs:
         + vector_builders.rs:
         + vector_structs.rs:
             - require HalfBind to have an owned buffer
-            - ReplaceHeapArray: fails to drop a Box
-            - VecCreateHeapBuf: fails to drop a Box
-            - VecMaybeCreateHeapBuf: fails to drop a Box

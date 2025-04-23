@@ -314,8 +314,13 @@ impl<T, const D: usize> MathVector<T, D> {
     #[inline] pub fn reuse(self) -> VectorExpr<ReplaceArray<T, D>, D> {VectorExpr(ReplaceArray(self.unwrap().0))}
     /// marks this MathVector to have its buffer reused while keeping it on the heap
     /// buffer placed on fst buffer
-    #[inline] pub fn heap_reuse(self: Box<Self>) -> VectorExpr<ReplaceHeapArray<T, D>, D> {
-        unsafe { VectorExpr(ReplaceHeapArray(std::mem::transmute::<Box<Self>, std::mem::ManuallyDrop<Box<[T; D]>>>(self))) }
+    #[inline] pub fn heap_reuse(self: Box<Self>) -> VectorExpr<Box<ReplaceArray<T, D>>, D> {
+        // Safety, series of equivilent types:
+        // Box<MathVector<T,D>>
+        // Box<VectorExpr<OwnedArray<T, D>, D>>, de-alias MathVector
+        // Box<ManuallyDrop<[T; D]>>, VectorExpr & OwnedArray are transparent
+        // VectorExpr<Box<ReplaceArray<T, D>>, D>, VectorExpr & ReplaceArray are transparent
+        unsafe { std::mem::transmute::<Box<Self>, VectorExpr<Box<ReplaceArray<T, D>>, D>>(self) }
     }
 
     /// converts this MathVector to a repeatable VectorExpr w/ Item = &'a T
@@ -992,7 +997,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     #[inline] 
     fn create_heap_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateHeapBuf<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecCreateHeapBuf{vec: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap(VecCreateHeapBuf{vec: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
     }
 
     /// creates a buffer in the first buffer if there isn't already one there
@@ -1019,7 +1024,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(), buf: std::mem::ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
     }
 }
 

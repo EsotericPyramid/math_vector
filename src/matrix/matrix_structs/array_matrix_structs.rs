@@ -72,82 +72,6 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DArray<T, D1
 }
 
 
-pub struct Replace2DHeapArray<T, const D1: usize, const D2: usize>(pub(crate) ManuallyDrop<Box<[[T; D1]; D2]>>);
-
-unsafe impl<T, const D1: usize, const D2: usize> Get2D for Replace2DHeapArray<T, D1, D2> {
-    type GetBool = Y;
-    type AreInputsTransposed = N;
-    type Inputs = T;
-    type Item = T;
-    type BoundItems = ();
-
-
-    #[inline]
-    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {
-        std::ptr::read(self.0.get_unchecked(col_index).get_unchecked(row_index))
-    }}
-
-    #[inline]
-    unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {
-        std::ptr::drop_in_place(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index))
-    }}
-
-    #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
-}
-
-impl<T: Sized, const D1: usize, const D2: usize> HasOutput for Replace2DHeapArray<T, D1, D2> {
-    type OutputBool = N;
-    type Output = ();
-
-    #[inline]
-    unsafe fn output(&mut self) -> Self::Output {}
-
-    #[inline]
-    unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
-}
-
-impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DHeapArray<T, D1, D2> {
-    type FstHandleBool = Y;
-    type SndHandleBool = N;
-    type BoundHandlesBool = N;
-    type FstOwnedBufferBool = Y;
-    type SndOwnedBufferBool = N;
-    type IsFstBufferTransposed = N;
-    type IsSndBufferTransposed = N;
-    type AreBoundBuffersTransposed = N;
-    type FstOwnedBuffer = Box<MathMatrix<T, D1, D2>>;
-    type SndOwnedBuffer = ();
-    type FstType = T;
-    type SndType = ();
-    type BoundTypes = ();
-
-    #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) { unsafe {
-        std::ptr::write(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index), val)
-    }}
-    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
-    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
-    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {
-        //  safety, equivilent types in order:
-        //      ManuallyDrop<Box<[[T; D1]; D2]>>
-        //      Box<[[T; D1]; D2]>
-        //      Box<ManuallyDrop<[[T; D1]; D2]>>
-        //      Box<Owned2DArray<T, D1, D2>>
-        //      Box<MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>>
-        //      Box<MathMatrix<T, D1, D2>>
-        std::mem::transmute_copy::<ManuallyDrop<Box<[[T; D1]; D2]>>, Box<MathMatrix<T, D1, D2>>>(&self.0)
-    }}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {
-        std::ptr::drop_in_place(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index))
-    }}
-    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize, _: usize) {}
-    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
-}
-
-
-
-
 pub struct MatAttach2DBuf<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: &'a mut [[T; D1]; D2]}
 
 unsafe impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatAttach2DBuf<'a, M, T, D1, D2> {
@@ -250,7 +174,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
 }
 
 
-pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: ManuallyDrop<Box<[[std::mem::MaybeUninit<T>; D1]; D2]>>}
+pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<T>; D1]; D2]>}
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatCreate2DHeapBuf<M, T, D1, D2> {
     type GetBool = M::GetBool;
@@ -366,7 +290,7 @@ where
 }
 
 
-pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: ManuallyDrop<Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>>}
+pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>}
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
