@@ -4,6 +4,7 @@ use super::vec_util_traits::*;
 use std::ops::*;
 use std::mem::ManuallyDrop;
 
+// NOTE: vector_structs internally split across multiple files to keep them small and navigable
 mod array_vector_structs;
 mod binding_vector_structs;
 mod generator_vector_structs;
@@ -18,7 +19,7 @@ pub use macroed_vector_structs::*;
 pub use misc_vector_structs::*;
 pub use ordering_vector_structs::*;
 
-
+/// an owned array rigged up to manually drop via the VectorLike traits
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct OwnedArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
@@ -56,7 +57,7 @@ unsafe impl<T, const D: usize> Get for OwnedArray<T, D> {
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
 }
 
-//Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
+// Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
 unsafe impl<T: Copy, const D: usize> IsRepeatable for OwnedArray<T, D> {} 
 
 impl<T, const D: usize> HasOutput for OwnedArray<T, D> {
@@ -89,7 +90,7 @@ impl<T, const D: usize> HasReuseBuf for OwnedArray<T, D> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-
+/// an owned array rigged up to repeatable return references to its elements via Get
 pub struct ReferringOwnedArray<'a, T: 'a, const D: usize>(pub(crate) [T; D], pub(crate) std::marker::PhantomData<&'a T>);
 
 unsafe impl<'a, T: 'a, const D: usize> Get for ReferringOwnedArray<'a, T, D> {
