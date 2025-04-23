@@ -1,21 +1,46 @@
+Key:
+    +: file / module
+    -: an item to todo
+    ?: maybe do
+
+
 To Do's:
 + lib.rs:
     + test:
         - Update mat_vec_mul to use matrix types
     + matrix.rs:
         - Add documentation
-        - Add Matrix and vector multiplication
+        - Add Matrix and Vector multiplication
+        ? remove binding_get
         + mat_util_traits.rs:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - Add documentation
+        - Add Vector and Matrix multiplication
+        - change T's refering to VectorLikes to V's
+        ? remove binding_get?
+        - Add/convert a runtime sized VectorIter
+        - remove into_array? (not Into<[T; D]>)
+        - replace into_heap_array w/ `Box<VectorExpr<_>>: Into<Box<[T; D]>>`
+        - Add addassign and subassign for arbitrary T2: VectorOps
+        - Finish implementing RSVectorExpr
+        ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
+        ? remove initialized_dot
+        - Add heap_make_repeatable
+        - remove VectorVectorOps
+        - merge overload_operators! with impl_binary_ops_for_wrapper!
+
         + vec_util_traits.rs:
+            - add documentation
         + vector_builders.rs:
+            - add documentation
         + vector_structs.rs:
+            - add documentation
+            - make the assign structs maintain the &'a mut T item
 
 Fix Me's:
 + lib.rs:
+    + test:
     + matrix.rs:
         + mat_util_traits.rs:
         + matrix_builders.rs:
@@ -24,3 +49,4 @@ Fix Me's:
         + vec_util_traits.rs:
         + vector_builders.rs:
         + vector_structs.rs:
+            - require HalfBind to have an owned buffer
