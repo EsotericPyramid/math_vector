@@ -1,7 +1,7 @@
 Key:
     +: file / module
     -: an item to todo
-    ?: maybe do
+    ?: maybe do / may not be possible to do
 
 
 To Do's:
@@ -42,12 +42,10 @@ Fix Me's:
 + lib.rs:
     + test:
     + matrix.rs:
-        - swap offsets, currently do opposite of their name
         + mat_util_traits.rs:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - swap offsets, currently do opposite of their name
         + vec_util_traits.rs:
         + vector_builders.rs:
         + vector_structs.rs:

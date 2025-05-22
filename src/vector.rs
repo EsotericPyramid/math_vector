@@ -554,17 +554,17 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecBufSwap{vec: self.unwrap()}) }
     }
 
-    /// offsets each element of the vector down by the given offset
+    /// offsets (with rolling over) each element of the vector up by the given offset
     #[inline] 
-    fn offset_down(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_up(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
         let size = self.size();
         let builder = self.get_builder();
         unsafe { builder.wrap(VecOffset{vec: self.unwrap(), offset: offset % size, size}) }
     }
 
-    /// offsets each element of the vector up by the given offset
+    /// offsets (with rolling over) each element of the vector down by the given offset
     #[inline] 
-    fn offset_up(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
+    fn offset_down(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
         let size = self.size();
         let builder = self.get_builder();
         unsafe { builder.wrap(VecOffset{vec: self.unwrap(), offset: size - (offset % size), size}) }
