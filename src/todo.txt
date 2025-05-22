@@ -20,14 +20,13 @@ To Do's:
         - change T's refering to VectorLikes to V's
         ? remove binding_get?
         - Add/convert a runtime sized VectorIter
-        - remove into_array? (not Into<[T; D]>)
+        - remove into_array (not Into<[T; D]>)
         - replace into_heap_array w/ `Box<VectorExpr<_>>: Into<Box<[T; D]>>`
         - Add addassign and subassign for arbitrary T2: VectorOps
         - Finish implementing RSVectorExpr
         ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
         ? remove initialized_dot
         - Add heap_make_repeatable
-        - remove VectorVectorOps
         - merge overload_operators! with impl_binary_ops_for_wrapper!
 
         + vec_util_traits.rs:
