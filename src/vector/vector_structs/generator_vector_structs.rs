@@ -3,7 +3,7 @@ use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use crate::vector::vec_util_traits::*;
 
-
+/// Struct generating a vector's items based on a closure (FnMut) with no inputs
 pub struct VecGenerator<F: FnMut() -> O, O>(pub(crate) F);
 
 unsafe impl<F: FnMut() -> O, O> Get for VecGenerator<F, O> {
@@ -47,7 +47,7 @@ impl<F: FnMut() -> O, O> HasReuseBuf for VecGenerator<F, O> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
-
+/// Struct generating a vector's items based on a closure (FnMut) given the index
 pub struct VecIndexGenerator<F: FnMut(usize) -> O, O>(pub(crate) F);
 
 unsafe impl<F: FnMut(usize) -> O, O> Get for VecIndexGenerator<F, O> {

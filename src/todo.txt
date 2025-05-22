@@ -34,7 +34,7 @@ To Do's:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
-            - add documentation
+            ? add documentation to macroed_vector_structs.rs
             - make the assign structs maintain the &'a mut T item
             - add an OwnedSlice struct
 
@@ -42,10 +42,12 @@ Fix Me's:
 + lib.rs:
     + test:
     + matrix.rs:
+        - swap offsets, currently do opposite of their name
         + mat_util_traits.rs:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - swap offsets, currently do opposite of their name
         + vec_util_traits.rs:
         + vector_builders.rs:
         + vector_structs.rs:

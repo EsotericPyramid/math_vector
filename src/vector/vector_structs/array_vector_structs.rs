@@ -165,7 +165,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
-
+/// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer (first slot)
 pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<T>; D]>}
 
 unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateHeapBuf<V, T, D> {
@@ -281,7 +281,7 @@ where
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
-
+/// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer if there isn't already a buffer (first slot)
 pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>}
 
 unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
