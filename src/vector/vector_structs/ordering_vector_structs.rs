@@ -2,7 +2,7 @@
 use crate::util_traits::*;
 use crate::vector::vec_util_traits::*;
 
-
+/// Offsets (with rolling over) each element up by offset
 pub struct VecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
 
 impl<T: VectorLike> VecOffset<T> {
@@ -62,7 +62,7 @@ impl<T: VectorLike> HasReuseBuf for VecOffset<T> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(self.offset_index(index))}}
 }
 
-
+/// Reverses the elements in the vector
 pub struct VecReverse<V: VectorLike>{pub(crate) vec: V, pub(crate) max_index: usize}
 
 impl<T: VectorLike> VecReverse<T> {

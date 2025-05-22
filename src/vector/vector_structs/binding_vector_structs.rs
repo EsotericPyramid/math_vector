@@ -3,6 +3,7 @@ use crate::util_traits::*;
 use crate::vector::vec_util_traits::*;
 use std::ops::*;
 
+/// struct binding the vector's item to the buffer in the first slot which is linked to output
 pub struct VecBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T} 
 
 unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecBind<T> where (T::BoundHandlesBool, Y): FilterPair {
@@ -72,7 +73,8 @@ impl<T: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<T> where (T::Boun
     }}
 }
 
-
+/// struct maping the vector's item and binding part of the output to the 
+/// buffer in the first slot which is linked to output and the other part as the new item
 pub struct VecMapBind<T: VectorLike<FstHandleBool = Y>, F: FnMut(T::Item) -> (I, B), I, B> {pub(crate) vec: T, pub(crate) f: F}
 
 unsafe impl<T: VectorLike<FstHandleBool = Y>, F: FnMut(T::Item) -> (I, B), I, B> Get for VecMapBind<T, F, I, B> where (T::BoundHandlesBool, Y): FilterPair {
@@ -143,7 +145,7 @@ impl<T: VectorLike<FstHandleBool = Y>, F: FnMut(T::Item) -> (I, B), I, B> HasReu
     }}
 }
 
-
+/// struct binding the vector's item to the buffer in the first slot, linking it to an internal output
 pub struct VecHalfBind<T: VectorLike<FstHandleBool = Y>> {pub(crate) vec: T} 
 
 impl<T: VectorLike<FstHandleBool = Y>> VecHalfBind<T> {

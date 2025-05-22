@@ -2,7 +2,7 @@ use crate::util_traits::*;
 use crate::vector::vec_util_traits::*;
 use crate::trait_specialization_utils::*;
 
-
+/// Struct swapping the buffers (or lack there of) in the 2 slots
 pub struct VecBufSwap<T: VectorLike> {pub(crate) vec: T}
 
 unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
@@ -48,7 +48,7 @@ impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
-
+/// Struct attaching a used vector's output and buffers to another vector
 /// SAFETY: it is expected that the used_vec field is safe to output in addition to normal correct implementation
 pub struct VecAttachUsedVec<V: VectorLike, USEDV: VectorLike>{pub(crate) vec: V, pub(crate) used_vec: USEDV}
 
@@ -136,6 +136,8 @@ where
     }}
 }
 
+/// Struct stabilizing a vector so that it can be made dynamic
+/// specifically, stores retrieved inputs internally so that externally input is always ()
 pub struct DynamicVectorLike<V: VectorLike>{pub(crate) vec: V, pub(crate) inputs: Option<V::Inputs>}
 
 unsafe impl<V: VectorLike> Get for DynamicVectorLike<V> {
