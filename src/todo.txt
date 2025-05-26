@@ -6,15 +6,30 @@ Key:
 
 To Do's:
 + lib.rs:
+    - clear up entry v. element v. item v. etc.
+    - clear up buffer v. slot in documentation
+    - figure out vectored matrices
     + test:
         - Update mat_vec_mul to use matrix types
     + matrix.rs:
-        - Add documentation
         - Add Matrix and Vector multiplication
         ? remove binding_get
+        ? remove raw_next
+        - remove into_2d_array (not Into<[[T; D1]; D2]>)
+        - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
+        - add assign ops to MathMatrix
+        - add map_bind
+        - reimplement mat_mul method to use new builder systems
+        - add specific fold methods
+        ? rename ArrayMatrixOps
+        - add heap_make_repeatable
+
         + mat_util_traits.rs:
+            - add documentation
         + matrix_builders.rs:
+            - add documentation
         + matrix_structs.rs:
+            - add documentation
     + vector.rs:
         - Add Vector and Matrix multiplication
         - change T's refering to VectorLikes to V's
@@ -28,6 +43,7 @@ To Do's:
         ? remove initialized_dot
         - Add heap_make_repeatable
         - merge overload_operators! with impl_binary_ops_for_wrapper!
+        - add copied fold methods
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
@@ -45,6 +61,7 @@ Fix Me's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - check attach_buf note
         + vec_util_traits.rs:
         + vector_builders.rs:
         + vector_structs.rs:
