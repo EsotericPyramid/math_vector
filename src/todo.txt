@@ -5,6 +5,8 @@ Key:
 
 
 To Do's:
+- document each file
+- clean up documentation
 + lib.rs:
     - clear up entry v. element v. item v. etc.
     - clear up buffer v. slot in documentation
@@ -25,7 +27,7 @@ To Do's:
         - add heap_make_repeatable
 
         + mat_util_traits.rs:
-            - add documentation
+            ? remove transposition information
         + matrix_builders.rs:
             - add documentation
         + matrix_structs.rs:
