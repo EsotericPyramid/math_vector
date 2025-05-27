@@ -465,11 +465,13 @@ impl<T1: std::iter::Sum<T2> + AddAssign<T2>, T2, const D: usize> std::iter::Sum<
     }
 }
 
+/// generates a Vector of size D using the given closure (FnMut) with no inputs
 #[inline]
 pub fn vector_gen<F: FnMut() -> O, O, const D: usize>(f: F) -> VectorExpr<VecGenerator<F, O>, D> {
     VectorExpr(VecGenerator(f))
 }
 
+/// generates a Vector of size D using the given closure (FnMut) with an input of the current index
 #[inline]
 pub fn vector_index_gen<F: FnMut(usize) -> O, O, const D: usize>(f: F) -> VectorExpr<VecIndexGenerator<F, O>, D> {
     VectorExpr(VecIndexGenerator(f))
@@ -490,7 +492,7 @@ impl<T: VectorLike> Drop for RSVectorExpr<T> {
     }
 }
 
-// a trait with various vector operations
+/// a trait with various vector operations
 pub unsafe trait VectorOps {
     /// the underlying VectorLike contained in Self
     type Unwrapped: VectorLike;
@@ -656,13 +658,14 @@ pub unsafe trait VectorOps {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecMulAssign{vec: self.unwrap(), scalar})}
     }
+    
     /// div assigns (/=) the vector's items (&mut T) with a scalar
     #[inline] fn div_assign<'a, I: 'a + DivAssign<S>, S: Copy>(self, scalar: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecDivAssign<'a, Self::Unwrapped, I, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecDivAssign{vec: self.unwrap(), scalar})}
     }
 
-    /// rem assign (%=) the vector's items (&mut T) with a scalar
+    /// rem assigns (%=) the vector's items (&mut T) with a scalar
     #[inline] fn rem_assign<'a, I: 'a + RemAssign<S>, S: Copy>(self, scalar: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecRemAssign<'a, Self::Unwrapped, I, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self::Unwrapped: Get<Item = &'a mut I>, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecRemAssign{vec: self.unwrap(), scalar})}
@@ -1059,78 +1062,6 @@ macro_rules! if_lifetimes {
     (($item:item); ) => {}
 }
 
-macro_rules! overload_operators {
-    (
-        <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+, {$size:ident}>,
-        $ty:ty,
-        vector: $vector:ty,
-        item: $item:ty
-    ) => {
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $size: usize> Mul<Z> for $ty where (<$vector as HasOutput>::OutputBool, N): FilterPair, $item: Mul<Z>, Self: Sized {
-            type Output = VectorExpr<VecMulL<<$ty as VectorOps>::Unwrapped, Z>, $size>;
-    
-            #[inline]
-            fn mul(self, rhs: Z) -> Self::Output {
-                self.mul_l(rhs)
-            }
-        }
-
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $size: usize> Div<Z> for $ty where (<$vector as HasOutput>::OutputBool, N): FilterPair, $item: Div<Z>, Self: Sized {
-            type Output = VectorExpr<VecDivL<<$ty as VectorOps>::Unwrapped, Z>, $size>;
-    
-            #[inline]
-            fn div(self, rhs: Z) -> Self::Output {
-                self.div_l(rhs)
-            }
-        }
-
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $size: usize> Rem<Z> for $ty where (<$vector as HasOutput>::OutputBool, N): FilterPair, $item: Rem<Z>, Self: Sized {
-            type Output = VectorExpr<VecRemL<<$ty as VectorOps>::Unwrapped, Z>, $size>;
-    
-            #[inline]
-            fn rem(self, rhs: Z) -> Self::Output {
-                self.rem_l(rhs)
-            }
-        }
-
-        if_lifetimes!((
-            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: AddAssign<$item>, const $size: usize> AddAssign<$ty> for MathVector<Z, D> 
-            where
-                (N, <$vector as HasOutput>::OutputBool): FilterPair,
-                (N, <$vector as HasReuseBuf>::FstHandleBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::SndHandleBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::BoundHandlesBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-                (<(N, <$vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            {
-                #[inline]
-                fn add_assign(&mut self, rhs: $ty) {
-                    VectorOps::add_assign(self, rhs).consume();
-                }
-            }
-        ); $($($lifetime),+)?);
-
-        if_lifetimes!((
-            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: SubAssign<$item>, const $size: usize> SubAssign<$ty> for MathVector<Z, D> 
-            where
-                (N, <$vector as HasOutput>::OutputBool): FilterPair,
-                (N, <$vector as HasReuseBuf>::FstHandleBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::SndHandleBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::BoundHandlesBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-                (N, <$vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-                (<(N, <$vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-            {
-                #[inline]
-                fn sub_assign(&mut self, rhs: $ty) {
-                    VectorOps::sub_assign(self, rhs).consume();
-                }
-            }
-        ); $($($lifetime),+)?);
-    };
-}
-
 unsafe impl<V: VectorLike, const D: usize> VectorOps for VectorExpr<V, D> {
     type Unwrapped = V;
     type Builder = VectorExprBuilder<D>;
@@ -1185,7 +1116,7 @@ where
     }
 }
 
-overload_operators!(<V: VectorLike, {D}>, VectorExpr<V, D>, vector: V, item: V::Item);
+//overload_operators!(<V: VectorLike, {D}>, VectorExpr<V, D>, vector: V, item: V::Item);
 
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
@@ -1242,7 +1173,6 @@ where
     }
 }
 
-overload_operators!(<V: VectorLike, {D}>, Box<VectorExpr<V, D>>, vector: V, item: V::Item);
 
 //already repeatable / can't truly be made repeatable so not implemented
 unsafe impl<'a, T, const D: usize> VectorOps for &'a MathVector<T, D> {
@@ -1254,7 +1184,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a MathVector<T, D> {
     #[inline] fn size(&self) -> usize {D}
 }
 impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a MathVector<T, D> {}
-overload_operators!(<'a, T, {D}>, &'a MathVector<T, D>, vector: &'a [T; D], item: &'a T);
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut MathVector<T, D> {
     type Unwrapped = &'a mut [T; D];
@@ -1265,7 +1194,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut MathVector<T, D> {
     #[inline] fn size(&self) -> usize {D}
 }
 impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut MathVector<T, D> {}
-overload_operators!(<'a, T, {D}>, &'a mut MathVector<T, D>, vector: &'a mut [T; D], item: &'a mut T);
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
     type Unwrapped = &'a [T; D];
@@ -1276,7 +1204,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
     #[inline] fn size(&self) -> usize {D}
 }
 impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a Box<MathVector<T, D>> {}
-overload_operators!(<'a, T, {D}>, &'a Box<MathVector<T, D>>, vector: &'a [T; D], item: &'a T);
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
     type Unwrapped = &'a mut [T; D];
@@ -1287,20 +1214,81 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
     #[inline] fn size(&self) -> usize {D}
 }
 impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut Box<MathVector<T, D>> {}
-overload_operators!(<'a, T, {D}>, &'a mut Box<MathVector<T, D>>, vector: &'a mut [T; D], item: &'a mut T);
 
  
-macro_rules! impl_binary_ops_for_wrapper {
+macro_rules! impl_ops_for_wrapper {
     (
         $(
-            $($size:ident,)?
-            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+>,
+            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?,)+ $({$size:ident})?>,
             $ty:ty,
             trait_vector: $trait_vector:ty,
             true_vector: $true_vector:ty;
         )*
     ) => {
         $(
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Mul<Z> for $ty where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, <$trait_vector as Get>::Item: Mul<Z>, Self: Sized {
+                type Output =  <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecMulL<$true_vector, Z>>;
+                
+                #[inline]
+                fn mul(self, rhs: Z) -> Self::Output {
+                    self.mul_l(rhs)
+                }
+            }
+
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Div<Z> for $ty where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, <$trait_vector as Get>::Item: Div<Z>, Self: Sized {
+                type Output = <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecDivL<$true_vector, Z>>;
+            
+                #[inline]
+                fn div(self, rhs: Z) -> Self::Output {
+                    self.div_l(rhs)
+                }
+            }
+
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Rem<Z> for $ty where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, <$trait_vector as Get>::Item: Rem<Z>, Self: Sized {
+                type Output = <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecRemL<$true_vector, Z>>;
+            
+                #[inline]
+                fn rem(self, rhs: Z) -> Self::Output {
+                    self.rem_l(rhs)
+                }
+            }
+
+            if_lifetimes!((
+                impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: AddAssign<<$trait_vector as Get>::Item> $(, const $size: usize)?> AddAssign<$ty> for MathVector<Z, D> 
+                where
+                    (N, <$trait_vector as HasOutput>::OutputBool): FilterPair,
+                    (N, <$trait_vector as HasReuseBuf>::FstHandleBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::SndHandleBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::BoundHandlesBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                    (<(N, <$trait_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                {
+                    #[inline]
+                    fn add_assign(&mut self, rhs: $ty) {
+                        VectorOps::add_assign(self, rhs).consume();
+                    }
+                }
+            ); $($($lifetime),+)?);
+
+            if_lifetimes!((
+                impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: SubAssign<<$trait_vector as Get>::Item> $(, const $size: usize)?> SubAssign<$ty> for MathVector<Z, D> 
+                where
+                    (N, <$trait_vector as HasOutput>::OutputBool): FilterPair,
+                    (N, <$trait_vector as HasReuseBuf>::FstHandleBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::SndHandleBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::BoundHandlesBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+                    (N, <$trait_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+                    (<(N, <$trait_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                {
+                    #[inline]
+                    fn sub_assign(&mut self, rhs: $ty) {
+                        VectorOps::sub_assign(self, rhs).consume();
+                    }
+                }
+            ); $($($lifetime),+)?);
+
             impl<
                 $($($lifetime),+, )? 
                 $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
@@ -1367,11 +1355,11 @@ macro_rules! impl_binary_ops_for_wrapper {
     };
 }
 
-impl_binary_ops_for_wrapper!(
-    D, <V: VectorLike>, VectorExpr<V, D>, trait_vector: V, true_vector: V;
-    D, <V: VectorLike>, Box<VectorExpr<V, D>>, trait_vector: V, true_vector: Box<V>;
-    D, <'a, T>, &'a MathVector<T,D>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
-    D, <'a, T>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
-    D, <'a, T>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
-    D, <'a, T>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+impl_ops_for_wrapper!(
+    <V: VectorLike, {D}>, VectorExpr<V, D>, trait_vector: V, true_vector: V;
+    <V: VectorLike, {D}>, Box<VectorExpr<V, D>>, trait_vector: V, true_vector: Box<V>;
+    <'a, T, {D}>, &'a MathVector<T,D>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
+    <'a, T, {D}>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+    <'a, T, {D}>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
+    <'a, T, {D}>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
 );
