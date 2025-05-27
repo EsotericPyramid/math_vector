@@ -46,7 +46,6 @@ To Do's:
         ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
         ? remove initialized_dot
         - Add heap_make_repeatable
-        - merge overload_operators! with impl_binary_ops_for_wrapper!
         - add copied fold methods
 
         + vec_util_traits.rs:
