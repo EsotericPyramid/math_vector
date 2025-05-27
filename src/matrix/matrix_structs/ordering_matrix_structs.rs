@@ -1,3 +1,4 @@
+use crate::trait_specialization_utils::TyBool;
 use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 
@@ -243,7 +244,7 @@ pub struct MatTranspose<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get2D for MatTranspose<M> {
     type GetBool = M::GetBool;
-    type AreInputsTransposed = M::AreInputsTransposed;
+    type AreInputsTransposed = <M::AreInputsTransposed as TyBool>::Neg;
     type Inputs = M::Inputs;
     type Item = M::Item;
     type BoundItems = M::BoundItems;
@@ -267,9 +268,9 @@ impl<M: MatrixLike> Has2DReuseBuf for MatTranspose<M> {
     type BoundHandlesBool = M::BoundHandlesBool;
     type FstOwnedBufferBool = M::FstOwnedBufferBool;
     type SndOwnedBufferBool = M::SndOwnedBufferBool;
-    type IsFstBufferTransposed = M::IsFstBufferTransposed;
-    type IsSndBufferTransposed = M::IsSndBufferTransposed;
-    type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
+    type IsFstBufferTransposed = <M::IsFstBufferTransposed as TyBool>::Neg;
+    type IsSndBufferTransposed = <M::IsSndBufferTransposed as TyBool>::Neg;
+    type AreBoundBuffersTransposed = <M::AreBoundBuffersTransposed as TyBool>::Neg;
     type FstOwnedBuffer = M::FstOwnedBuffer;
     type SndOwnedBuffer = M::SndOwnedBuffer;
     type FstType = M::FstType;
