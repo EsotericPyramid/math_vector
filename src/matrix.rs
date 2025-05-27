@@ -1080,42 +1080,6 @@ pub trait RepeatableMatrixOps: MatrixOps {
     ;
 }
 
-macro_rules! overload_operators {
-    (
-        <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+, {$d1:ident, $d2:ident}>,
-        $ty:ty,
-        matrix: $matrix:ty,
-        item: $item:ty
-    ) => {
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $d1: usize, const $d2: usize> Mul<Z> for $ty where (<$matrix as HasOutput>::OutputBool, N): FilterPair, $item: Mul<Z>, Self: Sized {
-            type Output = MatrixExpr<MatMulL<$matrix, Z>, $d1, $d2>;
-    
-            #[inline]
-            fn mul(self, rhs: Z) -> Self::Output {
-                self.mul_l(rhs)
-            }
-        }
-
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $d1: usize, const $d2: usize> Div<Z> for $ty where (<$matrix as HasOutput>::OutputBool, N): FilterPair, $item: Div<Z>, Self: Sized {
-            type Output = MatrixExpr<MatDivL<$matrix, Z>, $d1, $d2>;
-    
-            #[inline]
-            fn div(self, rhs: Z) -> Self::Output {
-                self.div_l(rhs)
-            }
-        }
-
-        impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, const $d1: usize, const $d2: usize> Rem<Z> for $ty where (<$matrix as HasOutput>::OutputBool, N): FilterPair, $item: Rem<Z>, Self: Sized {
-            type Output = MatrixExpr<MatRemL<$matrix, Z>, $d1, $d2>;
-    
-            #[inline]
-            fn rem(self, rhs: Z) -> Self::Output {
-                self.rem_l(rhs)
-            }
-        }
-    }
-}
-
  
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for MatrixExpr<M, D1, D2> {
     type Unwrapped = M;
@@ -1173,7 +1137,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     }
 }
 
-overload_operators!(<M: MatrixLike, {D1, D2}>, MatrixExpr<M, D1, D2>, matrix: M, item: M::Item);
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for Box<MatrixExpr<M, D1, D2>> {
     type Unwrapped = Box<M>;
@@ -1233,7 +1196,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
     }
 }
 
-overload_operators!(<M: MatrixLike, {D1, D2}>, Box<MatrixExpr<M, D1, D2>>, matrix: Box<M>, item: M::Item);
 
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1, D2> {
@@ -1245,7 +1207,6 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a MathMatrix<T, D1, D2> {}
-overload_operators!(<'a, T, {D1, D2}>, &'a MathMatrix<T, D1, D2>, matrix: &'a [[T; D1]; D2], item: &'a T);
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T, D1, D2> {
     type Unwrapped = &'a mut [[T; D1]; D2];
@@ -1256,7 +1217,6 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut MathMatrix<T, D1, D2> {}
-overload_operators!(<'a, T, {D1, D2}>, &'a mut MathMatrix<T, D1, D2>, matrix: &'a mut [[T; D1]; D2], item: &'a mut T);
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a [[T; D1]; D2];
@@ -1267,7 +1227,6 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a Box<MathMatrix<T, D1, D2>> {}
-overload_operators!(<'a, T, {D1, D2}>, &'a Box<MathMatrix<T, D1, D2>>, matrix: &'a [[T; D1]; D2], item: &'a T);
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a mut [[T; D1]; D2];
@@ -1278,20 +1237,45 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatr
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut Box<MathMatrix<T, D1, D2>> {}
-overload_operators!(<'a, T, {D1, D2}>, &'a mut Box<MathMatrix<T, D1, D2>>, matrix: &'a mut [[T; D1]; D2], item: &'a mut T);
 
 
-macro_rules! impl_binary_ops_for_wrapper {
+macro_rules! impl_ops_for_wrapper {
     (
         $(
-            $($d1:ident, $d2:ident;)?
-            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+ $(, {$tt:tt})?>,
+            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?,)+ $({$d1:ident, $d2:ident})?>,
             $ty:ty,
             trait_matrix: $trait_matrix:ty,
             true_matrix: $true_matrix:ty;
         )*
     ) => {
         $(
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, $(const $d1: usize, const $d2: usize)?> Mul<Z> for $ty where (<$trait_matrix as HasOutput>::OutputBool, N): FilterPair, <$trait_matrix as Get2D>::Item: Mul<Z>, Self: Sized {
+                type Output = <<$ty as MatrixOps>::Builder as MatrixBuilder>::MatrixWrapped<MatMulL<$true_matrix, Z>>;
+            
+                #[inline]
+                fn mul(self, rhs: Z) -> Self::Output {
+                    self.mul_l(rhs)
+                }
+            }
+        
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, $(const $d1: usize, const $d2: usize)?> Div<Z> for $ty where (<$trait_matrix as HasOutput>::OutputBool, N): FilterPair, <$trait_matrix as Get2D>::Item: Div<Z>, Self: Sized {
+                type Output = <<$ty as MatrixOps>::Builder as MatrixBuilder>::MatrixWrapped<MatDivL<$true_matrix, Z>>;
+            
+                #[inline]
+                fn div(self, rhs: Z) -> Self::Output {
+                    self.div_l(rhs)
+                }
+            }
+        
+            impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy, $(const $d1: usize, const $d2: usize)?> Rem<Z> for $ty where (<$trait_matrix as HasOutput>::OutputBool, N): FilterPair, <$trait_matrix as Get2D>::Item: Rem<Z>, Self: Sized {
+                type Output = <<$ty as MatrixOps>::Builder as MatrixBuilder>::MatrixWrapped<MatRemL<$true_matrix, Z>>;
+            
+                #[inline]
+                fn rem(self, rhs: Z) -> Self::Output {
+                    self.rem_l(rhs)
+                }
+            }
+        
             impl<
                 $($($lifetime),+, )? 
                 $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
@@ -1371,11 +1355,11 @@ macro_rules! impl_binary_ops_for_wrapper {
     };
 }
 
-impl_binary_ops_for_wrapper!(
-    D1, D2; <M1: MatrixLike>, MatrixExpr<M1, D1, D2>, trait_matrix: M1, true_matrix: M1;
-    D1, D2; <M1: MatrixLike>, Box<MatrixExpr<M1, D1, D2>>, trait_matrix: M1, true_matrix: Box<M1>;
-    D1, D2; <'a, T1>, &'a MathMatrix<T1, D1, D2>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
-    D1, D2; <'a, T1>, &'a mut MathMatrix<T1, D1, D2>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
-    D1, D2; <'a, T1>, &'a Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
-    D1, D2; <'a, T1>, &'a mut Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
+impl_ops_for_wrapper!(
+    <M1: MatrixLike, {D1, D2}>, MatrixExpr<M1, D1, D2>, trait_matrix: M1, true_matrix: M1;
+    <M1: MatrixLike, {D1, D2}>, Box<MatrixExpr<M1, D1, D2>>, trait_matrix: M1, true_matrix: Box<M1>;
+    <'a, T1, {D1, D2}>, &'a MathMatrix<T1, D1, D2>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
+    <'a, T1, {D1, D2}>, &'a mut MathMatrix<T1, D1, D2>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
+    <'a, T1, {D1, D2}>, &'a Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
+    <'a, T1, {D1, D2}>, &'a mut Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
 );
