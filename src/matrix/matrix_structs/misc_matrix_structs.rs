@@ -2,6 +2,7 @@ use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 
+/// struct swapping the buffers (or lack thereof) in the first and second slots
 pub struct MatBufSwap<M: MatrixLike>{pub(crate) mat: M} 
 
 unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
@@ -52,7 +53,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
 }
 
 
-
+/// struct attaching a *used* matrix's output and buffers to another matrix
 /// SAFETY: it is expected that the used_mat field is safe to output in addition to normal correct implementation
 pub struct MatAttachUsedMat<M: MatrixLike, USEDM: MatrixLike>{pub(crate) mat: M, pub(crate) used_mat: USEDM}
 
@@ -147,7 +148,7 @@ where
     }}
 }
 
-
+/// struct stabilizing a matrix's type so that it can be made dynamic
 pub struct DynamicMatrixLike<M: MatrixLike>{pub(crate) mat: M, pub(crate) inputs: Option<M::Inputs>}
 
 unsafe impl<M: MatrixLike> Get2D for DynamicMatrixLike<M> {

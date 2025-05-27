@@ -2,6 +2,7 @@ use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 
+/// struct binding the item to the buffer in first slot (and adding it to output if owned)
 pub struct MatBind<M: MatrixLike<FstHandleBool = Y>>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatBind<M> where (M::BoundHandlesBool, Y): FilterPair {
@@ -75,7 +76,7 @@ impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where (M::Bo
     }}
 }
 
-
+/// struct mapping the item (via FnMut closure) with one output as item and other bound to buffer in first slot (and adding it to output if owned)
 pub struct MatMapBind<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B>{pub(crate) mat: M, pub(crate) f: F}
 
 unsafe impl<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B> Get2D for MatMapBind<M, F, I, B> where (M::BoundHandlesBool, Y): FilterPair {
@@ -150,7 +151,7 @@ impl<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B> Has2DR
     }}
 }
 
-
+/// struct mapping the item to the buffer in first slot and adding it to an *internal* output
 pub struct MatHalfBind<M: MatrixLike<FstHandleBool = Y>> {pub(crate) mat: M} 
 
 impl<M: MatrixLike<FstHandleBool = Y>> MatHalfBind<M> {

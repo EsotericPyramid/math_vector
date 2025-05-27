@@ -5,6 +5,7 @@ use crate::matrix::{MathMatrix, MatrixExpr};
 use super::Owned2DArray;
 use std::mem::ManuallyDrop;
 
+/// an owned 2d array which acts as a buffer for Has2dReuseBuf (in first slot)
 pub struct Replace2DArray<T, const D1: usize, const D2: usize>(pub(crate) ManuallyDrop<[[T; D1]; D2]>);
 
 unsafe impl<T, const D1: usize, const D2: usize> Get2D for Replace2DArray<T, D1, D2> {
@@ -71,7 +72,7 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DArray<T, D1
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
 }
 
-
+/// struct attaching a &mut 2d array / &mut MathMatrix as a buffer (in first slot)
 pub struct MatAttach2DBuf<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: &'a mut [[T; D1]; D2]}
 
 unsafe impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatAttach2DBuf<'a, M, T, D1, D2> {
@@ -121,7 +122,7 @@ impl<'b, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> 
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
-
+/// struct creating a buffer in the first slot
 pub struct MatCreate2DBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: [[std::mem::MaybeUninit<T>; D1]; D2]}
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatCreate2DBuf<M, T, D1, D2> {
@@ -173,7 +174,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
-
+/// struct creating a buffer on the heap in the first slot
 pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<T>; D1]; D2]>}
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatCreate2DHeapBuf<M, T, D1, D2> {
@@ -225,7 +226,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
-
+/// struct creating a buffer in the first slot if there isn't already one there
 pub struct MatMaybeCreate2DBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: [[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]}
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMaybeCreate2DBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
@@ -289,7 +290,7 @@ where
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
-
+/// struct creating a buffer on the heap in the first slot if there isn't already one there
 pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>}
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
