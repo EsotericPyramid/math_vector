@@ -2,6 +2,7 @@ use crate::trait_specialization_utils::TyBool;
 use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 
+/// struct offseting (with rolling over) the column indices of the matrix up by the provided offset
 pub struct MatColOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_columns: usize}
 
 impl<M: MatrixLike> MatColOffset<M> {
@@ -65,7 +66,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatColOffset<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(self.offset_index(col_index), row_index)}}
 }
 
-
+/// struct offseting (with rolling over) the row indices of the matrix left by the provided offset
 pub struct MatRowOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_rows: usize}
 
 impl<M: MatrixLike> MatRowOffset<M> {
@@ -129,7 +130,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatRowOffset<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, self.offset_index(row_index))}}
 }
 
-
+/// struct reversing the columns of the matrix
 pub struct MatColReverse<M: MatrixLike>{pub(crate) mat: M, pub(crate) max_col_index: usize}
 
 impl<M: MatrixLike> MatColReverse<M> {
@@ -184,7 +185,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatColReverse<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(self.reverse_index(col_index), row_index)}}
 }
 
-
+/// struct reversing the rows of the matrix
 pub struct MatRowReverse<M: MatrixLike>{pub(crate) mat: M, pub(crate) max_row_index: usize}
 
 impl<M: MatrixLike> MatRowReverse<M> {
@@ -239,7 +240,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatRowReverse<M> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, self.reverse_index(row_index))}}
 }
 
-
+/// struct transposing the matrix
 pub struct MatTranspose<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get2D for MatTranspose<M> {

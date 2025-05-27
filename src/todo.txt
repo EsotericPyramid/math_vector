@@ -25,13 +25,15 @@ To Do's:
         - add specific fold methods
         ? rename ArrayMatrixOps
         - add heap_make_repeatable
+        - add runtime sized wrappers
+        - add index generator
+        - add identity mat generator
 
         + mat_util_traits.rs:
             ? remove transposition information
         + matrix_builders.rs:
-            - add documentation
         + matrix_structs.rs:
-            - add documentation
+            - add documentation to macroed_matrix_structs.rs
     + vector.rs:
         - Add Vector and Matrix multiplication
         - change T's refering to VectorLikes to V's
@@ -51,7 +53,7 @@ To Do's:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
-            ? add documentation to macroed_vector_structs.rs
+            - add documentation to macroed_vector_structs.rs
             - make the assign structs maintain the &'a mut T item
             - add an OwnedSlice struct
 

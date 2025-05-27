@@ -5,6 +5,7 @@ use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 use std::ops::*;
 
+/// struct multiplying 2 repeatable matrices
 pub struct FullMatMul<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable>{pub(crate) l_mat: M1, pub(crate) r_mat: M2, pub(crate) shared_size: usize}
 
 unsafe impl<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable> Get2D for FullMatMul<M1, M2> where 

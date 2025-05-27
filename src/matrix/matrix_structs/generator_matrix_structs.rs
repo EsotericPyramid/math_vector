@@ -2,6 +2,7 @@ use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use crate::matrix::mat_util_traits::*;
 
+/// struct generating items using a FnMut closure with no inputs
 pub struct MatGenerator<F: FnMut() -> O, O>(pub(crate) F);
 
 unsafe impl<F: FnMut() -> O, O> Get2D for MatGenerator<F, O> {

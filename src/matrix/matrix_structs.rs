@@ -22,7 +22,7 @@ pub use misc_matrix_structs::*;
 pub use ordering_matrix_structs::*;
 pub use vectorizing_matrix_structs::*;
 
-
+/// an owned 2d array rigged up to manually drop via the MatrixLike traits
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct Owned2DArray<T, const D1: usize, const D2: usize>(pub(crate) ManuallyDrop<[[T; D1]; D2]>);
@@ -107,6 +107,7 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Owned2DArray<T, D1, 
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
 }
 
+/// an owned 2d array returning references to its items and which is rigged up to manually drop via the MatrixLike traits
 pub struct Referring2DArray<'a, T: 'a, const D1: usize, const D2: usize>(pub(crate) [[T; D1]; D2], pub(crate) std::marker::PhantomData<&'a T>);
 
 unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> Get2D for Referring2DArray<'a, T, D1, D2> {
