@@ -159,7 +159,7 @@ impl<M: MatrixLike + Is2DRepeatable, const D1: usize, const D2: usize> MatrixExp
         if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(col_index, row_index);
-            let (item, _) = self.0.process(inputs);
+            let (item, _) = self.0.process(col_index, row_index, inputs);
             item
         }
     } 
@@ -174,7 +174,7 @@ impl<M: MatrixLike + Is2DRepeatable, const D1: usize, const D2: usize> MatrixExp
         if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(col_index, row_index);
-            let (item, bound_items) = self.0.process(inputs);
+            let (item, bound_items) = self.0.process(col_index, row_index, inputs);
             self.0.assign_bound_bufs(col_index, row_index, bound_items);
             item
         }
@@ -207,7 +207,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
                 let row_index = self.live_input_row_start;
                 self.live_input_row_start += 1;
                 let inputs = self.mat.get_inputs(self.current_col, row_index);
-                let (item, bound_items) = self.mat.process(inputs);
+                let (item, bound_items) = self.mat.process(self.current_col, row_index, inputs);
                 self.mat.assign_bound_bufs(self.current_col, row_index, bound_items);
                 self.dead_output_row_start += 1;
                 Some(item)
@@ -216,7 +216,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
                 self.live_input_row_start = 1; //we immediately and infallibly get the first one
                 self.dead_output_row_start = 0;
                 let inputs = self.mat.get_inputs(self.current_col, 0);
-                let (item, bound_items) = self.mat.process(inputs);
+                let (item, bound_items) = self.mat.process(self.current_col, 0, inputs);
                 self.mat.assign_bound_bufs(self.current_col, 0, bound_items);
                 self.dead_output_row_start += 1;
                 Some(item)
@@ -267,7 +267,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
                     let row_index = *live_input_row_start;
                     *live_input_row_start += 1;
                     let inputs = mat.get_inputs(*current_col, row_index);
-                    let (_, bound_items) = mat.process(inputs);
+                    let (_, bound_items) = mat.process(*current_col, row_index, inputs);
                     mat.assign_bound_bufs(*current_col, row_index, bound_items);
                     *dead_output_row_start += 1;
                 }
@@ -279,7 +279,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
                 let row_index = *live_input_row_start;
                 *live_input_row_start += 1;
                 let inputs = mat.get_inputs(*current_col, row_index);
-                let (_, bound_items) = mat.process(inputs);
+                let (_, bound_items) = mat.process(*current_col, row_index, inputs);
                 mat.assign_bound_bufs(*current_col, row_index, bound_items);
                 *dead_output_row_start += 1;
             }

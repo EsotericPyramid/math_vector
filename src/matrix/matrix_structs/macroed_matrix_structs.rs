@@ -82,8 +82,8 @@ macro_rules! mat_struct {
             unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_inputs(col_index, row_index)}}
 
             #[inline]
-            fn process($self: &mut Self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                let ($($is_mut)? $input, bound_items) = $self.$mat.process(inputs);
+            fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                let ($($is_mut)? $input, bound_items) = $self.$mat.process(col_index, row_index,  inputs);
                 ($get_expr, bound_items)
             }
         }
@@ -156,9 +156,9 @@ macro_rules! mat_struct {
             }}
 
             #[inline]
-            fn process($self: &mut Self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_mat.process(inputs.0);
-                let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_mat.process(inputs.1);
+            fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_mat.process(col_index, row_index,  inputs.0);
+                let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_mat.process(col_index, row_index,  inputs.1);
                 ($get_expr, <($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items, r_bound_items))
             }
         }

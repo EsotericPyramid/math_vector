@@ -81,8 +81,8 @@ macro_rules! vec_struct {
             unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.$vec.drop_inputs(index)}}
 
             #[inline]
-            fn process($self: &mut Self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                let ($($is_mut)? $input, bound_items) = $self.$vec.process(inputs);
+            fn process($self: &mut Self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                let ($($is_mut)? $input, bound_items) = $self.$vec.process(index, inputs);
                 ($get_expr, bound_items)
             }
         }
@@ -153,9 +153,9 @@ macro_rules! vec_struct {
             }}
 
             #[inline]
-            fn process($self: &mut Self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_vec.process(inputs.0);
-                let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_vec.process(inputs.1);
+            fn process($self: &mut Self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_vec.process(index, inputs.0);
+                let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_vec.process(index, inputs.1);
                 ($get_expr, <($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items, r_bound_items))
             }
         }

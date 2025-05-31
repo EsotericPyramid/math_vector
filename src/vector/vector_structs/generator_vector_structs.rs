@@ -14,7 +14,7 @@ unsafe impl<F: FnMut() -> O, O> Get for VecGenerator<F, O> {
 
     #[inline] unsafe fn get_inputs(&mut self, _: usize) -> Self::Inputs {}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(), ())}
+    #[inline] fn process(&mut self, _: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(), ())}
 }
 
 impl<F: FnMut() -> O, O> HasOutput for VecGenerator<F, O> {
@@ -52,13 +52,13 @@ pub struct VecIndexGenerator<F: FnMut(usize) -> O, O>(pub(crate) F);
 
 unsafe impl<F: FnMut(usize) -> O, O> Get for VecIndexGenerator<F, O> {
     type GetBool = Y;
-    type Inputs = usize;
+    type Inputs = ();
     type Item = O;
     type BoundItems = ();
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
+    #[inline] unsafe fn get_inputs(&mut self, _: usize) -> Self::Inputs {}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(inputs), ())}
+    #[inline] fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(index), ())}
 }
 
 impl<F: FnMut(usize) -> O, O> HasOutput for VecIndexGenerator<F, O> {

@@ -44,14 +44,14 @@ pub unsafe trait Get {
     unsafe fn drop_inputs(&mut self, index: usize);
 
     /// processes the inputs retrieved from `get_inputs` into Item and BoundItems, is (potentially) fallible
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
 
     /// A shortcut for calling `get_inputs` and `process` at an index
     /// Note: generally not used to better manage dropping, may be removed in the future
     #[inline]
     unsafe fn get(&mut self, index: usize) -> (Self::Item, Self::BoundItems) { unsafe {
         let inputs = self.get_inputs(index);
-        self.process(inputs)
+        self.process(index, inputs)
     }}
 }
 
@@ -80,9 +80,9 @@ pub trait HasReuseBuf {
     type FstOwnedBufferBool: TyBool;
     /// is the second buffer owned by this type
     type SndOwnedBufferBool: TyBool;
-    /// the type of the buffer in the first slot (should be a ZST if no buffer)
+    /// the type of the buffer in the first slot (should be a ZST if no buffer or not owned)
     type FstOwnedBuffer;
-    /// the type of the buffer in the second slot (should be a ZST if no buffer)
+    /// the type of the buffer in the second slot (should be a ZST if no buffer or not owned)
     type SndOwnedBuffer;
     /// the type written to the buffer in the first slot (should be a ZST if no buffer)
     type FstType;

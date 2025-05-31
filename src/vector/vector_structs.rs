@@ -53,7 +53,7 @@ unsafe impl<T, const D: usize> Get for OwnedArray<T, D> {
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {std::ptr::read(self.0.get_unchecked(index))}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
 }
 
@@ -100,7 +100,7 @@ unsafe impl<'a, T: 'a, const D: usize> Get for ReferringOwnedArray<'a, T, D> {
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&*(self.0.get_unchecked(index) as *const T)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
@@ -144,7 +144,7 @@ unsafe impl<'a, T, const D: usize> Get for &'a [T; D] {
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.get_unchecked(index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
@@ -181,7 +181,7 @@ unsafe impl<'a, T, const D: usize> Get for &'a mut [T; D] {
 
     //ptr shenanigans to change the lifetime
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&mut*(self.get_unchecked_mut(index) as *mut T)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
@@ -217,7 +217,7 @@ unsafe impl<'a, T> Get for &'a [T] {
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.get_unchecked(index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
@@ -254,7 +254,7 @@ unsafe impl<'a, T> Get for &'a mut [T] {
 
     //ptr shenanigans to change the lifetime
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&mut*(self.get_unchecked_mut(index) as *mut T)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
@@ -291,7 +291,7 @@ unsafe impl<V: VectorLike + ?Sized> Get for Box<V> {
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {(debox(self)).get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {(debox(self)).drop_inputs(index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + ?Sized> IsRepeatable for Box<V> {}

@@ -62,7 +62,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Owned2DArray<T, D1, D
         std::ptr::read(self.0.get_unchecked(col_index).get_unchecked(row_index))
     }}
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+    fn process(&mut self, _: usize, _: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         (inputs, ())
     }
 
@@ -118,7 +118,7 @@ unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> Get2D for Referring2DAr
     type BoundItems = ();
 
     unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {unsafe {&*(self.0.get_unchecked(col_index).get_unchecked(row_index) as *const T)}}
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    fn process(&mut self, _: usize, _: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
@@ -167,7 +167,7 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a [[T; D1]; D2]
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.get_unchecked(col_index).get_unchecked(row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, _: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
@@ -207,7 +207,7 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a mut [[T; D1];
     type BoundItems = ();
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {&mut*(self.get_unchecked_mut(col_index).get_unchecked_mut(row_index) as *mut T)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] fn process(&mut self, _: usize, _: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
@@ -253,7 +253,7 @@ unsafe impl<M: MatrixLike + ?Sized> Get2D for Box<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {(debox(self)).get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {(debox(self)).drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(debox(self)).process(col_index, row_index, inputs)}
 }
 
 unsafe impl<M: MatrixLike + ?Sized> Is2DRepeatable for Box<M> {}

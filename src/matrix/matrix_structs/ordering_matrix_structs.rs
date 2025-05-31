@@ -30,7 +30,7 @@ unsafe impl<M: MatrixLike> Get2D for MatColOffset<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(self.offset_index(col_index), row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(self.offset_index(col_index), row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(self.offset_index(col_index), row_index, inputs)}
 }
 
 impl<M: MatrixLike> HasOutput for MatColOffset<M> {
@@ -94,7 +94,7 @@ unsafe impl<M: MatrixLike> Get2D for MatRowOffset<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, self.offset_index(row_index))}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, self.offset_index(row_index))}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, self.offset_index(row_index), inputs)}
 }
 
 impl<M: MatrixLike> HasOutput for MatRowOffset<M> {
@@ -149,7 +149,7 @@ unsafe impl<M: MatrixLike> Get2D for MatColReverse<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(self.reverse_index(col_index), row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(self.reverse_index(col_index), row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(self.reverse_index(col_index), row_index, inputs)}
 }
 
 impl<M: MatrixLike> HasOutput for MatColReverse<M> {
@@ -204,7 +204,7 @@ unsafe impl<M: MatrixLike> Get2D for MatRowReverse<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, self.reverse_index(row_index))}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, self.reverse_index(row_index))}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, self.reverse_index(row_index), inputs)}
 }
 
 impl<M: MatrixLike> HasOutput for MatRowReverse<M> {
@@ -252,7 +252,7 @@ unsafe impl<M: MatrixLike> Get2D for MatTranspose<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(row_index, col_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(row_index, col_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(row_index, col_index, inputs)}
 }
 
 impl<M: MatrixLike> HasOutput for MatTranspose<M> {

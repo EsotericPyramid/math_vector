@@ -29,7 +29,7 @@ unsafe impl<T: VectorLike> Get for VecOffset<T> {
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(self.offset_index(index))}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(self.offset_index(index))}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.offset_index(index), inputs)}
 }
 
 impl<T: VectorLike> HasOutput for VecOffset<T> {
@@ -80,7 +80,7 @@ unsafe impl<T: VectorLike> Get for VecReverse<T> {
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(self.reverse_index(index))}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(self.reverse_index(index))}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.reverse_index(index), inputs)}
 }
 
 impl<T: VectorLike> HasOutput for VecReverse<T> {

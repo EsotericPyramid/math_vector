@@ -14,7 +14,7 @@ unsafe impl<M: MatrixLike> Get2D for MatBufSwap<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike> Is2DRepeatable for MatBufSwap<M> {}
@@ -66,7 +66,7 @@ unsafe impl<M: MatrixLike, USEDM: MatrixLike> Get2D for MatAttachUsedMat<M, USED
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike, USEDM: MatrixLike> Is2DRepeatable for MatAttachUsedMat<M, USEDM> {}
@@ -160,7 +160,7 @@ unsafe impl<M: MatrixLike> Get2D for DynamicMatrixLike<M> {
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { self.inputs = Some(unsafe {self.mat.get_inputs(col_index, row_index)}) }
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(self.inputs.take().unwrap())}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  self.inputs.take().unwrap())}
 }
 
 impl<M: MatrixLike> HasOutput for DynamicMatrixLike<M> {

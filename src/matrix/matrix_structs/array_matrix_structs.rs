@@ -27,7 +27,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Replace2DArray<T, D1,
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    fn process(&mut self, _: usize, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
 }
 
 impl<T: Sized, const D1: usize, const D2: usize> HasOutput for Replace2DArray<T, D1, D2> {
@@ -84,7 +84,7 @@ unsafe impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: 
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<'a, M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatAttach2DBuf<'a, M, T, D1, D2> {}
@@ -134,7 +134,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatCreate2DBuf<M, T, D1, D2> {}
@@ -186,7 +186,7 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Is2DRepeatable for MatCreate2DHeapBuf<M, T, D1, D2> {}
@@ -238,7 +238,7 @@ unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMay
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable for MatMaybeCreate2DBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
@@ -302,7 +302,7 @@ unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMay
 
     #[inline] unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(col_index, row_index)}}
     #[inline] unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_inputs(col_index, row_index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(inputs)}
+    #[inline] fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.mat.process(col_index, row_index,  inputs)}
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {}
