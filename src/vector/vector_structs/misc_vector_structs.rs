@@ -13,7 +13,7 @@ unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<T: VectorLike + IsRepeatable> IsRepeatable for VecBufSwap<T> {}
@@ -60,7 +60,7 @@ unsafe impl<V: VectorLike, USEDV: VectorLike> Get for VecAttachUsedVec<V, USEDV>
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike, USEDV: VectorLike> IsRepeatable for VecAttachUsedVec<V, USEDV> {}
@@ -148,7 +148,7 @@ unsafe impl<V: VectorLike> Get for DynamicVectorLike<V> {
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.inputs = Some(self.vec.get_inputs(index));}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
-    #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.inputs.take().unwrap())}
+    #[inline] fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, self.inputs.take().unwrap())}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike> IsRepeatable for DynamicVectorLike<V> {}

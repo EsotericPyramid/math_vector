@@ -22,7 +22,7 @@ unsafe impl<M1: MatrixLike + Is2DRepeatable, M2: MatrixLike + Is2DRepeatable> Ge
 
     unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {(col_index, row_index)}
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+    fn process(&mut self, _: usize, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         unsafe {
             let mut result = self.l_mat.get(0, inputs.1).0 * self.r_mat.get(inputs.0, 0).0;
             for i in 1..self.shared_size {

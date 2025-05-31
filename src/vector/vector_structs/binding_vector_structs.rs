@@ -23,8 +23,8 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecBind<T> where (T::Bound
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.vec.process(inputs);
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.vec.process(index, inputs);
         ((), <(T::BoundHandlesBool, Y) as FilterPair>::filter(bound, item))
     }
 }
@@ -94,8 +94,8 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>, F: FnMut(T::Item) -> (I, B), I, B>
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.vec.process(inputs);
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.vec.process(index, inputs);
         let (processed_item, processed_bound) = (self.f)(item);
         (processed_item, <(T::BoundHandlesBool, Y) as FilterPair>::filter(bound, processed_bound))
     }
@@ -171,8 +171,8 @@ unsafe impl<T: VectorLike<FstHandleBool = Y>> Get for VecHalfBind<T> where (T::B
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.vec.process(inputs);
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.vec.process(index, inputs);
         ((), <(T::BoundHandlesBool, Y) as FilterPair>::filter(bound, item))
     }
 }

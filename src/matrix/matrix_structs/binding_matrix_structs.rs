@@ -23,8 +23,8 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatBind<M> where (M::Bou
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.mat.process(inputs);
+    fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.mat.process(col_index, row_index,  inputs);
         ((), <(M::BoundHandlesBool, Y) as FilterPair>::filter(bound, item))
     }
 }
@@ -97,8 +97,8 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B>
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.mat.process(inputs);
+    fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.mat.process(col_index, row_index,  inputs);
         let (processed_item, processed_bound) = (self.f)(item);
         (processed_item, <(M::BoundHandlesBool, Y) as FilterPair>::filter(bound, processed_bound))
     }
@@ -178,8 +178,8 @@ unsafe impl<M: MatrixLike<FstHandleBool = Y>> Get2D for MatHalfBind<M> where (M:
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (item, bound) = self.mat.process(inputs);
+    fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (item, bound) = self.mat.process(col_index, row_index,  inputs);
         ((), <(M::BoundHandlesBool, Y) as FilterPair>::filter(bound, item))
     }
 }

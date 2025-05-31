@@ -150,7 +150,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
         if index >= D {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(index);
-            let (item, _) = self.0.process(inputs);
+            let (item, _) = self.0.process(index, inputs);
             item
         }
     }
@@ -167,7 +167,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
         if index >= D {panic!("math_vector Error: index access out of bound")}
         unsafe {
             let inputs = self.0.get_inputs(index);
-            let (item, bound_items) = self.0.process(inputs);
+            let (item, bound_items) = self.0.process(index, inputs);
             self.0.assign_bound_bufs(index, bound_items); // NOTE: all current things which have IsRepeatable don't have any bound items, however, it is not restricted by the definition
             item
         }
@@ -214,7 +214,7 @@ impl<T: VectorLike, const D: usize> VectorIter<T, D> {
         let index = self.live_input_start;
         self.live_input_start += 1;
         let inputs = self.vec.get_inputs(index);
-        let (item, bound_items) = self.vec.process(inputs);
+        let (item, bound_items) = self.vec.process(index, inputs);
         self.vec.assign_bound_bufs(index, bound_items);
         self.dead_output_start += 1;
         item
@@ -1061,10 +1061,6 @@ pub trait RepeatableVectorOps: VectorOps {
     ;
 }
 
-macro_rules! if_lifetimes {
-    (($item:item); $($lifetime:lifetime),+) => {$item};
-    (($item:item); ) => {}
-}
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for VectorExpr<V, D> {
     type Unwrapped = V;

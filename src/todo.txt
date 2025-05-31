@@ -8,12 +8,15 @@ To Do's:
 - document each file
 - clean up documentation
 + lib.rs:
+    - check inlining
+    - check get's process updated index parameters
     - clear up entry v. element v. item v. etc.
     - clear up buffer v. slot in documentation
     - figure out vectored matrices
     + test:
         - Update mat_vec_mul to use matrix types
     + matrix.rs:
+        - add MatrixOps extension(s) for evaluation / consumption
         - Add Matrix and Vector multiplication
         ? remove binding_get
         ? remove raw_next
@@ -35,6 +38,7 @@ To Do's:
         + matrix_structs.rs:
             - add documentation to macroed_matrix_structs.rs
     + vector.rs:
+        - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
         - change T's refering to VectorLikes to V's
         ? remove binding_get?
@@ -63,6 +67,7 @@ Fix Me's:
         + mat_util_traits.rs:
         + matrix_builders.rs:
         + matrix_structs.rs:
+            - check vectorizing matrix leaks
     + vector.rs:
         - check attach_buf note
         + vec_util_traits.rs:

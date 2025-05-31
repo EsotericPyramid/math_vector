@@ -14,7 +14,7 @@ unsafe impl<F: FnMut() -> O, O> Get2D for MatGenerator<F, O> {
 
     #[inline] unsafe fn get_inputs(&mut self, _: usize, _: usize) -> Self::Inputs {}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
-    #[inline] fn process(&mut self, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(), ())}
+    #[inline] fn process(&mut self, _: usize, _: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {((self.0)(), ())}
 }
 
 impl<F: FnMut() -> O, O> HasOutput for MatGenerator<F, O> {

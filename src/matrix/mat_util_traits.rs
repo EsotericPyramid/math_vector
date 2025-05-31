@@ -47,14 +47,14 @@ pub unsafe trait Get2D {
     unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize);
 
     /// processes the inputs retrieved from `get_inputs` into Item and BoundItems, is (potentially) fallible
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
+    fn process(&mut self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems);
 
     /// A shortcut for calling `get_inputs` and `process` at an index
     /// Note: generally not used to better manage dropping, may be removed in the future
     #[inline]
     unsafe fn get(&mut self, col_index: usize, row_index: usize) -> (Self::Item, Self::BoundItems) { unsafe {
         let inputs = self.get_inputs(col_index, row_index);
-        self.process(inputs)
+        self.process(col_index, row_index, inputs)
     }}
 }
 

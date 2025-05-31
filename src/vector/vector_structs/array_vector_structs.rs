@@ -28,7 +28,7 @@ unsafe impl<T, const D: usize> Get for ReplaceArray<T, D> {
     }}
 
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
 }
 
 impl<T: Sized, const D: usize> HasOutput for ReplaceArray<T, D> {
@@ -80,7 +80,7 @@ unsafe impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for Vec
 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
 
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<'a, V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecAttachBuf<'a, V, T, D> {}
@@ -128,7 +128,7 @@ unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCrea
 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
 
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateBuf<V, T, D> {}
@@ -178,7 +178,7 @@ unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCrea
 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
 
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateHeapBuf<V, T, D> {}
@@ -228,7 +228,7 @@ unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateBuf<V, T, D>
 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
 
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
@@ -294,7 +294,7 @@ unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T
 
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
 
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(inputs)}
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
 unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}

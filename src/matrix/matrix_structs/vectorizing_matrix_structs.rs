@@ -14,8 +14,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (col, bound) =  self.mat.process(inputs);
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (col, bound) =  self.mat.process(index, inputs);
         (unsafe { self.builder.wrap_col_vec(col) }, bound)
     }
 }
@@ -63,8 +63,8 @@ unsafe impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> Get for
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.mat.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.mat.drop_inputs(index);}}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-        let (col, bound) =  self.mat.process(inputs);
+    #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (col, bound) =  self.mat.process(index, inputs);
         (unsafe { self.builder.wrap_row_vec(col) }, bound)
     }
 }
@@ -117,7 +117,7 @@ unsafe impl<M: MatrixLike> Get for MatrixColumn<M> {
     unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(self.column_num, index)} }
     
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(self.column_num, index, inputs)}}
 }
 
 unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatrixColumn<M> {}
@@ -157,13 +157,13 @@ pub struct MatColVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get for MatColVectorExprs<M> {
     type GetBool = M::GetBool;
-    type Inputs = usize;
+    type Inputs = ();
     type Item = MatrixColumn<M>;
     type BoundItems = ();
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
+    #[inline] unsafe fn get_inputs(&mut self, _: usize) -> Self::Inputs {}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixColumn{mat: &mut self.mat as *mut M, column_num: inputs}, ())}
+    #[inline] fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixColumn{mat: &mut self.mat as *mut M, column_num: index}, ())}
 }
 
 unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatColVectorExprs<M> {}
@@ -214,7 +214,7 @@ unsafe impl<M: MatrixLike> Get for MatrixRow<M> {
     unsafe fn drop_inputs(&mut self, index: usize) {unsafe { (*self.mat).drop_inputs(index, self.row_num)} }
     
     #[inline]
-    fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(inputs)}}
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {unsafe { (*self.mat).process(index, self.row_num, inputs)}}
 }
 
 unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatrixRow<M> {}
@@ -254,13 +254,13 @@ pub struct MatRowVectorExprs<M: MatrixLike>{pub(crate) mat: M}
 
 unsafe impl<M: MatrixLike> Get for MatRowVectorExprs<M> {
     type GetBool = M::GetBool;
-    type Inputs = usize;
+    type Inputs = ();
     type Item = MatrixRow<M>;
     type BoundItems = ();
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {index}
+    #[inline] unsafe fn get_inputs(&mut self, _: usize) -> Self::Inputs {}
     #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
-    #[inline] fn process(&mut self, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixRow{mat: &mut self.mat as *mut M, row_num: inputs}, ())}
+    #[inline] fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {(MatrixRow{mat: &mut self.mat as *mut M, row_num: index}, ())}
 }
 
 unsafe impl<M: IsRepeatable + MatrixLike> IsRepeatable for MatRowVectorExprs<M> {}
