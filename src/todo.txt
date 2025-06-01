@@ -12,6 +12,7 @@ To Do's:
     - check get's process updated index parameters
     - clear up entry v. element v. item v. etc.
     - clear up buffer v. slot in documentation
+    - fold & fold_ref clarifications
     - figure out vectored matrices
     + test:
         - Update mat_vec_mul to use matrix types
@@ -51,12 +52,12 @@ To Do's:
         ? remove initialized_dot
         - Add heap_make_repeatable
         - add copied fold methods
+        - add copied dot
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
-            - add documentation to macroed_vector_structs.rs
             - make the assign structs maintain the &'a mut T item
             - add an OwnedSlice struct
 
