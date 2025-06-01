@@ -37,7 +37,6 @@ To Do's:
             ? remove transposition information
         + matrix_builders.rs:
         + matrix_structs.rs:
-            - add documentation to macroed_matrix_structs.rs
     + vector.rs:
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
