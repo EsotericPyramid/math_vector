@@ -8,6 +8,7 @@ To Do's:
 - document each file
 - clean up documentation
 + lib.rs:
+    ? change gen functions to methods of the wrapper they make
     - check inlining
     - check get's process updated index parameters
     - clear up entry v. element v. item v. etc.
@@ -26,12 +27,10 @@ To Do's:
         - add assign ops to MathMatrix
         - add map_bind
         - reimplement mat_mul method to use new builder systems
-        - add specific fold methods
         ? rename ArrayMatrixOps
         - add heap_make_repeatable
         - add runtime sized wrappers
-        - add index generator
-        - add identity mat generator
+        - add wrap shortcut methods to MatrixOps 
 
         + mat_util_traits.rs:
             ? remove transposition information
@@ -50,8 +49,7 @@ To Do's:
         ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
         ? remove initialized_dot
         - Add heap_make_repeatable
-        - add copied fold methods
-        - add copied dot
+        - add wrap shortcut methods to VectorOps 
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy

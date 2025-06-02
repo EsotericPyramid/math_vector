@@ -335,4 +335,7 @@ vec_structs!(
     
     "Struct calculating the dot product between 2 vectors, adding it to Output";
     VecDot<{T1, T2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where T1::Item: Mul<T2::Item>, S: AddAssign<<T1::Item as Mul<T2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input;
+    
+    "Struct calculating the dot product between 2 vectors, adding it to Output, while preserving the items by zipping them in 2 element tuples";
+    VecCopiedDot<{T1, T2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where T1::Item: Mul<T2::Item>, T1::Item: Copy, T2::Item: Copy, S: AddAssign<<T1::Item as Mul<T2::Item>>::Output>; output: scalar: S, get: (T1::Item, T2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
 );
