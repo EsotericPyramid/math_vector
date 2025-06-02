@@ -1,3 +1,5 @@
+//! Module containing all of the various MatrixLike structs
+
 use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use super::mat_util_traits::*;

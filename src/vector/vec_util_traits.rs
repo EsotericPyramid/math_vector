@@ -1,3 +1,5 @@
+//! Module containing the traits which define a VectorLike type (primative lazy vector)
+
 // Note: traits here aren't meant to be used directly by end users
 
 use crate::trait_specialization_utils::*;

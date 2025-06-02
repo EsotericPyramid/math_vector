@@ -1,3 +1,5 @@
+//! Module containing all of the various VectorLike structs
+
 use crate::trait_specialization_utils::*;
 use crate::util_traits::*;
 use super::vec_util_traits::*;
