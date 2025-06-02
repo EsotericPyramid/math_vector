@@ -1,9 +1,10 @@
+//! A Library for lazily evaluated (where possible) linear algebra
 
 /// provides utilities for helping with trait specialization
 /// 
-/// Y and N boolean types
-/// binary boolean operators via TyBoolPair
-/// Filter & Select to use boolean pairs to trim down types if unused
+/// - Y and N boolean types
+/// - binary boolean operators via TyBoolPair
+/// - Filter & Select to use boolean pairs to trim down types if unused
 pub mod trait_specialization_utils {
     use std::mem::transmute_copy;
 
@@ -252,7 +253,7 @@ pub mod matrix;
 mod test {
     use rand::Rng; 
     use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, }};
-    use std::time::*;
+    use std::{hint::black_box, time::*};
 
 
     /// preforms a multiplication between a matrix and a vector
@@ -268,8 +269,9 @@ mod test {
         let mat: Box<MathVector<MathVector<f64, 10000>, 10000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
         let now = Instant::now();
         let out = mat.zip(vec).map(|(mat_vec, scalar)| (mat_vec.reuse() * scalar).eval()).sum::<MathVector<f64, 10000>>().consume();
+        black_box(out);
         let elapsed = now.elapsed();
-        println!("{}", out.into_array()[0]);
+        
         println!("Elapsed: {}", elapsed.as_nanos());
     }
 
@@ -386,5 +388,24 @@ mod test {
         println!("Heap Time:      {}", heap_time.as_nanos());
         println!("Dynamic Time:   {}", dynamic_time.as_nanos());
         println!("Dyn Heap Time:  {}", dyn_heap_time.as_nanos());
+    }
+
+    #[test]
+    fn test() {
+        let mut rng = rand::rng();
+        let mut total = 0.0;
+        let mut time = Duration::new(0, 0);
+            let vec1: MathVector<f64, 3> = vector_gen(|| rng.random()).eval();
+            let vec2: MathVector<f64, 3> = vector_gen(|| rng.random()).eval();
+            println!("{:?}", vec1.to_vec());
+            println!("{:?}", vec2.to_vec());
+            let now = Instant::now();
+            let ((vec1_sqr_mag, vec2_sqr_mag), dot_product): ((f64, f64), f64) = (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
+            let elapsed = now.elapsed();
+            time += elapsed;
+            let mag = dot_product/((vec1_sqr_mag * vec2_sqr_mag).sqrt());
+            total += mag;
+        println!("{}", total);
+        println!("Elapsed: {}", time.as_nanos());
     }
 }

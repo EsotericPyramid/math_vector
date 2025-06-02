@@ -1,3 +1,5 @@
+//! Module containing all to do with Vectors and basic operations to do on them
+
 use crate::{trait_specialization_utils::*, util_structs::NoneIter, util_traits::HasOutput};
 use std::{mem::ManuallyDrop, ops::*};
 

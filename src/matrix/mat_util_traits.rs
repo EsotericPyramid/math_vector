@@ -1,3 +1,4 @@
+//! Module containing the traits which define a MatrixLike type (primative lazy matrix)
 
 use crate::vector::vec_util_traits::{VectorBuilder, VectorLike};
 

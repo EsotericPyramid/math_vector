@@ -1,3 +1,5 @@
+//! Module containing all to do with Matrices and basic operations to do on them
+
 use crate::{util_structs::NoneIter, util_traits::HasOutput, vector::MathVector};
 use std::{iter::{Product, Sum}, mem::ManuallyDrop};
 use crate::trait_specialization_utils::*;
