@@ -1,5 +1,5 @@
-use crate::{util_traits::HasOutput, vector::MathVector};
-use std::mem::ManuallyDrop;
+use crate::{util_structs::NoneIter, util_traits::HasOutput, vector::MathVector};
+use std::{iter::{Product, Sum}, mem::ManuallyDrop};
 use crate::trait_specialization_utils::*;
 use std::ops::*;
 
@@ -474,6 +474,19 @@ pub fn matrix_gen<F: FnMut() -> O, O, const D1: usize, const D2: usize>(f: F) ->
     MatrixExpr(MatGenerator(f))
 }
 
+/// generates a Matrix of dimensions D1, D2 using the given closure (FnMut) given the column and row indices as input
+pub fn matrix_index_gen<F: FnMut(usize, usize) -> O, O, const D1: usize, const D2: usize>(f: F) -> MatrixExpr<MatIndexGenerator<F, O>, D1, D2> {
+    MatrixExpr(MatIndexGenerator(f))
+}
+
+/// generates a Identity matrix of dimensions D, D
+/// 
+/// the "1" value is obtained from Product as the multiplicative identity
+/// the "0" value is obtained from Sum as the additive identity
+pub fn matrix_identiry_gen<T: Copy + Sum + Product, const D: usize>() -> MatrixExpr<MatIdentityGenerator<T>, D, D> {
+    MatrixExpr(MatIdentityGenerator { zero: NoneIter::<T>::new().sum(), one: NoneIter::<T>::new().product() })
+}
+
 /// a trait with various matrix operations
 pub trait MatrixOps {
     /// the underlying MatrixLike contained in Self
@@ -719,6 +732,62 @@ pub trait MatrixOps {
         unsafe { builder.wrap_mat(MatRemAssign{mat: self.unwrap(), scalar}) }
     }
 
+    /// calculates the sum of the Matrix's entries and adds it to Output
+    #[inline]
+    fn entry_sum<S: Sum<<Self::Unwrapped as Get2D>::Item> + AddAssign<<Self::Unwrapped as Get2D>::Item>>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntrySum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntrySum{mat: self.unwrap(), scalar: ManuallyDrop::new(NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().sum())}) }
+    } 
+    
+    /// calculates the sum (initialized at `init`) of the Matrix's entries and adds it to Output
+    #[inline]
+    fn initialized_entry_sum<S: AddAssign<<Self::Unwrapped as Get2D>::Item>>(self, init: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntrySum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntrySum{mat: self.unwrap(), scalar: ManuallyDrop::new(init)}) }
+    } 
+    
+    /// calculates the sum of the Matrix's entries and adds it to Output while preserving the item
+    #[inline]
+    fn copied_entry_sum<S: Sum<<Self::Unwrapped as Get2D>::Item> + AddAssign<<Self::Unwrapped as Get2D>::Item>>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntrySum<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCopiedEntrySum{mat: self.unwrap(), scalar: ManuallyDrop::new(NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().sum())}) }
+    } 
+    
+    /// calculates the sum (initialized at `init`) of the Matrix's entries and adds it to Output while preserving the item
+    #[inline]
+    fn initialized_copied_entry_sum<S: AddAssign<<Self::Unwrapped as Get2D>::Item>>(self, init: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntrySum<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCopiedEntrySum{mat: self.unwrap(), scalar: ManuallyDrop::new(init)}) }
+    } 
+    
+    /// calculates the product of the Matrix's entries and adds it to Output
+    #[inline]
+    fn entry_product<S: Product<<Self::Unwrapped as Get2D>::Item> + MulAssign<<Self::Unwrapped as Get2D>::Item>>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryProd<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryProd{mat: self.unwrap(), scalar: ManuallyDrop::new(NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().product())}) }
+    } 
+    
+    /// calculates the product (initialized at `init`) of the Matrix's entries and adds it to Output
+    #[inline]
+    fn initialized_entry_product<S: MulAssign<<Self::Unwrapped as Get2D>::Item>>(self, init: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryProd<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatEntryProd{mat: self.unwrap(), scalar: ManuallyDrop::new(init)}) }
+    } 
+    
+    /// calculates the product of the Matrix's entries and adds it to Output while preserving the item
+    #[inline]
+    fn copied_entry_product<S: Product<<Self::Unwrapped as Get2D>::Item> + MulAssign<<Self::Unwrapped as Get2D>::Item>>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntryProd<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCopiedEntryProd{mat: self.unwrap(), scalar: ManuallyDrop::new(NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().product())}) }
+    } 
+    
+    /// calculates the product (initialized at `init`) of the Matrix's entries and adds it to Output while preserving the item
+    #[inline]
+    fn initialized_copied_entry_product<S: MulAssign<<Self::Unwrapped as Get2D>::Item>>(self, init: S) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntryProd<Self::Unwrapped, S>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatCopiedEntryProd{mat: self.unwrap(), scalar: ManuallyDrop::new(init)}) }
+    } 
+    
     /// multiplies 2 matrices
     #[inline]
     fn mat_mul<M: MatrixOps>(self, other: M) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped, M::Unwrapped>> where 

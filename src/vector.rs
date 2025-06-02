@@ -201,8 +201,6 @@ impl<T: VectorLike, const D: usize> IntoIterator for VectorExpr<T, D> where T: H
 }
 
 
-
-
 /// a const-sized VectorExpr iterator
 pub struct VectorIter<T: VectorLike, const D: usize>{vec: T, live_input_start: usize, dead_output_start: usize} // note: ranges are start inclusive, end exclusive
 
@@ -591,18 +589,33 @@ pub unsafe trait VectorOps {
     } 
 
     /// folds the vector's items into a single value using the provided closure
+    /// 
     /// note: fold_ref should be used whenever possible due to implementation
     #[inline] fn fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> <Self::Builder as VectorBuilder>::Wrapped<VecFold<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecFold{vec: self.unwrap(), f, cell: Some(init)}) }
     }
-
+    
+    /// folds the vector's items into a single value using the provided closure while preserving the items
+    /// 
+    /// note: fold_ref should be used whenever possible due to implementation
+    #[inline] fn copied_fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedFold<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedFold{vec: self.unwrap(), f, cell: Some(init)}) }
+    }
+    
     /// folds the vector's items into a single value using the provided closure
     #[inline] fn fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> <Self::Builder as VectorBuilder>::Wrapped<VecFoldRef<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecFoldRef{vec: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
     }
-
+    
+    /// folds the vector's items into a single value using the provided closure while preserving the items
+    #[inline] fn copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedFoldRef<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedFoldRef{vec: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+    }
+    
     /// copies each of the vector's items, useful for turning &T -> T
     #[inline] fn copied<'a, I: Copy>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopy<'a, Self::Unwrapped, I>> where (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair, Self::Unwrapped: Get<Item = &'a I>, Self: Sized {
         let builder = self.get_builder();
@@ -686,7 +699,19 @@ pub unsafe trait VectorOps {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
+    
+    /// calculates the sum of the vector's elements, adding it to the output, while maintaining the vector's items
+    #[inline] fn copied_sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
+    }
 
+    /// calculates the sum of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
+    #[inline] fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    }
+    
     /// calculates the product of the vector's elements and adds it to the output
     #[inline] fn product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecProduct<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
         let builder = self.get_builder();
@@ -698,7 +723,19 @@ pub unsafe trait VectorOps {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
-
+    
+    /// calculates the product of the vector's elements, adding it to the output, while maintaining the vector's items
+    #[inline] fn copied_product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
+    }
+    
+    /// calculates the products of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
+    #[inline] fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
+    }
+        
     /// calculates the square of the vector's magnitude (ie. sum of each element's square) and adds it to the output
     #[inline] fn sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecSqrMag<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
         let builder = self.get_builder();
@@ -711,34 +748,10 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
-    /// calculates the sum of the vector's elements, adding it to the output, while maintaining the vector's items
-    #[inline] fn copied_sum<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
-    }
-
-    /// calculates the product of the vector's elements, adding it to the output, while maintaining the vector's items
-    #[inline] fn copied_product<S: std::iter::Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().product())})}
-    }
-
     /// calculates the square of the vector's magnitude (ie. sum of each element's square), adding it to the output, while maintaining the vector's items
     #[inline] fn copied_sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
-    }
-
-    /// calculates the sum of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
-    #[inline] fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecCopiedSum{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
-    }
-
-    /// calculates the products of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
-    #[inline] fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecCopiedProduct{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
     // TODO: remove?
@@ -978,6 +991,26 @@ pub unsafe trait VectorOps {
     {
         let builder = self.get_builder().union(other.get_builder());
         unsafe { builder.wrap(VecDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: std::mem::ManuallyDrop::new(init)}) }
+    }
+
+    /// calculates the dot product of 2 vectors and adds it to the output
+    #[inline] fn copied_dot<V: VectorOps, S: std::iter::Sum<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>> 
+    where
+        Self::Builder: VectorBuilderUnion<V::Builder>,
+        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
+        <Self::Unwrapped as Get>::Item: Copy,
+        <V::Unwrapped as Get>::Item: Copy,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
+        (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool, <V::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::SndHandleBool, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+        Self: Sized
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe { builder.wrap(VecCopiedDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())}) }
     }
 }
 
