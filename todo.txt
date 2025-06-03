@@ -25,7 +25,6 @@ To Do's:
         - remove into_2d_array (not Into<[[T; D1]; D2]>)
         - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
-        - add map_bind
         - reimplement mat_mul method to use new builder systems
         ? rename ArrayMatrixOps
         - add heap_make_repeatable

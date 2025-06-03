@@ -511,13 +511,26 @@ pub trait MatrixOps {
         (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, Y): FilterPair,
         (<Self::Unwrapped as HasOutput>::OutputBool, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
         (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+        MatBind<Self::Unwrapped>: Has2DReuseBuf<BoundTypes = <MatBind<Self::Unwrapped> as Get2D>::BoundItems>,
         Self: Sized
     {
         let builder = self.get_builder();
         unsafe { builder.wrap_mat(MatBind{mat: self.unwrap()}) }
     }
 
-    //TODO: map_bind
+    #[inline]
+    fn map_bind<F: FnMut(<Self::Unwrapped as Get2D>::Item) -> (I, B), I, B>(self, f: F) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatMapBind<Self::Unwrapped, F, I, B>>
+    where
+        Self::Unwrapped: Has2DReuseBuf<FstHandleBool = Y>,
+        (<Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool, Y): FilterPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed, <Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+        MatMapBind<Self::Unwrapped, F, I, B>: Has2DReuseBuf<BoundTypes = <MatMapBind<Self::Unwrapped, F, I, B> as Get2D>::BoundItems>,
+        Self: Sized
+    {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatMapBind{mat: self.unwrap(), f}) }
+    }
 
     /// binds the matrix's item to its fst buffer, adding the buffer to an internal output if owned by the matrix
     /// 

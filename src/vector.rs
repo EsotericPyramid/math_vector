@@ -530,7 +530,7 @@ pub unsafe trait VectorOps {
         Self::Unwrapped:  VectorLike<FstHandleBool = Y>,
         (<Self::Unwrapped as HasOutput>::OutputBool, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): FilterPair,
         (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool, Y): FilterPair,
-        VecBind<Self::Unwrapped>: HasReuseBuf<BoundTypes = <VecBind<Self::Unwrapped> as Get>::BoundItems>,
+        VecMapBind<Self::Unwrapped, F, I, B>: HasReuseBuf<BoundTypes = <VecMapBind<Self::Unwrapped, F, I, B> as Get>::BoundItems>,
         Self: Sized
     {
         let builder = self.get_builder();
