@@ -21,8 +21,6 @@ To Do's:
     + matrix.rs:
         - add MatrixOps extension(s) for evaluation / consumption
         - Add Matrix and Vector multiplication
-        ? remove binding_get
-        ? remove raw_next
         - remove into_2d_array (not Into<[[T; D1]; D2]>)
         - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
@@ -38,14 +36,11 @@ To Do's:
     + vector.rs:
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
-        ? remove binding_get?
         - Add/convert a runtime sized VectorIter
         - remove into_array (not Into<[T; D]>)
         - replace into_heap_array w/ `Box<VectorExpr<_>>: Into<Box<[T; D]>>`
         ? Add addassign and subassign for generic V2: VectorOps
         - Finish implementing RSVectorExpr
-        ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
-        ? remove initialized_dot
         - Add heap_make_repeatable
         - add wrap shortcut macro to VectorOps 
 
