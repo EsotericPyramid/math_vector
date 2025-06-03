@@ -38,7 +38,6 @@ To Do's:
     + vector.rs:
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
-        - change T's refering to VectorLikes to V's
         ? remove binding_get?
         - Add/convert a runtime sized VectorIter
         - remove into_array (not Into<[T; D]>)

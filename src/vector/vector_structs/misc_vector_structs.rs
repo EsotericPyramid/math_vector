@@ -3,40 +3,40 @@ use crate::vector::vec_util_traits::*;
 use crate::trait_specialization_utils::*;
 
 /// Struct swapping the buffers (or lack there of) in the 2 slots
-pub struct VecBufSwap<T: VectorLike> {pub(crate) vec: T}
+pub struct VecBufSwap<V: VectorLike> {pub(crate) vec: V}
 
-unsafe impl<T: VectorLike> Get for VecBufSwap<T> {
-    type GetBool = T::GetBool;
-    type Inputs = T::Inputs;
-    type Item = T::Item;
-    type BoundItems = T::BoundItems;
+unsafe impl<V: VectorLike> Get for VecBufSwap<V> {
+    type GetBool = V::GetBool;
+    type Inputs = V::Inputs;
+    type Item = V::Item;
+    type BoundItems = V::BoundItems;
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(index)}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(index)}}
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<T: VectorLike + IsRepeatable> IsRepeatable for VecBufSwap<T> {}
+unsafe impl<V: VectorLike + IsRepeatable> IsRepeatable for VecBufSwap<V> {}
 
-impl<T: VectorLike> HasOutput for VecBufSwap<T> {
-    type OutputBool = T::OutputBool;
-    type Output = T::Output;
+impl<V: VectorLike> HasOutput for VecBufSwap<V> {
+    type OutputBool = V::OutputBool;
+    type Output = V::Output;
 
     #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {self.vec.output()}}
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<T: VectorLike> HasReuseBuf for VecBufSwap<T> {
-    type FstHandleBool = T::SndHandleBool;
-    type SndHandleBool = T::FstHandleBool;
-    type BoundHandlesBool = T::BoundHandlesBool;
-    type FstOwnedBufferBool = T::SndOwnedBufferBool;
-    type SndOwnedBufferBool = T::FstOwnedBufferBool;
-    type FstOwnedBuffer = T::SndOwnedBuffer;
-    type SndOwnedBuffer = T::FstOwnedBuffer;
-    type FstType = T::SndType;
-    type SndType = T::FstType;
-    type BoundTypes = T::BoundTypes;
+impl<V: VectorLike> HasReuseBuf for VecBufSwap<V> {
+    type FstHandleBool = V::SndHandleBool;
+    type SndHandleBool = V::FstHandleBool;
+    type BoundHandlesBool = V::BoundHandlesBool;
+    type FstOwnedBufferBool = V::SndOwnedBufferBool;
+    type SndOwnedBufferBool = V::FstOwnedBufferBool;
+    type FstOwnedBuffer = V::SndOwnedBuffer;
+    type SndOwnedBuffer = V::FstOwnedBuffer;
+    type FstType = V::SndType;
+    type SndType = V::FstType;
+    type BoundTypes = V::BoundTypes;
 
     #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {self.vec.assign_2nd_buf(index, val)}}
     #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) { unsafe {self.vec.assign_1st_buf(index, val)}}

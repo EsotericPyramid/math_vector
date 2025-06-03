@@ -3,9 +3,9 @@ use crate::util_traits::*;
 use crate::vector::vec_util_traits::*;
 
 /// Offsets (with rolling over) each element up by offset
-pub struct VecOffset<T: VectorLike>{pub(crate) vec: T, pub(crate) offset: usize, pub(crate) size: usize}
+pub struct VecOffset<V: VectorLike>{pub(crate) vec: V, pub(crate) offset: usize, pub(crate) size: usize}
 
-impl<T: VectorLike> VecOffset<T> {
+impl<V: VectorLike> VecOffset<V> {
     #[inline]
     fn offset_index(&self, index: usize) -> usize {
         let mut offset_index = index + self.offset;
@@ -21,36 +21,36 @@ impl<T: VectorLike> VecOffset<T> {
     }
 }
 
-unsafe impl<T: VectorLike> Get for VecOffset<T> {
-    type GetBool = T::GetBool;
-    type Inputs = T::Inputs;
-    type Item = T::Item;
-    type BoundItems = T::BoundItems;
+unsafe impl<V: VectorLike> Get for VecOffset<V> {
+    type GetBool = V::GetBool;
+    type Inputs = V::Inputs;
+    type Item = V::Item;
+    type BoundItems = V::BoundItems;
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(self.offset_index(index))}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(self.offset_index(index))}}
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.offset_index(index), inputs)}
 }
 
-impl<T: VectorLike> HasOutput for VecOffset<T> {
-    type OutputBool = T::OutputBool;
-    type Output = T::Output;
+impl<V: VectorLike> HasOutput for VecOffset<V> {
+    type OutputBool = V::OutputBool;
+    type Output = V::Output;
 
     #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {self.vec.output()}}
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<T: VectorLike> HasReuseBuf for VecOffset<T> {
-    type FstHandleBool = T::FstHandleBool;
-    type SndHandleBool = T::SndHandleBool;
-    type BoundHandlesBool = T::BoundHandlesBool;
-    type FstOwnedBufferBool = T::FstOwnedBufferBool;
-    type SndOwnedBufferBool = T::SndOwnedBufferBool;
-    type FstOwnedBuffer = T::FstOwnedBuffer;
-    type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstType = T::FstType;
-    type SndType = T::SndType;
-    type BoundTypes = T::BoundTypes;
+impl<V: VectorLike> HasReuseBuf for VecOffset<V> {
+    type FstHandleBool = V::FstHandleBool;
+    type SndHandleBool = V::SndHandleBool;
+    type BoundHandlesBool = V::BoundHandlesBool;
+    type FstOwnedBufferBool = V::FstOwnedBufferBool;
+    type SndOwnedBufferBool = V::SndOwnedBufferBool;
+    type FstOwnedBuffer = V::FstOwnedBuffer;
+    type SndOwnedBuffer = V::SndOwnedBuffer;
+    type FstType = V::FstType;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
     #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {self.vec.assign_1st_buf(self.offset_index(index), val)}}
     #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) { unsafe {self.vec.assign_2nd_buf(self.offset_index(index), val)}}
@@ -65,43 +65,43 @@ impl<T: VectorLike> HasReuseBuf for VecOffset<T> {
 /// Reverses the elements in the vector
 pub struct VecReverse<V: VectorLike>{pub(crate) vec: V, pub(crate) max_index: usize}
 
-impl<T: VectorLike> VecReverse<T> {
+impl<V: VectorLike> VecReverse<V> {
     #[inline]
     fn reverse_index(&self, index: usize) -> usize {
         self.max_index - index
     }
 }
 
-unsafe impl<T: VectorLike> Get for VecReverse<T> {
-    type GetBool = T::GetBool;
-    type Inputs = T::Inputs;
-    type Item = T::Item;
-    type BoundItems = T::BoundItems;
+unsafe impl<V: VectorLike> Get for VecReverse<V> {
+    type GetBool = V::GetBool;
+    type Inputs = V::Inputs;
+    type Item = V::Item;
+    type BoundItems = V::BoundItems;
 
     #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {self.vec.get_inputs(self.reverse_index(index))}}
     #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.vec.drop_inputs(self.reverse_index(index))}}
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(self.reverse_index(index), inputs)}
 }
 
-impl<T: VectorLike> HasOutput for VecReverse<T> {
-    type OutputBool = T::OutputBool;
-    type Output = T::Output;
+impl<V: VectorLike> HasOutput for VecReverse<V> {
+    type OutputBool = V::OutputBool;
+    type Output = V::Output;
 
     #[inline] unsafe fn output(&mut self) -> Self::Output { unsafe {self.vec.output()}}
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<T: VectorLike> HasReuseBuf for VecReverse<T> {
-    type FstHandleBool = T::FstHandleBool;
-    type SndHandleBool = T::SndHandleBool;
-    type BoundHandlesBool = T::BoundHandlesBool;
-    type FstOwnedBufferBool = T::FstOwnedBufferBool;
-    type SndOwnedBufferBool = T::SndOwnedBufferBool;
-    type FstOwnedBuffer = T::FstOwnedBuffer;
-    type SndOwnedBuffer = T::SndOwnedBuffer;
-    type FstType = T::FstType;
-    type SndType = T::SndType;
-    type BoundTypes = T::BoundTypes;
+impl<V: VectorLike> HasReuseBuf for VecReverse<V> {
+    type FstHandleBool = V::FstHandleBool;
+    type SndHandleBool = V::SndHandleBool;
+    type BoundHandlesBool = V::BoundHandlesBool;
+    type FstOwnedBufferBool = V::FstOwnedBufferBool;
+    type SndOwnedBufferBool = V::SndOwnedBufferBool;
+    type FstOwnedBuffer = V::FstOwnedBuffer;
+    type SndOwnedBuffer = V::SndOwnedBuffer;
+    type FstType = V::FstType;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
 
     #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {self.vec.assign_1st_buf(self.reverse_index(index), val)}}
     #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) { unsafe {self.vec.assign_2nd_buf(self.reverse_index(index), val)}}
