@@ -165,22 +165,6 @@ impl<M: MatrixLike + Is2DRepeatable, const D1: usize, const D2: usize> MatrixExp
             item
         }
     } 
-
-    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
-    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
-    ///         Additionally, if the buffer is owned by the matrix, the matrix expr is also responsible for dropping filled indices
-    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
-    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
-    /// Note TLDR: this method is extremely prone to causing memory leaks
-    pub fn binding_get(&mut self, col_index: usize, row_index: usize) -> M::Item where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
-        if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
-        unsafe {
-            let inputs = self.0.get_inputs(col_index, row_index);
-            let (item, bound_items) = self.0.process(col_index, row_index, inputs);
-            self.0.assign_bound_bufs(col_index, row_index, bound_items);
-            item
-        }
-    }
 }
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1, D2> {
@@ -201,33 +185,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
 pub struct MatrixEntryIter<M: MatrixLike, const D1: usize, const D2: usize>{mat: M, current_col: usize, live_input_row_start: usize, dead_output_row_start: usize}
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2> {
-    /// gets the next element in the iterator
-    #[inline]
-    pub fn raw_next(&mut self) -> Option<M::Item> where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
-        unsafe {
-            if self.live_input_row_start < D1 { //current vector isn't done
-                let row_index = self.live_input_row_start;
-                self.live_input_row_start += 1;
-                let inputs = self.mat.get_inputs(self.current_col, row_index);
-                let (item, bound_items) = self.mat.process(self.current_col, row_index, inputs);
-                self.mat.assign_bound_bufs(self.current_col, row_index, bound_items);
-                self.dead_output_row_start += 1;
-                Some(item)
-            } else if self.current_col < D2-1 {
-                self.current_col += 1;
-                self.live_input_row_start = 1; //we immediately and infallibly get the first one
-                self.dead_output_row_start = 0;
-                let inputs = self.mat.get_inputs(self.current_col, 0);
-                let (item, bound_items) = self.mat.process(self.current_col, 0, inputs);
-                self.mat.assign_bound_bufs(self.current_col, 0, bound_items);
-                self.dead_output_row_start += 1;
-                Some(item)
-            } else {
-                None
-            }
-        }
-    }
-
     /// retrieve the output of this matrix without checking consumption
     /// Safety: the matrix must have been fully consumed
     #[inline]
@@ -318,7 +275,30 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Iterator for MatrixEntryIt
     type Item = M::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<Self::Item> {self.raw_next()}
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if self.live_input_row_start < D1 { //current vector isn't done
+                let row_index = self.live_input_row_start;
+                self.live_input_row_start += 1;
+                let inputs = self.mat.get_inputs(self.current_col, row_index);
+                let (item, bound_items) = self.mat.process(self.current_col, row_index, inputs);
+                self.mat.assign_bound_bufs(self.current_col, row_index, bound_items);
+                self.dead_output_row_start += 1;
+                Some(item)
+            } else if self.current_col < D2-1 {
+                self.current_col += 1;
+                self.live_input_row_start = 1; //we immediately and infallibly get the first one
+                self.dead_output_row_start = 0;
+                let inputs = self.mat.get_inputs(self.current_col, 0);
+                let (item, bound_items) = self.mat.process(self.current_col, 0, inputs);
+                self.mat.assign_bound_bufs(self.current_col, 0, bound_items);
+                self.dead_output_row_start += 1;
+                Some(item)
+            } else {
+                None
+            }
+        }
+    }
 }
 
 /// a simple type alias for MatrixExpr created from an array of type [[T; D1]; D2]

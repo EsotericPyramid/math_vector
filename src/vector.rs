@@ -156,24 +156,6 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
             item
         }
     }
-
-    /// TODO: remove?
-    /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
-    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<V>'s being bound)
-    ///         Additionally, if the buffer is owned by the vector, the vector expr is also responsible for dropping filled indices
-    ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
-    ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
-    /// Note TLDR: this method is extremely prone to causing memory leaks
-    pub fn binding_get(&mut self, index: usize) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        // the nature of IsRepeatable means that any index can be called any number of times so this is fine
-        if index >= D {panic!("math_vector Error: index access out of bound")}
-        unsafe {
-            let inputs = self.0.get_inputs(index);
-            let (item, bound_items) = self.0.process(index, inputs);
-            self.0.assign_bound_bufs(index, bound_items); // NOTE: all current things which have IsRepeatable don't have any bound items, however, it is not restricted by the definition
-            item
-        }
-    }
 }
 
 impl<V: VectorLike, const D: usize> Drop for VectorExpr<V, D> {
@@ -744,22 +726,10 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
     }    
 
-    // TODO: remove?
-    #[inline] fn initialized_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecSqrMag<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
-    }
-
     /// calculates the square of the vector's magnitude (ie. sum of each element's square), adding it to the output, while maintaining the vector's items
     #[inline] fn copied_sqr_mag<S: std::iter::Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())})}
-    }
-
-    // TODO: remove?
-    #[inline] fn initialized_copied_sqr_mag<S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self, init: S) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped, S>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, <Self::Unwrapped as Get>::Item: Copy + Mul, Self: Sized {
-        let builder = self.get_builder();
-        unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: std::mem::ManuallyDrop::new(init)})}
     }
 
     /// zips together the items of 2 vectors into 2 element tuples
@@ -977,24 +947,6 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: std::mem::ManuallyDrop::new(NoneIter::new().sum())}) }
     }
 
-    // TODO: remove?
-    #[inline] fn initialized_dot<V: VectorOps, S: AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V, init: S) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<VecDot<Self::Unwrapped, V::Unwrapped, S>> 
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
-        (<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool): FilterPair,
-        (<(<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
-        (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool, <V::Unwrapped as HasReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::Unwrapped as HasReuseBuf>::SndHandleBool, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-        Self: Sized
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe { builder.wrap(VecDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: std::mem::ManuallyDrop::new(init)}) }
-    }
-
     /// calculates the dot product of 2 vectors and adds it to the output
     #[inline] fn copied_dot<V: VectorOps, S: std::iter::Sum<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output> + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>> 
     where
@@ -1150,7 +1102,6 @@ where
         }
     }
 }
-
 
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
