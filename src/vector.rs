@@ -15,9 +15,9 @@ use vector_builders::*;
 /// T: the underlying VectorLike type, generally inferred or generic
 /// D: the size of the vector
 #[repr(transparent)]
-pub struct VectorExpr<T: VectorLike, const D: usize>(pub(crate) T); // note: VectorExpr only holds fully unused VectorLike objects
+pub struct VectorExpr<V: VectorLike, const D: usize>(pub(crate) V); // note: VectorExpr only holds fully unused VectorLike objects
 
-impl<T: VectorLike, const D: usize> VectorExpr<T, D> {
+impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
     /// converts the underlying VectorLike to a dynamic object
     /// stabilizes the overall type to a consitent one
     /// ex:
@@ -32,44 +32,44 @@ impl<T: VectorLike, const D: usize> VectorExpr<T, D> {
     /// ```
     #[inline]
     pub fn make_dynamic(self) -> VectorExpr<Box<dyn VectorLike<
-        GetBool = T::GetBool,
+        GetBool = V::GetBool,
         Inputs = (),
-        Item = T::Item,
-        BoundItems = T::BoundItems,
+        Item = V::Item,
+        BoundItems = V::BoundItems,
 
-        OutputBool = T::OutputBool,
-        Output = T::Output,
+        OutputBool = V::OutputBool,
+        Output = V::Output,
 
-        FstHandleBool = T::FstHandleBool,
-        SndHandleBool = T::SndHandleBool,
-        BoundHandlesBool = T::BoundHandlesBool,
-        FstOwnedBufferBool = T::FstOwnedBufferBool,
-        SndOwnedBufferBool = T::SndOwnedBufferBool,
-        FstOwnedBuffer = T::FstOwnedBuffer,
-        SndOwnedBuffer = T::SndOwnedBuffer,
-        FstType = T::FstType,
-        SndType = T::SndType,
-        BoundTypes = T::BoundTypes,
-    >>, D> where T: 'static {
+        FstHandleBool = V::FstHandleBool,
+        SndHandleBool = V::SndHandleBool,
+        BoundHandlesBool = V::BoundHandlesBool,
+        FstOwnedBufferBool = V::FstOwnedBufferBool,
+        SndOwnedBufferBool = V::SndOwnedBufferBool,
+        FstOwnedBuffer = V::FstOwnedBuffer,
+        SndOwnedBuffer = V::SndOwnedBuffer,
+        FstType = V::FstType,
+        SndType = V::SndType,
+        BoundTypes = V::BoundTypes,
+    >>, D> where V: 'static {
         VectorExpr(Box::new(DynamicVectorLike{vec: self.unwrap(), inputs: None}) as Box<dyn VectorLike<
-            GetBool = T::GetBool,
+            GetBool = V::GetBool,
             Inputs = (),
-            Item = T::Item,
-            BoundItems = T::BoundItems,
+            Item = V::Item,
+            BoundItems = V::BoundItems,
 
-            OutputBool = T::OutputBool,
-            Output = T::Output,
+            OutputBool = V::OutputBool,
+            Output = V::Output,
 
-            FstHandleBool = T::FstHandleBool,
-            SndHandleBool = T::SndHandleBool,
-            BoundHandlesBool = T::BoundHandlesBool,
-            FstOwnedBufferBool = T::FstOwnedBufferBool,
-            SndOwnedBufferBool = T::SndOwnedBufferBool,
-            FstOwnedBuffer = T::FstOwnedBuffer,
-            SndOwnedBuffer = T::SndOwnedBuffer,
-            FstType = T::FstType,
-            SndType = T::SndType,
-            BoundTypes = T::BoundTypes,
+            FstHandleBool = V::FstHandleBool,
+            SndHandleBool = V::SndHandleBool,
+            BoundHandlesBool = V::BoundHandlesBool,
+            FstOwnedBufferBool = V::FstOwnedBufferBool,
+            SndOwnedBufferBool = V::SndOwnedBufferBool,
+            FstOwnedBuffer = V::FstOwnedBuffer,
+            SndOwnedBuffer = V::SndOwnedBuffer,
+            FstType = V::FstType,
+            SndType = V::SndType,
+            BoundTypes = V::BoundTypes,
         >>)
     }
 
@@ -82,8 +82,8 @@ impl<T: VectorLike, const D: usize> VectorExpr<T, D> {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline] 
-    pub fn consume(self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
-        VectorIter::<T, D>{
+    pub fn consume(self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        VectorIter::<V, D>{
             vec: unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) },
             live_input_start: 0,
             dead_output_start: 0,
@@ -105,14 +105,14 @@ impl<T: VectorLike, const D: usize> VectorExpr<T, D> {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline]
-    pub fn eval(self) -> <VecBind<VecMaybeCreateBuf<T, T::Item, D>> as HasOutput>::Output 
+    pub fn eval(self) -> <VecBind<VecMaybeCreateBuf<V, V::Item, D>> as HasOutput>::Output 
     where 
-        <T::FstHandleBool as TyBool>::Neg: Filter,
-        (T::FstHandleBool, <T::FstHandleBool as TyBool>::Neg): SelectPair,
-        (T::FstOwnedBufferBool, <T::FstHandleBool as TyBool>::Neg): TyBoolPair,
-        (T::OutputBool, <(T::FstOwnedBufferBool, <T::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-        (T::BoundHandlesBool, Y): FilterPair,
-        VecBind<VecMaybeCreateBuf<T, T::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateBuf<T, T::Item, D>> as Get>::BoundItems>
+        <V::FstHandleBool as TyBool>::Neg: Filter,
+        (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
+        (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+        (V::BoundHandlesBool, Y): FilterPair,
+        VecBind<VecMaybeCreateBuf<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateBuf<V, V::Item, D>> as Get>::BoundItems>
     {
         self.maybe_create_buf().bind().consume()
     }
@@ -132,14 +132,14 @@ impl<T: VectorLike, const D: usize> VectorExpr<T, D> {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline]
-    pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapBuf<T, T::Item, D>> as HasOutput>::Output 
+    pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>> as HasOutput>::Output 
     where 
-        <T::FstHandleBool as TyBool>::Neg: Filter,
-        (T::FstHandleBool, <T::FstHandleBool as TyBool>::Neg): SelectPair,
-        (T::FstOwnedBufferBool, <T::FstHandleBool as TyBool>::Neg): TyBoolPair,
-        (T::OutputBool, <(T::FstOwnedBufferBool, <T::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-        (T::BoundHandlesBool, Y): FilterPair,
-        VecBind<VecMaybeCreateHeapBuf<T, T::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateHeapBuf<T, T::Item, D>> as Get>::BoundItems>
+        <V::FstHandleBool as TyBool>::Neg: Filter,
+        (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
+        (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+        (V::BoundHandlesBool, Y): FilterPair,
+        VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>> as Get>::BoundItems>
     {
         self.maybe_create_heap_buf().bind().consume()
     }
@@ -159,7 +159,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
 
     /// TODO: remove?
     /// Note:   Some buffers do not drop pre-existing values when being filled as such values may be undefined data
-    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<T>'s being bound)
+    ///         however, this means that binding an index multiple times can cause a leak (ie. with Box<V>'s being bound)
     ///         Additionally, if the buffer is owned by the vector, the vector expr is also responsible for dropping filled indices
     ///         however, such filled indices filled via this method aren't tracked so further leaks can happen 
     ///         (assuming it isn't retroactivly noted as filled during evaluation/iteration)
@@ -176,7 +176,7 @@ impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
     }
 }
 
-impl<T: VectorLike, const D: usize> Drop for VectorExpr<T, D> {
+impl<V: VectorLike, const D: usize> Drop for VectorExpr<V, D> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -188,9 +188,9 @@ impl<T: VectorLike, const D: usize> Drop for VectorExpr<T, D> {
     }
 }
 
-impl<T: VectorLike, const D: usize> IntoIterator for VectorExpr<T, D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {
-    type IntoIter = VectorIter<T, D>;
-    type Item = <T as Get>::Item;
+impl<V: VectorLike, const D: usize> IntoIterator for VectorExpr<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+    type IntoIter = VectorIter<V, D>;
+    type Item = <V as Get>::Item;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -204,13 +204,13 @@ impl<T: VectorLike, const D: usize> IntoIterator for VectorExpr<T, D> where T: H
 
 
 /// a const-sized VectorExpr iterator
-pub struct VectorIter<T: VectorLike, const D: usize>{vec: T, live_input_start: usize, dead_output_start: usize} // note: ranges are start inclusive, end exclusive
+pub struct VectorIter<V: VectorLike, const D: usize>{vec: V, live_input_start: usize, dead_output_start: usize} // note: ranges are start inclusive, end exclusive
 
-impl<T: VectorLike, const D: usize> VectorIter<T, D> {
+impl<V: VectorLike, const D: usize> VectorIter<V, D> {
     /// retrieves the next item without checking
     /// Safety: there must be another item to return
     #[inline]
-    pub unsafe fn next_unchecked(&mut self) -> T::Item where T: HasReuseBuf<BoundTypes = T::BoundItems> { unsafe {
+    pub unsafe fn next_unchecked(&mut self) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> { unsafe {
         let index = self.live_input_start;
         self.live_input_start += 1;
         let inputs = self.vec.get_inputs(index);
@@ -223,7 +223,7 @@ impl<T: VectorLike, const D: usize> VectorIter<T, D> {
     /// retrieves the VectorIter's output without checking consumption
     /// Safety: the VectorLike must be fully consumed
     #[inline]
-    pub unsafe fn unchecked_output(self) -> T::Output {
+    pub unsafe fn unchecked_output(self) -> V::Output {
         // NOTE: manual drop shenanigans to prevent VectorIter from being dropped normally
         //       doing so would incorrectly drop HasReuseBuf & output 
         let mut man_drop_self = std::mem::ManuallyDrop::new(self);
@@ -238,7 +238,7 @@ impl<T: VectorLike, const D: usize> VectorIter<T, D> {
     /// retrieves the VectorIter's output
     /// the VectorIter must be fully consumed or this function will panic
     #[inline]
-    pub fn output(self) -> T::Output {
+    pub fn output(self) -> V::Output {
         assert!(self.live_input_start == D, "math_vector error: A VectorIter must be fully used before outputting");
         debug_assert!(self.dead_output_start == D, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
         unsafe {self.unchecked_output()}
@@ -246,21 +246,21 @@ impl<T: VectorLike, const D: usize> VectorIter<T, D> {
 
     /// fully consumes the VectorIter and then returns its output
     #[inline]
-    pub fn consume(mut self) -> T::Output where T: HasReuseBuf<BoundTypes = T::BoundItems> {
+    pub fn consume(mut self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
         self.no_output_consume();
         unsafe {self.unchecked_output()} // safety: VectorIter was fully used
     }
 
     /// fully consumes the VectorIter without returning its output
     #[inline]
-    pub fn no_output_consume(&mut self) where T: HasReuseBuf<BoundTypes = T::BoundItems> {
+    pub fn no_output_consume(&mut self) where V: HasReuseBuf<BoundTypes = V::BoundItems> {
         while self.live_input_start < D {
             unsafe { let _ = self.next_unchecked(); }
         }
     }
 }
 
-impl<T: VectorLike, const D: usize> Drop for VectorIter<T, D> {
+impl<V: VectorLike, const D: usize> Drop for VectorIter<V, D> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -276,8 +276,8 @@ impl<T: VectorLike, const D: usize> Drop for VectorIter<T, D> {
     }
 }
 
-impl<T: VectorLike, const D: usize> Iterator for VectorIter<T, D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {
-    type Item = T::Item;
+impl<V: VectorLike, const D: usize> Iterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+    type Item = V::Item;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -295,9 +295,9 @@ impl<T: VectorLike, const D: usize> Iterator for VectorIter<T, D> where T: HasRe
     }
 }
 
-impl<T: VectorLike, const D: usize> ExactSizeIterator for VectorIter<T, D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {}
+impl<V: VectorLike, const D: usize> ExactSizeIterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
 
-impl<T: VectorLike, const D: usize> std::iter::FusedIterator for VectorIter<T, D> where T: HasReuseBuf<BoundTypes = T::BoundItems> {}
+impl<V: VectorLike, const D: usize> std::iter::FusedIterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
 
 /// a simple type alias for a VectorExpr created from an array of type [T; D]
 pub type MathVector<T, const D: usize> = VectorExpr<OwnedArray<T, D>, D>;
@@ -482,9 +482,9 @@ pub fn vector_index_gen<F: FnMut(usize) -> O, O, const D: usize>(f: F) -> Vector
 }
 
 // TODO: finish implementing RSVectorExpr
-pub struct RSVectorExpr<T: VectorLike>{vec: T, size: usize}
+pub struct RSVectorExpr<V: VectorLike>{vec: V, size: usize}
 
-impl<T: VectorLike> Drop for RSVectorExpr<T> {
+impl<V: VectorLike> Drop for RSVectorExpr<V> {
     #[inline]
     fn drop(&mut self) {
         unsafe {

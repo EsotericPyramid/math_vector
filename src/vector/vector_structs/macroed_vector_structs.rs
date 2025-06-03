@@ -253,89 +253,89 @@ macro_rules! vec_structs {
 
 vec_structs!(
     "Struct mapping a vector's items using its closure (FnMut)";
-    VecMap<{T}, F: FnMut(T::Item) -> O, O>{vec, f: F}; get: O, |self, input| (self.f)(input);
+    VecMap<{V}, F: FnMut(V::Item) -> O, O>{vec, f: F}; get: O, |self, input| (self.f)(input);
     "Struct folding a vector's items using its closure";
-    VecFold<{T}, F: FnMut(O, T::Item) -> O, O>{vec, f: F, cell: Option<O>}; output: cell: O, get: (), |self, input| self.cell = Some((self.f)(self.cell.take().unwrap(), input));
+    VecFold<{V}, F: FnMut(O, V::Item) -> O, O>{vec, f: F, cell: Option<O>}; output: cell: O, get: (), |self, input| self.cell = Some((self.f)(self.cell.take().unwrap(), input));
     "Struct folding a vector's items using its closure";
-    VecFoldRef<{T}, F: FnMut(&mut O, T::Item), O>{vec, f: F, cell: ManuallyDrop<O>}; output: cell: O, get: (), |self, input| (self.f)(&mut self.cell, input); // note: use of this is preferred to VecFold
+    VecFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>}; output: cell: O, get: (), |self, input| (self.f)(&mut self.cell, input); // note: use of this is preferred to VecFold
     
     "Struct folding a vector's items using its closure while preserving the items";
-    VecCopiedFold<{T}, F: FnMut(O, T::Item) -> O, O>{vec, f: F, cell: Option<O>} where T::Item: Copy; output: cell: O, get: T::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
+    VecCopiedFold<{V}, F: FnMut(O, V::Item) -> O, O>{vec, f: F, cell: Option<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
     "Struct folding a vector's items using its closure while preserving the items";
-    VecCopiedFoldRef<{T}, F: FnMut(&mut O, T::Item), O>{vec, f: F, cell: ManuallyDrop<O>} where T::Item: Copy; output: cell: O, get: T::Item, |self, input| {(self.f)(&mut self.cell, input); input}; // note: use of this is preferred to VecFold
+    VecCopiedFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {(self.f)(&mut self.cell, input); input}; // note: use of this is preferred to VecFold
     
     "Struct copying a vector's items, useful for &T -> T";
-    VecCopy<'a, {T}, I: 'a | Copy>{vec} where T: Get<Item = &'a I>; get: I, |self, input| *input, Y;
+    VecCopy<'a, {V}, I: 'a | Copy>{vec} where V: Get<Item = &'a I>; get: I, |self, input| *input, Y;
     "Struct cloning a vector's items, useful for &T -> T";
-    VecClone<'a, {T}, I: 'a | Clone>{vec} where T: Get<Item = &'a I>; get: I, |self, input| input.clone();
+    VecClone<'a, {V}, I: 'a | Clone>{vec} where V: Get<Item = &'a I>; get: I, |self, input| input.clone();
     
     "Struct negating (-) a vector's items";
-    VecNeg<{T}>{vec} where T::Item: Neg; get: <T::Item as Neg>::Output, |self, input| -input;
+    VecNeg<{V}>{vec} where V::Item: Neg; get: <V::Item as Neg>::Output, |self, input| -input;
     
     "Struct multiplying a scalar by a vector (vector is rhs)";
-    VecMulR<{T}, S: Copy>{vec, scalar: S} where S: Mul<T::Item>; get: <S as Mul<T::Item>>::Output, |self, input| self.scalar * input;
+    VecMulR<{V}, S: Copy>{vec, scalar: S} where S: Mul<V::Item>; get: <S as Mul<V::Item>>::Output, |self, input| self.scalar * input;
     "Struct dividing a scalar by a vector";
-    VecDivR<{T}, S: Copy>{vec, scalar: S} where S: Div<T::Item>; get: <S as Div<T::Item>>::Output, |self, input| self.scalar / input;
+    VecDivR<{V}, S: Copy>{vec, scalar: S} where S: Div<V::Item>; get: <S as Div<V::Item>>::Output, |self, input| self.scalar / input;
     "Struct getting remainer (%) of a scalar by a vector";
-    VecRemR<{T}, S: Copy>{vec, scalar: S} where S: Rem<T::Item>; get: <S as Rem<T::Item>>::Output, |self, input| self.scalar % input;
+    VecRemR<{V}, S: Copy>{vec, scalar: S} where S: Rem<V::Item>; get: <S as Rem<V::Item>>::Output, |self, input| self.scalar % input;
     "Struct multiplying a vector by a scalar (vector is lhs)";
-    VecMulL<{T}, S: Copy>{vec, scalar: S} where T::Item: Mul<S>; get: <T::Item as Mul<S>>::Output, |self, input| input * self.scalar;
+    VecMulL<{V}, S: Copy>{vec, scalar: S} where V::Item: Mul<S>; get: <V::Item as Mul<S>>::Output, |self, input| input * self.scalar;
     "Struct dividing a vector by a scalar";
-    VecDivL<{T}, S: Copy>{vec, scalar: S} where T::Item: Div<S>; get: <T::Item as Div<S>>::Output, |self, input| input / self.scalar;
+    VecDivL<{V}, S: Copy>{vec, scalar: S} where V::Item: Div<S>; get: <V::Item as Div<S>>::Output, |self, input| input / self.scalar;
     "Struct getting remainer (%) of a vector by a scalar";
-    VecRemL<{T}, S: Copy>{vec, scalar: S} where T::Item: Rem<S>; get: <T::Item as Rem<S>>::Output, |self, input| input % self.scalar;
+    VecRemL<{V}, S: Copy>{vec, scalar: S} where V::Item: Rem<S>; get: <V::Item as Rem<S>>::Output, |self, input| input % self.scalar;
     
     "Struct mul assigning (*=) a vector's item (&mut T) by a scalar";
-    VecMulAssign<'a, {T}, I: 'a | MulAssign<S>, S: Copy>{vec, scalar: S} where T: Get<Item = &'a mut I>; get: (), |self, input| *input *= self.scalar;
+    VecMulAssign<'a, {V}, I: 'a | MulAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input *= self.scalar;
     "Struct div assigning (/=) a vector's item (&mut T) by a scalar";
-    VecDivAssign<'a, {T}, I: 'a | DivAssign<S>, S: Copy>{vec, scalar: S} where T: Get<Item = &'a mut I>; get: (), |self, input| *input /= self.scalar;
+    VecDivAssign<'a, {V}, I: 'a | DivAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input /= self.scalar;
     "Struct rem assigning (%=) a vector's item (&mut T) by a scalar";
-    VecRemAssign<'a, {T}, I: 'a | RemAssign<S>, S: Copy>{vec, scalar: S} where T: Get<Item = &'a mut I>; get: (), |self, input| *input %= self.scalar;
+    VecRemAssign<'a, {V}, I: 'a | RemAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input %= self.scalar;
     
     "Struct summing up a vector's items, adding it to Output";
-    VecSum<{T}, S>{vec, scalar: ManuallyDrop<S>} where S: AddAssign<T::Item>; output: scalar: S, get: (), |self, input| *self.scalar += input;
+    VecSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: AddAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar += input;
     "Struct multiplying together a vector's items, adding it to Output";
-    VecProduct<{T}, S>{vec, scalar: ManuallyDrop<S>} where S: MulAssign<T::Item>; output: scalar: S, get: (), |self, input| *self.scalar *= input;
+    VecProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: MulAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar *= input;
     "Struct calculating the square magnitude of a vector, adding it to Output";
-    VecSqrMag<{T}, S>{vec, scalar: ManuallyDrop<S>} where T::Item: Copy | Mul, S: AddAssign<<T::Item as Mul>::Output>; output: scalar: S, get: (), |self, input| *self.scalar += input*input;
+    VecSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: (), |self, input| *self.scalar += input*input;
     
     "Struct summing up a vector's items, adding it to Output while preserving the item";
-    VecCopiedSum<{T}, S>{vec, scalar: ManuallyDrop<S>} where T::Item: Copy, S: AddAssign<T::Item>; output: scalar: S, get: T::Item, |self, input| {*self.scalar += input; input};
+    VecCopiedSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: AddAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input; input};
     "Struct multiplying together a vector's items, adding it to Output while preserving the item";
-    VecCopiedProduct<{T}, S>{vec, scalar: ManuallyDrop<S>} where T::Item: Copy, S: MulAssign<T::Item>; output: scalar: S, get: T::Item, |self, input| {*self.scalar *= input; input};
+    VecCopiedProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: MulAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar *= input; input};
     "Struct calculating the square magnitude of a vector, adding it to Output while preserving the item";
-    VecCopiedSqrMag<{T}, S>{vec, scalar: ManuallyDrop<S>} where T::Item: Copy | Mul, S: AddAssign<<T::Item as Mul>::Output>; output: scalar: S, get: T::Item, |self, input| {*self.scalar += input*input; input};
+    VecCopiedSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input*input; input};
 );
 
 vec_structs!(
     "Struct zipping together the items of 2 vectors into a 2 element tuple";
-    VecZip<{T1, T2}>{l_vec, r_vec}; get: (T1::Item, T2::Item), |self, l_input, r_input| (l_input, r_input), Y;
+    VecZip<{V1, V2}>{l_vec, r_vec}; get: (V1::Item, V2::Item), |self, l_input, r_input| (l_input, r_input), Y;
     
     "Struct adding 2 vectors";
-    VecAdd<{T1, T2}>{l_vec, r_vec} where T1::Item: Add<T2::Item>; get: <T1::Item as Add<T2::Item>>::Output, |self, l_input, r_input| l_input + r_input;
+    VecAdd<{V1, V2}>{l_vec, r_vec} where V1::Item: Add<V2::Item>; get: <V1::Item as Add<V2::Item>>::Output, |self, l_input, r_input| l_input + r_input;
     "Struct subtracting a vector from another";
-    VecSub<{T1, T2}>{l_vec, r_vec} where T1::Item: Sub<T2::Item>; get: <T1::Item as Sub<T2::Item>>::Output, |self, l_input, r_input| l_input - r_input;
+    VecSub<{V1, V2}>{l_vec, r_vec} where V1::Item: Sub<V2::Item>; get: <V1::Item as Sub<V2::Item>>::Output, |self, l_input, r_input| l_input - r_input;
     "Struct component-wise multiplying 2 vectors";
-    VecCompMul<{T1, T2}>{l_vec, r_vec} where T1::Item: Mul<T2::Item>; get: <T1::Item as Mul<T2::Item>>::Output, |self, l_input, r_input| l_input * r_input;
+    VecCompMul<{V1, V2}>{l_vec, r_vec} where V1::Item: Mul<V2::Item>; get: <V1::Item as Mul<V2::Item>>::Output, |self, l_input, r_input| l_input * r_input;
     "Struct component-wise dividing a vector by another";
-    VecCompDiv<{T1, T2}>{l_vec, r_vec} where T1::Item: Div<T2::Item>; get: <T1::Item as Div<T2::Item>>::Output, |self, l_input, r_input| l_input / r_input;
+    VecCompDiv<{V1, V2}>{l_vec, r_vec} where V1::Item: Div<V2::Item>; get: <V1::Item as Div<V2::Item>>::Output, |self, l_input, r_input| l_input / r_input;
     "Struct component-wise getting remainder (%) of a vector by another";
-    VecCompRem<{T1, T2}>{l_vec, r_vec} where T1::Item: Rem<T2::Item>; get: <T1::Item as Rem<T2::Item>>::Output, |self, l_input, r_input| l_input % r_input;
+    VecCompRem<{V1, V2}>{l_vec, r_vec} where V1::Item: Rem<V2::Item>; get: <V1::Item as Rem<V2::Item>>::Output, |self, l_input, r_input| l_input % r_input;
     
     "Struct add assigning (+=) a vector (of item &mut T) with another";
-    VecAddAssign<'a, {T1, T2}, I: 'a | AddAssign<T2::Item>>{l_vec, r_vec} where T1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input += r_input;
+    VecAddAssign<'a, {V1, V2}, I: 'a | AddAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input += r_input;
     "Struct sub assigning (-=) a vector (of item &mut T) with another";
-    VecSubAssign<'a, {T1, T2}, I: 'a | SubAssign<T2::Item>>{l_vec, r_vec} where T1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input -= r_input;
+    VecSubAssign<'a, {V1, V2}, I: 'a | SubAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input -= r_input;
     "Struct component-wise mul assigning (*=) a vector (of item &mut T) with another";
-    VecCompMulAssign<'a, {T1, T2}, I: 'a | MulAssign<T2::Item>>{l_vec, r_vec} where T1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input *= r_input;
+    VecCompMulAssign<'a, {V1, V2}, I: 'a | MulAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input *= r_input;
     "Struct component-wise div assigning (/=) a vector (of item &mut T) with another";
-    VecCompDivAssign<'a, {T1, T2}, I: 'a | DivAssign<T2::Item>>{l_vec, r_vec} where T1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input /= r_input;
+    VecCompDivAssign<'a, {V1, V2}, I: 'a | DivAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input /= r_input;
     "Struct component-wise rem assigning (%=) a vector (of item &mut T) with another";
-    VecCompRemAssign<'a, {T1, T2}, I: 'a | RemAssign<T2::Item>>{l_vec, r_vec} where T1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input %= r_input;
+    VecCompRemAssign<'a, {V1, V2}, I: 'a | RemAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input %= r_input;
     
     "Struct calculating the dot product between 2 vectors, adding it to Output";
-    VecDot<{T1, T2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where T1::Item: Mul<T2::Item>, S: AddAssign<<T1::Item as Mul<T2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input;
+    VecDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item>, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input;
     
     "Struct calculating the dot product between 2 vectors, adding it to Output, while preserving the items by zipping them in 2 element tuples";
-    VecCopiedDot<{T1, T2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where T1::Item: Mul<T2::Item>, T1::Item: Copy, T2::Item: Copy, S: AddAssign<<T1::Item as Mul<T2::Item>>::Output>; output: scalar: S, get: (T1::Item, T2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
+    VecCopiedDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item>, V1::Item: Copy, V2::Item: Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
 );
