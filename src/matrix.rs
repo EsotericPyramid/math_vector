@@ -805,9 +805,19 @@ pub trait MatrixOps {
     
     /// multiplies 2 matrices
     #[inline]
-    fn mat_mul<M: MatrixOps>(self, other: M) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<FullMatMul<Self::Unwrapped, M::Unwrapped>> where 
+    fn mat_mul<M: MatrixOps>(self, other: M) -> <
+        <
+            <Self::Builder as MatrixBuilder>::ColBuilder as MatrixBuilderCompose<
+                <M::Builder as MatrixBuilder>::RowBuilder
+            >
+        >::Composition as MatrixBuilder
+    >::MatrixWrapped<
+        FullMatMul<Self::Unwrapped, M::Unwrapped>
+    > 
+    where 
         Self::Unwrapped: Is2DRepeatable,
         M::Unwrapped: Is2DRepeatable,
+        <Self::Builder as MatrixBuilder>::ColBuilder: MatrixBuilderCompose<<M::Builder as MatrixBuilder>::RowBuilder>,
         <Self::Unwrapped as Get2D>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
         <<Self::Unwrapped as Get2D>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output: AddAssign,
 
@@ -828,7 +838,7 @@ pub trait MatrixOps {
     {
         if self.dimensions().1 != other.dimensions().0 {panic!("math_vector Error: cannot multiply matrices with incompatible sizes")}
         let shared_size = self.dimensions().1;
-        let builder = self.get_builder();
+        let builder = self.get_builder().decompose().0.compose(other.get_builder().decompose().1);
         unsafe { builder.wrap_mat(FullMatMul{l_mat: self.unwrap(), r_mat: other.unwrap(), shared_size}) }
     }
 

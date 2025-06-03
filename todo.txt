@@ -1,7 +1,8 @@
 Key:
     +: file / module
     -: an item to todo
-    ?: maybe do / may not be possible to do
+    ?: maybe do
+    X: to do if possible (which it may not be)
 
 
 To Do's:
@@ -25,11 +26,10 @@ To Do's:
         - remove into_2d_array (not Into<[[T; D1]; D2]>)
         - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
-        - reimplement mat_mul method to use new builder systems
         ? rename ArrayMatrixOps
         - add heap_make_repeatable
         - add runtime sized wrappers
-        - add wrap shortcut methods to MatrixOps 
+        - add wrap shortcut macro to MatrixOps
 
         + mat_util_traits.rs:
             ? remove transposition information
@@ -48,7 +48,7 @@ To Do's:
         ? remove initialized_sqr_mag (& copied_initialized_sqr_mag)
         ? remove initialized_dot
         - Add heap_make_repeatable
-        - add wrap shortcut methods to VectorOps 
+        - add wrap shortcut macro to VectorOps 
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
