@@ -37,9 +37,7 @@ To Do's:
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
         - Add/convert a runtime sized VectorIter
-        - remove into_array (not Into<[T; D]>)
-        - replace into_heap_array w/ `Box<VectorExpr<_>>: Into<Box<[T; D]>>`
-        ? Add addassign and subassign for generic V2: VectorOps
+        X Add addassign and subassign for generic V2: VectorOps
         - Finish implementing RSVectorExpr
         - Add heap_make_repeatable
         - add wrap shortcut macro to VectorOps 

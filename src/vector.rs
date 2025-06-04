@@ -289,12 +289,6 @@ impl<V: VectorLike, const D: usize> std::iter::FusedIterator for VectorIter<V, D
 pub type MathVector<T, const D: usize> = VectorExpr<OwnedArray<T, D>, D>;
 
 impl<T, const D: usize> MathVector<T, D> {
-    // TODO: remove?
-    #[inline] pub fn into_array(self) -> [T; D] {self.unwrap().unwrap()}
-    // TODO: replace?
-    #[inline] pub fn into_heap_array(self: Box<Self>) -> Box<[T; D]> {
-        unsafe { std::mem::transmute::<Box<Self>, Box<[T; D]>>(self) }
-    }
     /// marks this MathVector to have its buffer reused
     /// buffer placed on fst buffer
     #[inline] pub fn reuse(self) -> VectorExpr<ReplaceArray<T, D>, D> {VectorExpr(ReplaceArray(self.unwrap().0))}
@@ -355,9 +349,26 @@ impl<T, const D: usize> From<[T; D]> for MathVector<T, D> {
     }
 }
 
-impl<T, const D: usize> Into<[T; D]> for MathVector<T, D> {
-    #[inline] fn into(self) -> [T; D] {self.into_array()}
+impl<T, const D: usize> From<Box<[T; D]>> for Box<MathVector<T, D>> {
+    #[inline]
+    fn from(value: Box<[T; D]>) -> Self {
+        unsafe { std::mem::transmute::<Box<[T; D]>, Box<MathVector<T,D>>>(self) }
+    }
 }
+
+impl<T, const D: usize> Into<[T; D]> for MathVector<T, D> {
+    #[inline] 
+    fn into(self) -> [T; D] {
+        self.unwrap().unwrap()
+    }
+}
+
+impl<T, const D: usize> Into<Box<[T; D]>> for Box<MathVector<T,D>> {
+    #[inline] 
+    fn into(self) -> Box<[T; D]> {
+        unsafe { std::mem::transmute::<Box<MathVector<T,D>>, Box<[T; D]>>(self) }
+    }
+} 
 
 impl<'a, T, const D: usize> From<&'a [T; D]> for &'a MathVector<T, D> {
     #[inline]
