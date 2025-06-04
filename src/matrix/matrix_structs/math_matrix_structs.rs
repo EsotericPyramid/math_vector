@@ -99,6 +99,14 @@ where
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {
         <(M1::SndOwnedBufferBool, M2::SndOwnedBufferBool) as SelectPair>::select(self.l_mat.get_2nd_buffer(), self.r_mat.get_2nd_buffer())
     }}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+        self.l_mat.drop_1st_buffer();
+        self.r_mat.drop_1st_buffer();
+    }}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {
+        self.l_mat.drop_2nd_buffer();
+        self.r_mat.drop_2nd_buffer();
+    }}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {
         self.l_mat.drop_1st_buf_index(col_index, row_index);
         self.r_mat.drop_1st_buf_index(col_index, row_index);

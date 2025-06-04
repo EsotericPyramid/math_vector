@@ -131,6 +131,8 @@ macro_rules! mat_structs {
                 #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) { unsafe {self.$mat.assign_bound_bufs(col_index, row_index, val)}}
                 #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.$mat.get_1st_buffer()}}
                 #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.$mat.get_2nd_buffer()}}
+                #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.$mat.drop_1st_buffer()}}
+                #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.$mat.drop_2nd_buffer()}}
                 #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_1st_buf_index(col_index, row_index)}}
                 #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_2nd_buf_index(col_index, row_index)}}
                 #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_bound_bufs_index(col_index, row_index)}}
@@ -242,6 +244,14 @@ macro_rules! mat_structs {
                 }}
                 #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {
                     <(<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool) as SelectPair>::select(self.$l_mat.get_2nd_buffer(), self.$r_mat.get_2nd_buffer())
+                }}
+                #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+                    self.$l_mat.drop_1st_buffer();
+                    self.$r_mat.drop_1st_buffer();
+                }}
+                #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {
+                    self.$l_mat.drop_2nd_buffer();
+                    self.$r_mat.drop_2nd_buffer();
                 }}
                 #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {
                     self.$l_mat.drop_1st_buf_index(col_index, row_index);

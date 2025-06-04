@@ -47,6 +47,8 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf fo
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.mat.drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.mat.drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.mat.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.mat.drop_bound_bufs_index(index)}}    
@@ -96,6 +98,8 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf fo
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.mat.drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.mat.drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.mat.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.mat.drop_bound_bufs_index(index)}}    
@@ -147,6 +151,8 @@ impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {(*self.mat).assign_bound_bufs(self.column_num, index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {(*self.mat).drop_bound_bufs_index(self.column_num, index)}}
@@ -193,6 +199,8 @@ impl<M: MatrixLike> HasReuseBuf for MatColVectorExprs<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -244,6 +252,8 @@ impl<M: MatrixLike> HasReuseBuf for MatrixRow<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {(*self.mat).assign_bound_bufs(index, self.row_num, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {(*self.mat).drop_bound_bufs_index(index, self.row_num)}}
@@ -290,6 +300,8 @@ impl<M: MatrixLike> HasReuseBuf for MatRowVectorExprs<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}

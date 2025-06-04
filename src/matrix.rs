@@ -177,6 +177,8 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
                 }
             }
             self.0.drop_output();
+            self.0.drop_1st_buffer();
+            self.0.drop_2nd_buffer();
         }
     }
 }
@@ -250,7 +252,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixEntryIter<M
     #[inline]
     fn drop(&mut self) {
         unsafe {
-            self.mat.drop_output();
             for col_index in 0..self.current_col {
                 for row_index in 0..D1 {
                     self.mat.drop_bound_bufs_index(col_index, row_index);
@@ -267,6 +268,9 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixEntryIter<M
                     self.mat.drop_inputs(col_index, row_index);
                 }
             }
+            self.mat.drop_output();
+            self.mat.drop_1st_buffer();
+            self.mat.drop_2nd_buffer();
         }
     }
 }
@@ -1095,7 +1099,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     #[inline]
     fn create_2d_heap_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
+        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 
     /// creates a buffer in the first buffer if there isn't already one there
@@ -1122,7 +1126,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
+        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 }
 

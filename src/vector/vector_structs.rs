@@ -87,6 +87,8 @@ impl<T, const D: usize> HasReuseBuf for OwnedArray<T, D> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -133,6 +135,8 @@ impl<'a, T: 'a, const D: usize> HasReuseBuf for ReferringOwnedArray<'a, T, D> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -169,6 +173,8 @@ impl<'a, T, const D: usize> HasReuseBuf for &'a [T; D] {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -204,6 +210,8 @@ impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -242,6 +250,8 @@ impl<'a, T> HasReuseBuf for &'a [T] {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -277,6 +287,8 @@ impl<'a, T> HasReuseBuf for &'a mut [T] {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -315,6 +327,8 @@ impl<V: VectorLike + ?Sized> HasReuseBuf for Box<V> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {(debox(self)).assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {(debox(self)).get_1st_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {(debox(self)).get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {(debox(self)).drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {(debox(self)).drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {(debox(self)).drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {(debox(self)).drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {(debox(self)).drop_bound_bufs_index(index)}}

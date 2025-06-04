@@ -48,6 +48,7 @@ To Do's:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
+            - check VecAttachUsedVec dropping
             - make the assign structs maintain the &'a mut T item
             - add an OwnedSlice struct
 

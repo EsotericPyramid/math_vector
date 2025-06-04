@@ -166,6 +166,8 @@ impl<V: VectorLike, const D: usize> Drop for VectorExpr<V, D> {
                 self.0.drop_inputs(i);
             }
             self.0.drop_output();
+            self.0.drop_1st_buffer();
+            self.0.drop_2nd_buffer();
         }
     }
 }
@@ -246,14 +248,16 @@ impl<V: VectorLike, const D: usize> Drop for VectorIter<V, D> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
-            // note: when VectorIter outputs, it is forgotten, so we can assume output hasn't been called
-            self.vec.drop_output();
             for i in 0..self.dead_output_start { //up to the start of the dead area in output
                 self.vec.drop_bound_bufs_index(i);
             }
             for i in self.live_input_start..D {
                 self.vec.drop_inputs(i);
             }
+            // note: when VectorIter outputs, it is forgotten, so we can assume output hasn't been called
+            self.vec.drop_output();
+            self.vec.drop_1st_buffer();
+            self.vec.drop_2nd_buffer();
         }
     }
 }
@@ -991,7 +995,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     #[inline] 
     fn create_heap_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateHeapBuf<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecCreateHeapBuf{vec: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
+        unsafe { builder.wrap(VecCreateHeapBuf{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 
     /// creates a buffer in the first buffer if there isn't already one there
@@ -1018,7 +1022,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(), buf: Box::new(std::mem::MaybeUninit::uninit().assume_init())}) }
+        unsafe { builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 }
 

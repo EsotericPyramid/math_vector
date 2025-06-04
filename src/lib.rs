@@ -178,6 +178,7 @@ pub mod util_traits {
         /// Safety:
         /// can be called once
         /// mutually exclusive with `output`
+        /// must be called after drop methods from HasReuseBuf / Has2DReuseBuf
         unsafe fn drop_output(&mut self); 
     }
 

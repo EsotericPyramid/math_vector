@@ -111,6 +111,12 @@ pub trait HasReuseBuf {
     /// get the second buffer
     /// safety: the second buffer has been filled (assign_2nd_buf called at all indices in range)
     unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer;
+    /// drop the first buffer
+    /// safety: the first buffer has not been returned
+    unsafe fn drop_1st_buffer(&mut self);
+    /// drop the second buffer
+    /// safety: the second buffer has been returned
+    unsafe fn drop_2nd_buffer(&mut self);
     /// drops the assigned value at index in the first buffer
     /// safety: 
     /// index in range (not determinable via this trait)

@@ -45,6 +45,8 @@ impl<F: FnMut() -> O, O> Has2DReuseBuf for MatGenerator<F, O> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
@@ -94,6 +96,8 @@ impl<F: FnMut(usize, usize) -> O, O> Has2DReuseBuf for MatIndexGenerator<F, O> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
@@ -142,6 +146,8 @@ impl<T: Copy> Has2DReuseBuf for MatIdentityGenerator<T> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}

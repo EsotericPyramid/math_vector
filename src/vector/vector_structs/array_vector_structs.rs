@@ -61,6 +61,8 @@ impl<T, const D: usize> HasReuseBuf for ReplaceArray<T, D> {
         VectorExpr(OwnedArray(std::ptr::read(&self.0)))
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
@@ -110,6 +112,8 @@ impl<'b, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for Ve
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.vec.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer();}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
@@ -160,13 +164,15 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
         VectorExpr(OwnedArray(std::mem::transmute_copy::<[std::mem::MaybeUninit<T>; D], ManuallyDrop<[T; D]>>(&self.buf)))
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer();}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.buf.get_unchecked_mut(index).assume_init_drop()}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
 }
 
 /// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer (first slot)
-pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<T>; D]>}
+pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<T>; D]>>}
 
 unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateHeapBuf<V, T, D> {
     type GetBool = V::GetBool;
@@ -210,6 +216,8 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
         std::mem::transmute_copy::<Box<[std::mem::MaybeUninit<T>; D]>, Box<MathVector<T, D>>>(&self.buf)
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {ManuallyDrop::drop(&mut self.buf);}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer();}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.buf.get_unchecked_mut(index).assume_init_drop()}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
@@ -272,6 +280,8 @@ where
         )
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {
         self.vec.drop_1st_buf_index(index);
         // assuming that its safe to drop () even if we never properlly "initiallized" them
@@ -282,7 +292,7 @@ where
 }
 
 /// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer if there isn't already a buffer (first slot)
-pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>}
+pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>>}
 
 unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
@@ -338,6 +348,8 @@ where
         )
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {ManuallyDrop::drop(&mut self.buf)}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {
         self.vec.drop_1st_buf_index(index);
         // assuming that its safe to drop () even if we never properlly "initiallized" them

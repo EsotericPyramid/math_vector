@@ -65,6 +65,8 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DArray<T, D1
         MatrixExpr(Owned2DArray(std::ptr::read(&self.0)))
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {
         std::ptr::drop_in_place(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index))
     }}
@@ -117,6 +119,8 @@ impl<'b, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> 
     #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(col_index, row_index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
@@ -169,13 +173,15 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
         MatrixExpr(Owned2DArray(std::mem::transmute_copy::<[[std::mem::MaybeUninit<T>; D1]; D2], ManuallyDrop<[[T; D1]; D2]>>(&self.buf)))
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
 /// struct creating a buffer on the heap in the first slot
-pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<T>; D1]; D2]>}
+pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>{pub(crate) mat: M, pub(crate) buf: std::mem::ManuallyDrop<Box<[[std::mem::MaybeUninit<T>; D1]; D2]>>}
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D for MatCreate2DHeapBuf<M, T, D1, D2> {
     type GetBool = M::GetBool;
@@ -221,6 +227,8 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
         MatrixExpr(Owned2DArray(std::mem::transmute_copy::<[[std::mem::MaybeUninit<T>; D1]; D2], ManuallyDrop<[[T; D1]; D2]>>(&self.buf)))
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {std::mem::ManuallyDrop::drop(&mut self.buf)}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
@@ -285,13 +293,15 @@ where
         )
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.mat.drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
 }
 
 /// struct creating a buffer on the heap in the first slot if there isn't already one there
-pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>}
+pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>  where <M::FstHandleBool as TyBool>::Neg: Filter {pub(crate) mat: M, pub(crate) buf: std::mem::ManuallyDrop<Box<[[std::mem::MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1]; D2]>>}
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D for MatMaybeCreate2DHeapBuf<M, T, D1, D2> where <M::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = M::GetBool;
@@ -349,6 +359,11 @@ where
         )
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+        self.mat.drop_1st_buffer();
+        std::mem::ManuallyDrop::drop(&mut self.buf);
+    }}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
