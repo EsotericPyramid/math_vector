@@ -41,6 +41,7 @@ impl<V: VectorLike<FstHandleBool = Y>> HasOutput for VecBind<V> where (V::Output
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.vec.drop_output(); // buffer dropped through HasReuseBuf
+        self.vec.drop_1st_buffer();
     }}
 }
 
@@ -65,6 +66,8 @@ impl<V: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecBind<V> where (V::Boun
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {
@@ -113,6 +116,7 @@ impl<V: VectorLike<FstHandleBool = Y>, F: FnMut(V::Item) -> (I, B), I, B> HasOut
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.vec.drop_output(); // buffer dropped through HasReuseBuf
+        self.vec.drop_1st_buffer();
     }}
 }
 
@@ -136,7 +140,9 @@ impl<V: VectorLike<FstHandleBool = Y>, F: FnMut(V::Item) -> (I, B), I, B> HasReu
         self.vec.assign_1st_buf(index, new_bound_val);
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
-    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}} 
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {
@@ -189,6 +195,7 @@ impl<V: VectorLike<FstHandleBool = Y>> HasOutput for VecHalfBind<V> where (V::Ou
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.vec.drop_output(); // buffer dropped through HasReuseBuf
+        self.vec.drop_1st_buffer();
     }}
 }
 
@@ -213,6 +220,8 @@ impl<V: VectorLike<FstHandleBool = Y>> HasReuseBuf for VecHalfBind<V> where (V::
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer();}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {

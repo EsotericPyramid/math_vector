@@ -47,6 +47,8 @@ impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(col_index, row_index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_1st_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_1st_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}
@@ -134,6 +136,14 @@ where
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {
         <(M::SndOwnedBufferBool, USEDM::SndOwnedBufferBool) as SelectPair>::select(self.mat.get_2nd_buffer(), self.used_mat.get_2nd_buffer())
     }}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+        self.mat.drop_1st_buffer();
+        self.used_mat.drop_1st_buffer();
+    }}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {
+        self.mat.drop_2nd_buffer();
+        self.used_mat.drop_2nd_buffer();
+    }}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {
         self.mat.drop_1st_buf_index(col_index, row_index);
         self.used_mat.drop_1st_buf_index(col_index, row_index);
@@ -191,6 +201,8 @@ impl<M: MatrixLike> Has2DReuseBuf for DynamicMatrixLike<M> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) { unsafe {self.mat.assign_bound_bufs(col_index, row_index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.mat.get_1st_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.mat.drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_1st_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_bound_bufs_index(col_index, row_index)}}

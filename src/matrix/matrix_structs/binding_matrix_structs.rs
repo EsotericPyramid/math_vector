@@ -41,6 +41,7 @@ impl<M: MatrixLike<FstHandleBool = Y>> HasOutput for MatBind<M> where (M::Output
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.mat.drop_output();
+        self.mat.drop_1st_buffer();
     }}
 }
 
@@ -68,6 +69,8 @@ impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatBind<M> where (M::Bo
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {
@@ -116,6 +119,7 @@ impl<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B> HasOut
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.mat.drop_output();
+        self.mat.drop_1st_buffer();
     }}
 }
 
@@ -143,6 +147,8 @@ impl<M: MatrixLike<FstHandleBool = Y>, F: FnMut(M::Item) -> (I, B), I, B> Has2DR
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {
@@ -196,6 +202,7 @@ impl<M: MatrixLike<FstHandleBool = Y>> HasOutput for MatHalfBind<M> where (M::Ou
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.mat.drop_output(); // buffer dropped through HasReuseBuf
+        self.mat.drop_1st_buffer();
     }}
 }
 
@@ -223,6 +230,8 @@ impl<M: MatrixLike<FstHandleBool = Y>> Has2DReuseBuf for MatHalfBind<M> where (M
     }}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.mat.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.mat.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) { unsafe {self.mat.drop_2nd_buf_index(col_index, row_index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {

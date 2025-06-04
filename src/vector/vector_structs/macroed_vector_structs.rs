@@ -129,6 +129,8 @@ macro_rules! vec_structs {
                 #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.$vec.assign_bound_bufs(index, val)}}
                 #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.$vec.get_1st_buffer()}}
                 #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.$vec.get_2nd_buffer()}}
+                #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.$vec.drop_1st_buffer()}}
+                #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.$vec.drop_2nd_buffer()}}
                 #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.$vec.drop_1st_buf_index(index)}}
                 #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.$vec.drop_2nd_buf_index(index)}}
                 #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.$vec.drop_bound_bufs_index(index)}}
@@ -233,6 +235,14 @@ macro_rules! vec_structs {
                 }}
                 #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {
                     <(<$l_vec_generic as HasReuseBuf>::SndOwnedBufferBool, <$r_vec_generic as HasReuseBuf>::SndOwnedBufferBool) as SelectPair>::select(self.$l_vec.get_2nd_buffer(), self.$r_vec.get_2nd_buffer())
+                }}
+                #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+                    self.$l_vec.drop_1st_buffer();
+                    self.$r_vec.drop_1st_buffer();
+                }}
+                #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {
+                    self.$l_vec.drop_2nd_buffer();
+                    self.$r_vec.drop_2nd_buffer();
                 }}
                 #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {
                     self.$l_vec.drop_1st_buf_index(index);

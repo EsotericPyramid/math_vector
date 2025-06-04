@@ -43,6 +43,8 @@ impl<V: VectorLike> HasReuseBuf for VecBufSwap<V> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.vec.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_1st_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_1st_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
@@ -122,6 +124,14 @@ where
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {
         <(V::SndOwnedBufferBool, USEDV::SndOwnedBufferBool) as SelectPair>::select(self.vec.get_2nd_buffer(), self.used_vec.get_2nd_buffer())
     }}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {
+        self.vec.drop_1st_buffer();
+        self.used_vec.drop_1st_buffer();
+    }}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {
+        self.vec.drop_2nd_buffer();
+        self.used_vec.drop_2nd_buffer();
+    }}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {
         self.vec.drop_1st_buf_index(index);
         self.used_vec.drop_1st_buf_index(index);
@@ -178,6 +188,8 @@ impl<V: VectorLike> HasReuseBuf for DynamicVectorLike<V> {
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.vec.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { unsafe {self.vec.get_1st_buffer()}}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {self.vec.drop_1st_buffer()}}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) { unsafe {self.vec.drop_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_1st_buf_index(index)}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, index: usize) { unsafe {self.vec.drop_2nd_buf_index(index)}}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {self.vec.drop_bound_bufs_index(index)}}
