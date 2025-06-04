@@ -352,7 +352,7 @@ impl<T, const D: usize> From<[T; D]> for MathVector<T, D> {
 impl<T, const D: usize> From<Box<[T; D]>> for Box<MathVector<T, D>> {
     #[inline]
     fn from(value: Box<[T; D]>) -> Self {
-        unsafe { std::mem::transmute::<Box<[T; D]>, Box<MathVector<T,D>>>(self) }
+        unsafe { std::mem::transmute::<Box<[T; D]>, Box<MathVector<T,D>>>(value) }
     }
 }
 
