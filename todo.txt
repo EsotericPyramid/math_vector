@@ -3,19 +3,23 @@ Key:
     -: an item to todo
     ?: maybe do
     X: to do if possible (which it may not be)
+    ~: deferred for far later
 
 
 To Do's:
 - document each file
 - clean up documentation
+- run rustfmt
 + lib.rs:
-    ? change gen functions to methods of the wrapper they make
+    ? change gen functions to assoc fns of the wrapper they make
     - check inlining
     - check get's process updated index parameters
     - clear up entry v. element v. item v. etc.
     - clear up buffer v. slot in documentation
     - fold & fold_ref clarifications
-    - figure out vectored matrices
+    - rework vectorizing_matrix_structs.rs
+    ~ figure out vectored matrices (seems like a really niche optimization which brings tons of complexity)
+    ~ figure out hinting / encouraging SIMD 
     + test:
         - Update mat_vec_mul to use matrix types
     + matrix.rs:
@@ -36,7 +40,6 @@ To Do's:
     + vector.rs:
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
-        - Add/convert a runtime sized VectorIter
         X Add addassign and subassign for generic V2: VectorOps
         - Finish implementing RSVectorExpr
         - Add heap_make_repeatable
