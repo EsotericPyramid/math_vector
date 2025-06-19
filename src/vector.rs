@@ -83,10 +83,11 @@ impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
     /// binary operators merge the output of the 2 vectors
     #[inline] 
     pub fn consume(self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        VectorIter::<V, D>{
+        VectorIter::<V>{
             vec: unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) },
             live_input_start: 0,
             dead_output_start: 0,
+            size: D
         }.consume()
     }
 
@@ -173,7 +174,7 @@ impl<V: VectorLike, const D: usize> Drop for VectorExpr<V, D> {
 }
 
 impl<V: VectorLike, const D: usize> IntoIterator for VectorExpr<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-    type IntoIter = VectorIter<V, D>;
+    type IntoIter = VectorIter<V>;
     type Item = <V as Get>::Item;
 
     #[inline]
@@ -182,15 +183,16 @@ impl<V: VectorLike, const D: usize> IntoIterator for VectorExpr<V, D> where V: H
             vec: unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) },
             live_input_start: 0,
             dead_output_start: 0,
+            size: D
         }
     }
 }
 
 
 /// a const-sized VectorExpr iterator
-pub struct VectorIter<V: VectorLike, const D: usize>{vec: V, live_input_start: usize, dead_output_start: usize} // note: ranges are start inclusive, end exclusive
+pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
 
-impl<V: VectorLike, const D: usize> VectorIter<V, D> {
+impl<V: VectorLike> VectorIter<V> {
     /// retrieves the next item without checking
     /// Safety: there must be another item to return
     #[inline]
@@ -223,8 +225,8 @@ impl<V: VectorLike, const D: usize> VectorIter<V, D> {
     /// the VectorIter must be fully consumed or this function will panic
     #[inline]
     pub fn output(self) -> V::Output {
-        assert!(self.live_input_start == D, "math_vector error: A VectorIter must be fully used before outputting");
-        debug_assert!(self.dead_output_start == D, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
+        assert!(self.live_input_start == self.size, "math_vector error: A VectorIter must be fully used before outputting");
+        debug_assert!(self.dead_output_start == self.size, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
         unsafe {self.unchecked_output()}
     }
 
@@ -238,20 +240,20 @@ impl<V: VectorLike, const D: usize> VectorIter<V, D> {
     /// fully consumes the VectorIter without returning its output
     #[inline]
     pub fn no_output_consume(&mut self) where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        while self.live_input_start < D {
+        while self.live_input_start < self.size {
             unsafe { let _ = self.next_unchecked(); }
         }
     }
 }
 
-impl<V: VectorLike, const D: usize> Drop for VectorIter<V, D> {
+impl<V: VectorLike> Drop for VectorIter<V> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
             for i in 0..self.dead_output_start { //up to the start of the dead area in output
                 self.vec.drop_bound_bufs_index(i);
             }
-            for i in self.live_input_start..D {
+            for i in self.live_input_start..self.size {
                 self.vec.drop_inputs(i);
             }
             // note: when VectorIter outputs, it is forgotten, so we can assume output hasn't been called
@@ -262,12 +264,12 @@ impl<V: VectorLike, const D: usize> Drop for VectorIter<V, D> {
     }
 }
 
-impl<V: VectorLike, const D: usize> Iterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+impl<V: VectorLike> Iterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
     type Item = V::Item;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.live_input_start < D { // != instead of < as it is known that start is always <= end so their equivilent
+        if self.live_input_start < self.size { // != instead of < as it is known that start is always <= end so their equivilent
             unsafe { Some(self.next_unchecked()) }
         } else {
             None
@@ -276,14 +278,14 @@ impl<V: VectorLike, const D: usize> Iterator for VectorIter<V, D> where V: HasRe
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = D - self.live_input_start;
+        let size = self.size - self.live_input_start;
         (size, Some(size))
     }
 }
 
-impl<V: VectorLike, const D: usize> ExactSizeIterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
+impl<V: VectorLike> ExactSizeIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
 
-impl<V: VectorLike, const D: usize> std::iter::FusedIterator for VectorIter<V, D> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
+impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
 
 /// a simple type alias for a VectorExpr created from an array of type [T; D]
 pub type MathVector<T, const D: usize> = VectorExpr<OwnedArray<T, D>, D>;
@@ -349,26 +351,12 @@ impl<T, const D: usize> From<[T; D]> for MathVector<T, D> {
     }
 }
 
-impl<T, const D: usize> From<Box<[T; D]>> for Box<MathVector<T, D>> {
-    #[inline]
-    fn from(value: Box<[T; D]>) -> Self {
-        unsafe { std::mem::transmute::<Box<[T; D]>, Box<MathVector<T,D>>>(value) }
-    }
-}
-
 impl<T, const D: usize> Into<[T; D]> for MathVector<T, D> {
     #[inline] 
     fn into(self) -> [T; D] {
         self.unwrap().unwrap()
     }
 }
-
-impl<T, const D: usize> Into<Box<[T; D]>> for Box<MathVector<T,D>> {
-    #[inline] 
-    fn into(self) -> Box<[T; D]> {
-        unsafe { std::mem::transmute::<Box<MathVector<T,D>>, Box<[T; D]>>(self) }
-    }
-} 
 
 impl<'a, T, const D: usize> From<&'a [T; D]> for &'a MathVector<T, D> {
     #[inline]
@@ -395,6 +383,20 @@ impl<'a, T, const D: usize> Into<&'a mut [T; D]> for &'a mut MathVector<T, D> {
     #[inline]
     fn into(self) -> &'a mut [T; D] {
         unsafe { std::mem::transmute::<&'a mut MathVector<T, D>, &'a mut [T; D]>(self) }
+    }
+} 
+
+impl<T, const D: usize> From<Box<[T; D]>> for Box<MathVector<T, D>> {
+    #[inline]
+    fn from(value: Box<[T; D]>) -> Self {
+        unsafe { std::mem::transmute::<Box<[T; D]>, Box<MathVector<T,D>>>(value) }
+    }
+}
+
+impl<T, const D: usize> Into<Box<[T; D]>> for Box<MathVector<T,D>> {
+    #[inline] 
+    fn into(self) -> Box<[T; D]> {
+        unsafe { std::mem::transmute::<Box<MathVector<T,D>>, Box<[T; D]>>(self) }
     }
 } 
 
