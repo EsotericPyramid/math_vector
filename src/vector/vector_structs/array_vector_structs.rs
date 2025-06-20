@@ -70,9 +70,9 @@ impl<T, const D: usize> HasReuseBuf for ReplaceArray<T, D> {
 
 
 /// struct attaching an array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
-pub struct VecAttachBuf<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: &'a mut [T; D]} 
+pub struct VecAttachArray<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: &'a mut [T; D]} 
 
-unsafe impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecAttachBuf<'a, V, T, D> {
+unsafe impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecAttachArray<'a, V, T, D> {
     type GetBool = V::GetBool;
     type Inputs = V::Inputs;
     type Item = V::Item;
@@ -85,9 +85,9 @@ unsafe impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for Vec
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<'a, V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecAttachBuf<'a, V, T, D> {}
+unsafe impl<'a, V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecAttachArray<'a, V, T, D> {}
 
-impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecAttachBuf<'a, V, T, D> {
+impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecAttachArray<'a, V, T, D> {
     type OutputBool = V::OutputBool;
     type Output = V::Output;
 
@@ -95,7 +95,7 @@ impl<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecA
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<'b, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecAttachBuf<'b, V, T, D> {
+impl<'b, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecAttachArray<'b, V, T, D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -120,9 +120,9 @@ impl<'b, V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for Ve
 }
 
 /// struct attaching an initially uninitiallized array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
-pub struct VecCreateBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<T>; D]}
+pub struct VecCreateArray<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<T>; D]}
 
-unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateBuf<V, T, D> {
+unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateArray<V, T, D> {
     type GetBool = V::GetBool;
     type Inputs = V::Inputs;
     type Item = V::Item;
@@ -135,9 +135,9 @@ unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCrea
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateBuf<V, T, D> {}
+unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateArray<V, T, D> {}
 
-impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreateBuf<V, T, D> {
+impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreateArray<V, T, D> {
     type OutputBool = V::OutputBool;
     type Output = V::Output;
 
@@ -145,7 +145,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreat
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCreateBuf<V, T, D> {
+impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCreateArray<V, T, D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -172,9 +172,9 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
 }
 
 /// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer (first slot)
-pub struct VecCreateHeapBuf<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<T>; D]>>}
+pub struct VecCreateHeapArray<V: VectorLike<FstHandleBool = N>, T, const D: usize>{pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<T>; D]>>}
 
-unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateHeapBuf<V, T, D> {
+unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCreateHeapArray<V, T, D> {
     type GetBool = V::GetBool;
     type Inputs = V::Inputs;
     type Item = V::Item;
@@ -187,9 +187,9 @@ unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get for VecCrea
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateHeapBuf<V, T, D> {}
+unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable for VecCreateHeapArray<V, T, D> {}
 
-impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreateHeapBuf<V, T, D> {
+impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreateHeapArray<V, T, D> {
     type OutputBool = V::OutputBool;
     type Output = V::Output;
 
@@ -197,7 +197,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput for VecCreat
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCreateHeapBuf<V, T, D> {
+impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCreateHeapArray<V, T, D> {
     type FstHandleBool = Y;
     type SndHandleBool = V::SndHandleBool;
     type BoundHandlesBool = V::BoundHandlesBool;
@@ -224,9 +224,9 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
 }
 
 /// struct attaching an initially uninitiallized array to a VectorLike to be used as a HasReuseBuf buffer if there isn't already a buffer (first slot)
-pub struct VecMaybeCreateBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]}
+pub struct VecMaybeCreateArray<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: [std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]}
 
-unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
     type Inputs = V::Inputs;
     type Item = V::Item;
@@ -239,9 +239,9 @@ unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateBuf<V, T, D>
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
+unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
 
-impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = V::OutputBool;
     type Output = V::Output;
 
@@ -249,7 +249,7 @@ impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateBuf<V, T, D> 
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<V: VectorLike, T, const D: usize> HasReuseBuf for VecMaybeCreateBuf<V, T, D> 
+impl<V: VectorLike, T, const D: usize> HasReuseBuf for VecMaybeCreateArray<V, T, D> 
 where 
     <V::FstHandleBool as TyBool>::Neg: Filter, 
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair, 
@@ -292,9 +292,9 @@ where
 }
 
 /// struct attaching an initially uninitiallized array (on the heap) to a VectorLike to be used as a HasReuseBuf buffer if there isn't already a buffer (first slot)
-pub struct VecMaybeCreateHeapBuf<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>>}
+pub struct VecMaybeCreateHeapArray<V: VectorLike, T, const D: usize> where <V::FstHandleBool as TyBool>::Neg: Filter {pub(crate) vec: V, pub(crate) buf: std::mem::ManuallyDrop<Box<[std::mem::MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D]>>}
 
-unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type GetBool = V::GetBool;
     type Inputs = V::Inputs;
     type Item = V::Item;
@@ -307,9 +307,9 @@ unsafe impl<V: VectorLike, T, const D: usize> Get for VecMaybeCreateHeapBuf<V, T
     #[inline] fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {self.vec.process(index, inputs)}
 }
 
-unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
+unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable for VecMaybeCreateHeapArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {}
 
-impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateHeapBuf<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
+impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateHeapArray<V, T, D> where <V::FstHandleBool as TyBool>::Neg: Filter {
     type OutputBool = V::OutputBool;
     type Output = V::Output;
 
@@ -317,7 +317,7 @@ impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateHeapBuf<V, T,
     #[inline] unsafe fn drop_output(&mut self) { unsafe {self.vec.drop_output()}}
 }
 
-impl<V: VectorLike, T, const D: usize> HasReuseBuf for VecMaybeCreateHeapBuf<V, T, D> 
+impl<V: VectorLike, T, const D: usize> HasReuseBuf for VecMaybeCreateHeapArray<V, T, D> 
 where 
     <V::FstHandleBool as TyBool>::Neg: Filter, 
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
