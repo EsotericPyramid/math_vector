@@ -13,6 +13,7 @@ mod generator_vector_structs;
 mod macroed_vector_structs;
 mod misc_vector_structs;
 mod ordering_vector_structs;
+mod slice_vector_structs;
 
 pub use array_vector_structs::*;
 pub use binding_vector_structs::*;
@@ -20,6 +21,7 @@ pub use generator_vector_structs::*;
 pub use macroed_vector_structs::*;
 pub use misc_vector_structs::*;
 pub use ordering_vector_structs::*;
+pub use slice_vector_structs::*;
 
 /// an owned array rigged up to manually drop via the VectorLike traits
 #[repr(transparent)]
@@ -218,6 +220,77 @@ impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
 }
 
 
+#[repr(transparent)]
+pub struct OwnedSlice<T>(pub(crate) Box<ManuallyDrop<[T]>>);
+
+impl<T> OwnedSlice<T> {
+    #[inline]
+    pub fn unwrap(self) -> Box<[T]> {
+        unsafe {std::mem::transmute::<Box<ManuallyDrop<[T]>>, Box<[T]>>(self.0)}
+    }
+}
+
+impl<T> Deref for OwnedSlice<T> {
+    type Target = ManuallyDrop<[T]>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for OwnedSlice<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+unsafe impl<T> Get for OwnedSlice<T> {
+    type GetBool = Y;
+    type Inputs = T;
+    type Item = T;
+    type BoundItems = ();
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {std::ptr::read(self.0.get_unchecked(index))}}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
+}
+
+// Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
+unsafe impl<T: Copy> IsRepeatable for OwnedSlice<T> {} 
+
+impl<T> HasOutput for OwnedSlice<T> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+impl<T> HasReuseBuf for OwnedSlice<T> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
 
 
 unsafe impl<'a, T> Get for &'a [T] {
@@ -293,6 +366,8 @@ impl<'a, T> HasReuseBuf for &'a mut [T] {
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
+
+
 
 
 #[inline] fn debox<T: ?Sized>(boxed: &mut Box<T>) -> &mut T {&mut *boxed}
