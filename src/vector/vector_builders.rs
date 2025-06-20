@@ -15,7 +15,7 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
 
 /// a simple runtime sized VectorBuilder
 #[derive(Clone, Copy)]
-pub struct RSVectorExprBuilder{size: usize}
+pub struct RSVectorExprBuilder{pub(crate) size: usize}
 
 impl VectorBuilder for RSVectorExprBuilder {
     type Wrapped<T: VectorLike> = RSVectorExpr<T>;
