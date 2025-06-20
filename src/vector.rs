@@ -189,104 +189,6 @@ impl<V: VectorLike, const D: usize> IntoIterator for VectorExpr<V, D> where V: H
 }
 
 
-/// a const-sized VectorExpr iterator
-pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
-
-impl<V: VectorLike> VectorIter<V> {
-    /// retrieves the next item without checking
-    /// Safety: there must be another item to return
-    #[inline]
-    pub unsafe fn next_unchecked(&mut self) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> { unsafe {
-        let index = self.live_input_start;
-        self.live_input_start += 1;
-        let inputs = self.vec.get_inputs(index);
-        let (item, bound_items) = self.vec.process(index, inputs);
-        self.vec.assign_bound_bufs(index, bound_items);
-        self.dead_output_start += 1;
-        item
-    }}
-
-    /// retrieves the VectorIter's output without checking consumption
-    /// Safety: the VectorLike must be fully consumed
-    #[inline]
-    pub unsafe fn unchecked_output(self) -> V::Output {
-        // NOTE: manual drop shenanigans to prevent VectorIter from being dropped normally
-        //       doing so would incorrectly drop HasReuseBuf & output 
-        let mut man_drop_self = std::mem::ManuallyDrop::new(self);
-        let output; 
-        unsafe { 
-            output = man_drop_self.vec.output(); 
-            std::ptr::drop_in_place(&mut man_drop_self.vec);
-        }
-        output
-    }
-
-    /// retrieves the VectorIter's output
-    /// the VectorIter must be fully consumed or this function will panic
-    #[inline]
-    pub fn output(self) -> V::Output {
-        assert!(self.live_input_start == self.size, "math_vector error: A VectorIter must be fully used before outputting");
-        debug_assert!(self.dead_output_start == self.size, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
-        unsafe {self.unchecked_output()}
-    }
-
-    /// fully consumes the VectorIter and then returns its output
-    #[inline]
-    pub fn consume(mut self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        self.no_output_consume();
-        unsafe {self.unchecked_output()} // safety: VectorIter was fully used
-    }
-
-    /// fully consumes the VectorIter without returning its output
-    #[inline]
-    pub fn no_output_consume(&mut self) where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        while self.live_input_start < self.size {
-            unsafe { let _ = self.next_unchecked(); }
-        }
-    }
-}
-
-impl<V: VectorLike> Drop for VectorIter<V> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            for i in 0..self.dead_output_start { //up to the start of the dead area in output
-                self.vec.drop_bound_bufs_index(i);
-            }
-            for i in self.live_input_start..self.size {
-                self.vec.drop_inputs(i);
-            }
-            // note: when VectorIter outputs, it is forgotten, so we can assume output hasn't been called
-            self.vec.drop_output();
-            self.vec.drop_1st_buffer();
-            self.vec.drop_2nd_buffer();
-        }
-    }
-}
-
-impl<V: VectorLike> Iterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-    type Item = V::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.live_input_start < self.size { // != instead of < as it is known that start is always <= end so their equivilent
-            unsafe { Some(self.next_unchecked()) }
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = self.size - self.live_input_start;
-        (size, Some(size))
-    }
-}
-
-impl<V: VectorLike> ExactSizeIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
-
-impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
-
 /// a simple type alias for a VectorExpr created from an array of type [T; D]
 pub type MathVector<T, const D: usize> = VectorExpr<OwnedArray<T, D>, D>;
 
@@ -481,7 +383,43 @@ pub fn vector_index_gen<F: FnMut(usize) -> O, O, const D: usize>(f: F) -> Vector
 }
 
 // TODO: finish implementing RSVectorExpr
-pub struct RSVectorExpr<V: VectorLike>{vec: V, size: usize}
+pub struct RSVectorExpr<V: VectorLike>{pub(crate) vec: V, pub(crate) size: usize}
+
+impl<V: VectorLike> RSVectorExpr<V> {
+    /// converts this runtime sized vector into a const sized one
+    /// 
+    /// panics if this vector does not have size D
+    #[inline]
+    pub fn const_sized<const D: usize>(self) -> VectorExpr<V, D> {
+        if self.size != D {panic!("math_vector error: cannot convert a RS vector with size {} into a const sized vector with size {}", self.size, D)}
+        unsafe {std::mem::transmute_copy::<V, VectorExpr<V, D>>(&ManuallyDrop::new(self).vec)}
+    }
+
+    /// consumes the VectorExpr and returns the built up output
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
+    #[inline]
+    pub fn consume(self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        self.into_iter().consume()
+    }
+}
+
+impl<V: VectorLike + IsRepeatable> RSVectorExpr<V> {
+    #[inline]
+    pub fn get(&mut self, index: usize) -> V::Item {
+        if index >= self.size {panic!("math_vector Error: index access out of bounds")}
+        unsafe {
+            let inputs = self.vec.get_inputs(index);
+            let (item, _) = self.vec.process(index, inputs);
+            item
+        }
+    }
+}
 
 impl<V: VectorLike> Drop for RSVectorExpr<V> {
     #[inline]
@@ -494,6 +432,123 @@ impl<V: VectorLike> Drop for RSVectorExpr<V> {
         }
     }
 }
+
+impl<V: VectorLike> IntoIterator for RSVectorExpr<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+    type IntoIter = VectorIter<V>;
+    type Item = <V as Get>::Item;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        let size = self.size;
+        VectorIter {
+            vec: unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).vec) },
+            live_input_start: 0,
+            dead_output_start: 0,
+            size
+        }
+    }
+}
+
+
+
+/// a VectorExpr iterator
+pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
+
+impl<V: VectorLike> VectorIter<V> {
+    /// retrieves the next item without checking
+    /// Safety: there must be another item to return
+    #[inline]
+    pub unsafe fn next_unchecked(&mut self) -> V::Item where V: HasReuseBuf<BoundTypes = V::BoundItems> { unsafe {
+        let index = self.live_input_start;
+        self.live_input_start += 1;
+        let inputs = self.vec.get_inputs(index);
+        let (item, bound_items) = self.vec.process(index, inputs);
+        self.vec.assign_bound_bufs(index, bound_items);
+        self.dead_output_start += 1;
+        item
+    }}
+
+    /// retrieves the VectorIter's output without checking consumption
+    /// Safety: the VectorLike must be fully consumed
+    #[inline]
+    pub unsafe fn unchecked_output(self) -> V::Output {
+        // NOTE: manual drop shenanigans to prevent VectorIter from being dropped normally
+        //       doing so would incorrectly drop HasReuseBuf & output 
+        let mut man_drop_self = std::mem::ManuallyDrop::new(self);
+        let output; 
+        unsafe { 
+            output = man_drop_self.vec.output(); 
+            std::ptr::drop_in_place(&mut man_drop_self.vec);
+        }
+        output
+    }
+
+    /// retrieves the VectorIter's output
+    /// the VectorIter must be fully consumed or this function will panic
+    #[inline]
+    pub fn output(self) -> V::Output {
+        assert!(self.live_input_start == self.size, "math_vector error: A VectorIter must be fully used before outputting");
+        debug_assert!(self.dead_output_start == self.size, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
+        unsafe {self.unchecked_output()}
+    }
+
+    /// fully consumes the VectorIter and then returns its output
+    #[inline]
+    pub fn consume(mut self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        self.no_output_consume();
+        unsafe {self.unchecked_output()} // safety: VectorIter was fully used
+    }
+
+    /// fully consumes the VectorIter without returning its output
+    #[inline]
+    pub fn no_output_consume(&mut self) where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+        while self.live_input_start < self.size {
+            unsafe { let _ = self.next_unchecked(); }
+        }
+    }
+}
+
+impl<V: VectorLike> Drop for VectorIter<V> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            for i in 0..self.dead_output_start { //up to the start of the dead area in output
+                self.vec.drop_bound_bufs_index(i);
+            }
+            for i in self.live_input_start..self.size {
+                self.vec.drop_inputs(i);
+            }
+            // note: when VectorIter outputs, it is forgotten, so we can assume output hasn't been called
+            self.vec.drop_output();
+            self.vec.drop_1st_buffer();
+            self.vec.drop_2nd_buffer();
+        }
+    }
+}
+
+impl<V: VectorLike> Iterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {
+    type Item = V::Item;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.live_input_start < self.size { // != instead of < as it is known that start is always <= end so their equivilent
+            unsafe { Some(self.next_unchecked()) }
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = self.size - self.live_input_start;
+        (size, Some(size))
+    }
+}
+
+impl<V: VectorLike> ExactSizeIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
+
+impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where V: HasReuseBuf<BoundTypes = V::BoundItems> {}
+
 
 /// a trait with various vector operations
 pub unsafe trait VectorOps {
