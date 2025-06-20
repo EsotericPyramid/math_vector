@@ -452,6 +452,60 @@ impl<V: VectorLike> IntoIterator for RSVectorExpr<V> where V: HasReuseBuf<BoundT
 
 pub type RSMathVector<T> = RSVectorExpr<OwnedSlice<T>>;
 
+impl<T> RSMathVector<T> {
+    #[inline] pub fn reuse(self) -> RSVectorExpr<ReplaceSlice<T>> {
+        todo!()
+    }
+}
+
+impl<T> Deref for RSMathVector<T> {
+    type Target = Box<[T]>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute::<&Box<ManuallyDrop<[T]>>, &Box<[T]>>(&self.vec.0) }
+    }
+}
+
+impl<T> DerefMut for RSMathVector<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::mem::transmute::<&mut Box<ManuallyDrop<[T]>>, &mut Box<[T]>>(&mut self.vec.0) }
+    }
+}
+
+impl<T> From<Box<[T]>> for RSMathVector<T> {
+    #[inline]
+    fn from(value: Box<[T]>) -> Self {
+        let size = value.len();
+        unsafe { RSVectorExpr{vec: std::mem::transmute::<Box<[T]>, OwnedSlice<T>>(value), size} }
+    }
+}
+
+impl<T> Into<Box<[T]>> for RSMathVector<T> {
+    #[inline]
+    fn into(self) -> Box<[T]> {
+        unsafe {  std::mem::transmute_copy::<OwnedSlice<T>, Box<[T]>>(&ManuallyDrop::new(self).vec) }
+    }
+}
+
+impl<T, I> Index<I> for RSMathVector<T> where [T]: Index<I> {
+    type Output = <[T] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.vec.0[index]
+    }
+}
+
+impl<T, I> IndexMut<I> for RSMathVector<T> where [T]: IndexMut<I> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.vec.0[index]
+    }
+}
+
+
 /// a VectorExpr iterator
 pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
 
@@ -1273,6 +1327,25 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
 }
 impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut Box<MathVector<T, D>> {}
 
+
+
+unsafe impl<V: VectorLike> VectorOps for RSVectorExpr<V> {
+    type Unwrapped = V;
+    type Builder = RSVectorExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        // safe because this is just move done manually as VectorExpr impls Drop
+        // normally a problem as this leaves the fields of the struct at potentially 
+        // invalid states which are assumed valid by the drop impl, however we just
+        // disable dropping temporarily so this isn't a concern
+        // does lead to leaking however, but it is ultimately fixed by wrap and the interim
+        // (should) be non-panicking so leaking shouldn't happen
+        unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).vec) } 
+    }
+    #[inline] fn get_builder(&self) -> Self::Builder {RSVectorExprBuilder{size: self.size}}
+    #[inline] fn size(&self) -> usize {self.size}
+}
  
 macro_rules! impl_ops_for_wrapper {
     (

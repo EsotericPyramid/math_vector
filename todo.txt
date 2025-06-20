@@ -45,6 +45,8 @@ To Do's:
         ? Add heap_make_repeatable
         - add wrap shortcut macro to VectorOps 
         X move make_dynamic to VectorOps
+        X merge ArrayVectorOps & SliceVectorOps into VectorOps using Builder bounds
+        - figure out implementing Clone for RSMathVector
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
