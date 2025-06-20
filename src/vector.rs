@@ -106,16 +106,16 @@ impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline]
-    pub fn eval(self) -> <VecBind<VecMaybeCreateBuf<V, V::Item, D>> as HasOutput>::Output 
+    pub fn eval(self) -> <VecBind<VecMaybeCreateArray<V, V::Item, D>> as HasOutput>::Output 
     where 
         <V::FstHandleBool as TyBool>::Neg: Filter,
         (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
         (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
         (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
         (V::BoundHandlesBool, Y): FilterPair,
-        VecBind<VecMaybeCreateBuf<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateBuf<V, V::Item, D>> as Get>::BoundItems>
+        VecBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateArray<V, V::Item, D>> as Get>::BoundItems>
     {
-        self.maybe_create_buf().bind().consume()
+        self.maybe_create_array().bind().consume()
     }
 
 
@@ -133,16 +133,16 @@ impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline]
-    pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>> as HasOutput>::Output 
+    pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapArray<V, V::Item, D>> as HasOutput>::Output 
     where 
         <V::FstHandleBool as TyBool>::Neg: Filter,
         (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
         (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
         (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
         (V::BoundHandlesBool, Y): FilterPair,
-        VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateHeapBuf<V, V::Item, D>> as Get>::BoundItems>
+        VecBind<VecMaybeCreateHeapArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateHeapArray<V, V::Item, D>> as Get>::BoundItems>
     {
-        self.maybe_create_heap_buf().bind().consume()
+        self.maybe_create_heap_array().bind().consume()
     }
 }
 
@@ -362,7 +362,7 @@ impl<T: RemAssign<S>, S: Copy, const D: usize> RemAssign<S> for MathVector<T, D>
 impl<T1: std::iter::Sum<T2> + AddAssign<T2>, T2, const D: usize> std::iter::Sum<MathVector<T2, D>> for MathVector<T1, D> {
     #[inline]
     fn sum<I: Iterator<Item = MathVector<T2, D>>>(iter: I) -> Self {
-        let mut sum = vector_gen(|| std::iter::Sum::sum(NoneIter::new())).create_buf().bind().consume();
+        let mut sum = vector_gen(|| std::iter::Sum::sum(NoneIter::new())).create_array().bind().consume();
         for vec in iter {
             sum += vec;
         }
@@ -450,6 +450,7 @@ impl<V: VectorLike> IntoIterator for RSVectorExpr<V> where V: HasReuseBuf<BoundT
 }
 
 
+pub type RSMathVector<T> = RSVectorExpr<OwnedSlice<T>>;
 
 /// a VectorExpr iterator
 pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
@@ -1046,29 +1047,29 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     /// attaches a &mut MathVector to the first buffer
     /// note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
     #[inline]
-    fn attach_buf<'a, T>(self, buf: &'a mut MathVector<T, D>) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachBuf<'a, Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+    fn attach_array<'a, T>(self, buf: &'a mut MathVector<T, D>) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachArray<'a, Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecAttachBuf{vec: self.unwrap(), buf}) }
+        unsafe { builder.wrap(VecAttachArray{vec: self.unwrap(), buf}) }
     }
 
-    /// creates a buffer in the first buffer
+    /// creates a array in the first buffer
     #[inline] 
-    fn create_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateBuf<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+    fn create_array<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateArray<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecCreateBuf{vec: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        unsafe { builder.wrap(VecCreateArray{vec: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
-    /// creates a buffer on the heap in the first buffer
+    /// creates a array on the heap in the first buffer
     /// note: a pre-existing buffer may or may not be owned by the vector
     #[inline] 
-    fn create_heap_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateHeapBuf<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+    fn create_heap_array<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateHeapArray<Self::Unwrapped, T, D>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecCreateHeapBuf{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap(VecCreateHeapArray{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 
-    /// creates a buffer in the first buffer if there isn't already one there
+    /// creates a array in the first buffer if there isn't already one there
     #[inline] 
-    fn maybe_create_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecMaybeCreateBuf<Self::Unwrapped, T, D>> 
+    fn maybe_create_array<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecMaybeCreateArray<Self::Unwrapped, T, D>> 
     where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -1076,13 +1077,13 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecMaybeCreateBuf{vec: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        unsafe { builder.wrap(VecMaybeCreateArray{vec: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
     }
 
-    /// creates a buffer on the heap in the first buffer if there isn't already one there
+    /// creates a array on the heap in the first buffer if there isn't already one there
     /// note: a pre-existing buffer may or may not be on the heap or owned by the vector
     #[inline] 
-    fn maybe_create_heap_buf<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecMaybeCreateHeapBuf<Self::Unwrapped, T, D>> 
+    fn maybe_create_heap_array<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecMaybeCreateHeapArray<Self::Unwrapped, T, D>> 
     where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -1090,7 +1091,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap(VecMaybeCreateHeapBuf{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap(VecMaybeCreateHeapArray{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
     }
 }
 
@@ -1149,10 +1150,10 @@ where
     (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
     (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
     (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    VecHalfBind<VecMaybeCreateBuf<V, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
+    VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
 {
     type RepeatableVector<'a> = ReferringOwnedArray<'a, V::Item, D> where Self: 'a;
-    type UsedVector = VecHalfBind<VecMaybeCreateBuf<V, V::Item, D>>;
+    type UsedVector = VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 
     where
@@ -1167,7 +1168,7 @@ where
         <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
     {
         let builder = self.get_builder();
-        let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
+        let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
         unsafe {
             vec_iter.no_output_consume();
             builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: std::ptr::read(&vec_iter.vec)})
@@ -1204,10 +1205,10 @@ where
     (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
     (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
     (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    VecHalfBind<VecMaybeCreateBuf<Box<V>, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
+    VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
 {
     type RepeatableVector<'a> = ReferringOwnedArray<'a, V::Item, D> where Self: 'a;
-    type UsedVector = VecHalfBind<VecMaybeCreateBuf<Box<V>, V::Item, D>>;
+    type UsedVector = VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 
     where
@@ -1222,7 +1223,7 @@ where
         <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
     {
         let builder = self.get_builder();
-        let mut vec_iter = self.maybe_create_buf().half_bind().into_iter();
+        let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
         unsafe {
             vec_iter.no_output_consume();
             builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: std::ptr::read(&vec_iter.vec)})
