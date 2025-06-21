@@ -158,6 +158,7 @@ pub mod trait_specialization_utils {
 /// provides utility traits for the library
 pub mod util_traits {
     use crate::trait_specialization_utils::*;
+    use std::mem::ManuallyDrop;
 
     /// a trait allowing a type to (possibly) "output" an owned value
     /// Note:
@@ -183,12 +184,12 @@ pub mod util_traits {
     }
 
     /// implementation assumes that the value is always valid unless output is called
-    impl<T> HasOutput for std::mem::ManuallyDrop<T> {
+    impl<T> HasOutput for ManuallyDrop<T> {
         type OutputBool = Y;
         type Output = T;
 
         unsafe fn output(&mut self) -> Self::Output { unsafe {std::ptr::read(&**self)}}
-        unsafe fn drop_output(&mut self) { unsafe {std::mem::ManuallyDrop::drop(self)}}
+        unsafe fn drop_output(&mut self) { unsafe {ManuallyDrop::drop(self)}}
     }
 
     impl<T> HasOutput for Option<T> {
@@ -231,12 +232,14 @@ pub mod util_traits {
 
 /// provides utility structs for the Library
 pub(crate) mod util_structs {
+    use std::marker::PhantomData;
+
     /// an iterator which always return None
     /// used internally to abuse `Sum` and `Product` to get the additive & multiplicative identity values
-    pub struct NoneIter<T>(std::marker::PhantomData<T>); 
+    pub struct NoneIter<T>(PhantomData<T>); 
 
     impl<T> NoneIter<T> {
-        #[inline] pub fn new() -> NoneIter<T> {NoneIter(std::marker::PhantomData)} 
+        #[inline] pub fn new() -> NoneIter<T> {NoneIter(PhantomData)} 
     }
 
     impl<T> Iterator for NoneIter<T> {
@@ -247,7 +250,6 @@ pub(crate) mod util_structs {
 }
 
 pub mod vector;
-
 pub mod matrix;
 
 #[cfg(test)]

@@ -1,10 +1,15 @@
 //! Module containing all of the various VectorLike structs
 
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+};
 use super::vec_util_traits::*;
-use std::ops::*;
-use std::mem::ManuallyDrop;
+use std::{
+    mem::ManuallyDrop,
+    ops::*,
+    ptr,
+};
 
 // NOTE: vector_structs internally split across multiple files to keep them small and navigable
 mod array_vector_structs;
@@ -56,9 +61,9 @@ unsafe impl<T, const D: usize> Get for OwnedArray<T, D> {
     type Item = T;
     type BoundItems = ();
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {std::ptr::read(self.0.get_unchecked(index))}}
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {ptr::read(self.0.get_unchecked(index))}}
     #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
-    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
 }
 
 // Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
@@ -251,9 +256,9 @@ unsafe impl<T> Get for OwnedSlice<T> {
     type Item = T;
     type BoundItems = ();
 
-    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {std::ptr::read(self.0.get_unchecked(index))}}
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {ptr::read(self.0.get_unchecked(index))}}
     #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
-    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
+    #[inline] unsafe fn drop_inputs(&mut self, index: usize) { unsafe {ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
 }
 
 // Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated

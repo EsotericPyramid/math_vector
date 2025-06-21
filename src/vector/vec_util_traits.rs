@@ -2,8 +2,10 @@
 
 // Note: traits here aren't meant to be used directly by end users
 
-use crate::trait_specialization_utils::*;
-use crate::util_traits::HasOutput;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::HasOutput,
+};
 
 /// A way to get out items from a collection / generator which implicitly invalidates* that index
 /// Can output owned values

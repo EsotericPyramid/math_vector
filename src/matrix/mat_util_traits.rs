@@ -1,10 +1,15 @@
 //! Module containing the traits which define a MatrixLike type (primative lazy matrix)
 
-use crate::vector::vec_util_traits::{VectorBuilder, VectorLike};
+use crate::{
+    vector::vec_util_traits::{
+        VectorBuilder, 
+        VectorLike,
+    },
+    trait_specialization_utils::TyBool,
+    util_traits::HasOutput,
+};
 
 // Note: traits here aren't meant to be used by end users
-use crate::trait_specialization_utils::TyBool;
-use crate::util_traits::HasOutput;
 
 /// A way to get out items from a 2d collection / generator which implicitly invalidates* that index
 /// Can output owned values

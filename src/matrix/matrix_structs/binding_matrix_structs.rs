@@ -1,6 +1,8 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+};
 
 /// struct binding the item to the buffer in first slot (and adding it to output if owned)
 pub struct MatBind<M: MatrixLike<FstHandleBool = Y>>{pub(crate) mat: M}

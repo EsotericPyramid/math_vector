@@ -1,9 +1,24 @@
 //! Module containing all to do with Matrices and basic operations to do on them
 
-use crate::{util_structs::NoneIter, util_traits::HasOutput, vector::MathVector};
-use std::{iter::{Product, Sum}, mem::ManuallyDrop};
-use crate::trait_specialization_utils::*;
-use std::ops::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_structs::NoneIter, 
+    util_traits::HasOutput, 
+    vector::MathVector
+};
+use std::{
+    iter::{
+        Product, 
+        Sum
+    }, 
+    mem::{
+        ManuallyDrop, 
+        MaybeUninit, 
+        self
+    }, 
+    ops::*,
+    ptr,
+};
 
 pub mod mat_util_traits;
 pub mod matrix_structs;
@@ -191,11 +206,11 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
     /// Safety: the matrix must have been fully consumed
     #[inline]
     pub unsafe fn unchecked_output(self) -> M::Output {
-        let mut man_drop_self = std::mem::ManuallyDrop::new(self);
+        let mut man_drop_self = ManuallyDrop::new(self);
         let output;
         unsafe { 
             output = man_drop_self.mat.output();
-            std::ptr::drop_in_place(&mut man_drop_self.mat);
+            ptr::drop_in_place(&mut man_drop_self.mat);
         }
         output
     }
@@ -311,7 +326,7 @@ pub type MathMatrix<T, const D1: usize, const D2: usize> = MatrixExpr<Owned2DArr
 impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     #[inline] pub fn into_2d_array(self) -> [[T; D1]; D2] {self.unwrap().unwrap()}
     #[inline] pub fn into_2d_heap_array(self: Box<Self>) -> Box<[[T; D1]; D2]> {
-        unsafe { std::mem::transmute::<Box<Self>, Box<[[T; D1]; D2]>>(self) }
+        unsafe { mem::transmute::<Box<Self>, Box<[[T; D1]; D2]>>(self) }
     }
     /// Marks this MathMatrix to have its buffer reused
     /// buffer placed in fst slot
@@ -324,12 +339,12 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
         // Box<MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>>, de-alias MathMatrix
         // Box<ManuallyDrop<[[T; D1]; D2]>>, MatrixExpr and Owned2DArray are transparent
         // MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>, MatrixExpr and Replace2DArray are transparent
-        unsafe { std::mem::transmute::<Box<Self>, MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>>(self) }
+        unsafe { mem::transmute::<Box<Self>, MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>>(self) }
     } 
     
     /// converts this MathMatrix to a repeatable MatrixExpr w/ Item = &'a T
     #[inline] pub fn referred<'a>(self) -> MatrixExpr<Referring2DArray<'a, T, D1, D2>, D1, D2> where T: 'a {
-        MatrixExpr(Referring2DArray(unsafe {std::mem::transmute_copy::<ManuallyDrop<[[T; D1]; D2]>, [[T; D1]; D2]>(&self.unwrap().0)}, std::marker::PhantomData))
+        MatrixExpr(Referring2DArray(unsafe { mem::transmute_copy::<ManuallyDrop<[[T; D1]; D2]>, [[T; D1]; D2]>(&self.unwrap().0)}, std::marker::PhantomData))
     }
 
     /// references the element at index without checking bounds
@@ -370,7 +385,7 @@ impl<T, const D1: usize, const D2: usize> DerefMut for MathMatrix<T, D1, D2> {
 impl<T, const D1: usize, const D2: usize> From<[[T; D1]; D2]> for MathMatrix<T, D1, D2> {
     #[inline] 
     fn from(value: [[T; D1]; D2]) -> Self {
-        MatrixExpr(Owned2DArray(std::mem::ManuallyDrop::new(value)))
+        MatrixExpr(Owned2DArray(ManuallyDrop::new(value)))
     }
 }
 
@@ -381,28 +396,28 @@ impl<T, const D1: usize, const D2: usize> Into<[[T; D1]; D2]> for MathMatrix<T, 
 impl<'a, T, const D1: usize, const D2: usize> From<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
     #[inline]
     fn from(value: &'a [[T; D1]; D2]) -> Self {
-        unsafe { std::mem::transmute::<&'a [[T; D1]; D2], &'a MathMatrix<T, D1, D2>>(value) }
+        unsafe { mem::transmute::<&'a [[T; D1]; D2], &'a MathMatrix<T, D1, D2>>(value) }
     }
 }
 
 impl<'a, T, const D1: usize, const D2: usize> Into<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
     #[inline]
     fn into(self) -> &'a [[T; D1]; D2] {
-        unsafe { std::mem::transmute::<&'a MathMatrix<T, D1, D2>, &'a [[T; D1]; D2]>(self) }
+        unsafe { mem::transmute::<&'a MathMatrix<T, D1, D2>, &'a [[T; D1]; D2]>(self) }
     }
 }
 
 impl<'a, T, const D1: usize, const D2: usize> From<&'a mut [[T; D1]; D2]> for &'a mut MathMatrix<T, D1, D2> {
     #[inline]
     fn from(value: &'a mut [[T; D1]; D2]) -> Self {
-        unsafe { std::mem::transmute::<&'a mut [[T; D1]; D2], &'a mut MathMatrix<T, D1, D2>>(value) }
+        unsafe { mem::transmute::<&'a mut [[T; D1]; D2], &'a mut MathMatrix<T, D1, D2>>(value) }
     }
 }
 
 impl<'a, T, const D1: usize, const D2: usize> Into<&'a mut [[T; D1]; D2]> for &'a mut MathMatrix<T, D1, D2> {
     #[inline]
     fn into(self) -> &'a mut [[T; D1]; D2] {
-        unsafe { std::mem::transmute::<&'a mut MathMatrix<T, D1, D2>, &'a mut [[T; D1]; D2]>(self) }
+        unsafe { mem::transmute::<&'a mut MathMatrix<T, D1, D2>, &'a mut [[T; D1]; D2]>(self) }
     }
 }
 
@@ -417,7 +432,7 @@ impl<T, const D1: usize, const D2: usize> From<MathVectoredMatrix<T, D1, D2>> fo
         //      MathVectoredMatrix<T, D1, D2> == MathMatrix<T, D1, D2>
         //
         //  FIXME: transmute_copy copies (:O), this shouldn't need to be done but gets the compiler to not complain about it
-        unsafe { std::mem::transmute_copy::<MathVectoredMatrix<T, D1, D2>, MathMatrix<T, D1, D2>>(&std::mem::ManuallyDrop::new(value)) }
+        unsafe { mem::transmute_copy::<MathVectoredMatrix<T, D1, D2>, MathMatrix<T, D1, D2>>(&ManuallyDrop::new(value)) }
     }
 }
 
@@ -432,7 +447,7 @@ impl<T, const D1: usize, const D2: usize> Into<MathVectoredMatrix<T, D1, D2>> fo
         //      MathVectoredMatrix<T, D1, D2> == MathMatrix<T, D1, D2>
         //
         //  FIXME: transmute_copy copies (:O), this shouldn't need to be done but gets the compiler to not complain about it
-        unsafe { std::mem::transmute_copy::<MathMatrix<T, D1, D2>, MathVectoredMatrix<T, D1, D2>>(&std::mem::ManuallyDrop::new(self)) }
+        unsafe { mem::transmute_copy::<MathMatrix<T, D1, D2>, MathVectoredMatrix<T, D1, D2>>(&ManuallyDrop::new(self)) }
     }
 }
 
@@ -629,7 +644,7 @@ pub trait MatrixOps {
     #[inline]
     fn entry_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryFoldRef<Self::Unwrapped, F, O>> where (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatEntryFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+        unsafe { builder.wrap_mat(MatEntryFoldRef{mat: self.unwrap(), f, cell: ManuallyDrop::new(init)}) }
     }
 
     /// folds the matrix's items into a single value added to Output using the provided closure while preserving the item
@@ -644,7 +659,7 @@ pub trait MatrixOps {
     #[inline]
     fn entry_copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get2D>::Item), O>(self, f: F, init: O) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryCopiedFoldRef<Self::Unwrapped, F, O>> where <Self::Unwrapped as Get2D>::Item: Copy, (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatEntryCopiedFoldRef{mat: self.unwrap(), f, cell: std::mem::ManuallyDrop::new(init)}) }
+        unsafe { builder.wrap_mat(MatEntryCopiedFoldRef{mat: self.unwrap(), f, cell: ManuallyDrop::new(init)}) }
     }
 
     /// copies each of the matrix's items, useful for turing &T -> T
@@ -1092,14 +1107,14 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     #[inline]
     fn create_2d_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        unsafe { builder.wrap_mat(MatCreate2DBuf{mat: self.unwrap(), buf: MaybeUninit::uninit().assume_init()}) }
     }
 
     /// creates a buffer on the heap in the first buffer
     #[inline]
     fn create_2d_heap_buf<T>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>> where Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>, Self: Sized {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap_mat(MatCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(MaybeUninit::uninit().assume_init()))}) }
     }
 
     /// creates a buffer in the first buffer if there isn't already one there
@@ -1112,7 +1127,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatMaybeCreate2DBuf{mat: self.unwrap(), buf: std::mem::MaybeUninit::uninit().assume_init()}) }
+        unsafe { builder.wrap_mat(MatMaybeCreate2DBuf{mat: self.unwrap(), buf: MaybeUninit::uninit().assume_init()}) }
     }
 
     /// creates a buffer on the heap in the first buffer if there isn't already one there
@@ -1126,7 +1141,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
         Self: Sized
     {
         let builder = self.get_builder();
-        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(std::mem::MaybeUninit::uninit().assume_init()))}) }
+        unsafe { builder.wrap_mat(MatMaybeCreate2DHeapBuf{mat: self.unwrap(), buf: ManuallyDrop::new(Box::new(MaybeUninit::uninit().assume_init()))}) }
     }
 }
 
@@ -1171,7 +1186,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for MatrixExpr<M
         // disable dropping temporarily so this isn't a concern
         // does lead to leaking however, but it is ultimately fixed by wrap and the interim
         // (should) be non-panicking so leaking shouldn't happen
-        unsafe { std::ptr::read(&std::mem::ManuallyDrop::new(self).0) } 
+        unsafe { ptr::read(&ManuallyDrop::new(self).0) } 
     }
 
     #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
@@ -1210,7 +1225,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
-            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: std::ptr::read(&mat_iter.mat)})
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat)})
         }
     }
 }
@@ -1230,7 +1245,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for Box<MatrixEx
         // (should) be non-panicking so leaking shouldn't happen
 
         // FIXME note: this could probably be just transmuted, may optimize better, applies for other owned Mats & Vecs
-        unsafe { Box::new(std::ptr::read(&std::mem::ManuallyDrop::new(self).0)) } 
+        unsafe { Box::new(ptr::read(&ManuallyDrop::new(self).0)) } 
     }
     
     #[inline] fn get_builder(&self) -> Self::Builder {MatrixExprBuilder}
@@ -1269,7 +1284,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
-            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: std::ptr::read(&mat_iter.mat)})
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat)})
         }
     }
 }

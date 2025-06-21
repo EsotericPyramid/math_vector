@@ -1,10 +1,15 @@
 //! Module containing all of the various MatrixLike structs
 
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+};
 use super::mat_util_traits::*;
-use std::ops::*;
-use std::mem::ManuallyDrop;
+use std::{
+    ops::*,
+    mem::ManuallyDrop,
+    ptr,
+};
 
 mod array_matrix_structs; 
 mod binding_matrix_structs;
@@ -61,7 +66,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Owned2DArray<T, D1, D
 
     #[inline] 
     unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {
-        std::ptr::read(self.0.get_unchecked(col_index).get_unchecked(row_index))
+        ptr::read(self.0.get_unchecked(col_index).get_unchecked(row_index))
     }}
     #[inline]
     fn process(&mut self, _: usize, _: usize,inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
@@ -70,7 +75,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Owned2DArray<T, D1, D
 
     #[inline]
     unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {
-        std::ptr::drop_in_place(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index))
+        ptr::drop_in_place(self.0.get_unchecked_mut(col_index).get_unchecked_mut(row_index))
     }}
 }
 

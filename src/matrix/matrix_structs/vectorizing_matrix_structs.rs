@@ -1,7 +1,9 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
-use crate::vector::vec_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+    vector::vec_util_traits::*,
+};
 
 
 pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder>{pub(crate) mat: M, pub(crate) builder: Wrap}

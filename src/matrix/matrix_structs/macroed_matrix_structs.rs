@@ -1,8 +1,12 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
-use std::mem::ManuallyDrop;
-use std::ops::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+};
+use std::{
+    mem::ManuallyDrop,
+    ops::*,
+};
 
 macro_rules! is_unit {
     (()) => {

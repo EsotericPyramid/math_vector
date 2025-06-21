@@ -1,8 +1,10 @@
 // NOTE: Most the math matrix structs are actually defined in macroed_matrix_structs.rs
 //       only the complicated ones end up here
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+};
 use std::ops::*;
 
 /// struct multiplying 2 repeatable matrices

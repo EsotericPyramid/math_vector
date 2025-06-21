@@ -1,7 +1,8 @@
-
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::vector::vec_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    vector::vec_util_traits::*,
+};
 
 /// Struct generating a vector's items based on a closure (FnMut) with no inputs
 pub struct VecGenerator<F: FnMut() -> O, O>(pub(crate) F);

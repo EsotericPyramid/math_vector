@@ -1,10 +1,21 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::vector::vec_util_traits::*;
-use crate::vector::RSMathVector;
-use crate::vector::RSVectorExpr;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    vector::{
+        vec_util_traits::*,
+        RSMathVector,
+        RSVectorExpr,
+    },
+};
 use super::OwnedSlice;
-use std::mem::{ManuallyDrop, MaybeUninit};
+use std::{
+    mem::{
+        ManuallyDrop, 
+        MaybeUninit,
+        self
+    },
+    ptr,
+};
 
 /// an owned slice which additionally acts as an buffer for HasReuseBuf (in the first slot)
 #[repr(transparent)]
@@ -19,12 +30,12 @@ unsafe impl<T> Get for ReplaceSlice<T> {
 
     #[inline]
     unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {
-        std::ptr::read(self.0.get_unchecked(index))
+        ptr::read(self.0.get_unchecked(index))
     }}
 
     #[inline]
     unsafe fn drop_inputs(&mut self, index: usize) { unsafe {
-        std::ptr::drop_in_place(self.0.get_unchecked_mut(index))
+        ptr::drop_in_place(self.0.get_unchecked_mut(index))
     }}
 
     #[inline]
@@ -54,17 +65,17 @@ impl<T> HasReuseBuf for ReplaceSlice<T> {
     type SndType = ();
     type BoundTypes = ();
 
-    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {std::ptr::write(self.0.get_unchecked_mut(index), val)}}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {ptr::write(self.0.get_unchecked_mut(index), val)}}
     #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
     #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer { 
         let size = self.0.len();
-        unsafe { RSVectorExpr{vec: OwnedSlice(std::ptr::read(&*self.0)), size} }
+        unsafe { RSVectorExpr{vec: OwnedSlice(ptr::read(&*self.0)), size} }
     }
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
     #[inline] unsafe fn drop_1st_buffer(&mut self) {unsafe { ManuallyDrop::drop(&mut self.0) }}
     #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
-    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {std::ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, index: usize) { unsafe {ptr::drop_in_place(self.0.get_unchecked_mut(index))}}
     #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
@@ -159,12 +170,12 @@ impl<V: VectorLike<FstHandleBool = N>, T> HasReuseBuf for VecCreateSlice<V, T> {
     type SndType = V::SndType;
     type BoundTypes = V::BoundTypes;
 
-    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {std::ptr::write(self.buf.get_unchecked_mut(index), std::mem::MaybeUninit::new(val))}}
+    #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {ptr::write(self.buf.get_unchecked_mut(index), MaybeUninit::new(val))}}
     #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) { unsafe {self.vec.assign_2nd_buf(index, val)}}
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.vec.assign_bound_bufs(index, val)}}
     #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         let size = self.buf.len();
-        unsafe { RSVectorExpr{vec: std::mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, OwnedSlice<T>>(&self.buf), size} }
+        unsafe { RSVectorExpr{vec: mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, OwnedSlice<T>>(&self.buf), size} }
     }
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}
     #[inline] unsafe fn drop_1st_buffer(&mut self) { unsafe {ManuallyDrop::drop(&mut self.buf);}}
@@ -221,7 +232,7 @@ where
     #[inline] unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) { unsafe {
         let (init_val, attached_val) = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::deselect(val);
         self.vec.assign_1st_buf(index, init_val);
-        std::ptr::write(self.buf.get_unchecked_mut(index), std::mem::MaybeUninit::new(attached_val));
+        ptr::write(self.buf.get_unchecked_mut(index), MaybeUninit::new(attached_val));
     }}
     #[inline] unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) { unsafe {self.vec.assign_2nd_buf(index, val)}}
     #[inline] unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) { unsafe {self.vec.assign_bound_bufs(index, val)}}
@@ -230,7 +241,7 @@ where
         <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
             self.vec.get_1st_buffer(),
             
-            RSVectorExpr{vec: std::mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>]>>, OwnedSlice<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>>(&self.buf), size}
+            RSVectorExpr{vec: mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>]>>, OwnedSlice<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>>(&self.buf), size}
         )
     }}
     #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer { unsafe {self.vec.get_2nd_buffer()}}

@@ -1,6 +1,8 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::vector::vec_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    vector::vec_util_traits::*,
+};
 use std::ops::*;
 
 /// struct binding the vector's item to the buffer in the first slot which is linked to output
