@@ -1,7 +1,14 @@
 //! Structs implementing VectorBuilder to wrap VectorLikes with sizing information
 
-use super::vec_util_traits::{VectorBuilder, VectorBuilderUnion, VectorLike};
-use super::{VectorExpr, RSVectorExpr};
+use super::vec_util_traits::{
+    VectorBuilder, 
+    VectorBuilderUnion, 
+    VectorLike,
+};
+use super::{
+    VectorExpr, 
+    RSVectorExpr,
+};
 
 /// a simple const sized VectorBuilder
 #[derive(Clone, Copy)]

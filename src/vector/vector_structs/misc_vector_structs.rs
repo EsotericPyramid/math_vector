@@ -1,6 +1,8 @@
-use crate::util_traits::*;
-use crate::vector::vec_util_traits::*;
-use crate::trait_specialization_utils::*;
+use crate::{
+    util_traits::*,
+    vector::vec_util_traits::*,
+    trait_specialization_utils::*,
+};
 
 /// Struct swapping the buffers (or lack there of) in the 2 slots
 pub struct VecBufSwap<V: VectorLike> {pub(crate) vec: V}

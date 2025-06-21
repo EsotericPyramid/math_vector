@@ -1,6 +1,8 @@
-use crate::trait_specialization_utils::TyBool;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+};
 
 /// struct offseting (with rolling over) the column indices of the matrix up by the provided offset
 pub struct MatColOffset<M: MatrixLike>{pub(crate) mat: M, pub(crate) offset: usize, pub(crate) num_columns: usize}

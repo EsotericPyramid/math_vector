@@ -1,6 +1,8 @@
-use crate::trait_specialization_utils::*;
-use crate::util_traits::*;
-use crate::matrix::mat_util_traits::*;
+use crate::{
+    trait_specialization_utils::*,
+    util_traits::*,
+    matrix::mat_util_traits::*,
+};
 
 /// struct swapping the buffers (or lack thereof) in the first and second slots
 pub struct MatBufSwap<M: MatrixLike>{pub(crate) mat: M} 

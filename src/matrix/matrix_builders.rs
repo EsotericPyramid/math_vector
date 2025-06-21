@@ -1,11 +1,20 @@
 //! Structs implementing MatrixBuilder to wrap MatrixLikes with sizing information
 
 use crate::{
-    matrix::{mat_util_traits::{MatrixBuilder, MatrixLike}, MatrixExpr},
-    vector::{vec_util_traits::VectorLike, VectorExpr, vector_builders::VectorExprBuilder}
+    matrix::{
+        mat_util_traits::{
+            MatrixBuilder,
+            MatrixBuilderCompose, 
+            MatrixBuilderUnion,
+            MatrixLike,
+        }, MatrixExpr,
+    },
+    vector::{
+        vec_util_traits::VectorLike, 
+        VectorExpr, 
+        vector_builders::VectorExprBuilder
+    },
 };
-
-use super::mat_util_traits::{MatrixBuilderCompose, MatrixBuilderUnion};
 
 /// a simple const sized MatrixBuilder
 #[derive(Clone)]

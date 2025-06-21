@@ -1,6 +1,7 @@
-
-use crate::util_traits::*;
-use crate::vector::vec_util_traits::*;
+use crate::{
+    util_traits::*,
+    vector::vec_util_traits::*,
+};
 
 /// Offsets (with rolling over) each element up by offset
 pub struct VecOffset<V: VectorLike>{pub(crate) vec: V, pub(crate) offset: usize, pub(crate) size: usize}
