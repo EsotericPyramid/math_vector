@@ -16,6 +16,7 @@ use std::{
         self,
     }, 
     ops::*, 
+    slice::SliceIndex,
     ptr,
 };
 
@@ -230,13 +231,13 @@ impl<T, const D: usize> MathVector<T, D> {
 
     /// references the element at index without checking bounds
     /// safety: index is in bounds 
-    #[inline] pub unsafe fn get_unchecked<I: std::slice::SliceIndex<[T]>>(&self, index: I) -> &I::Output { unsafe {
+    #[inline] pub unsafe fn get_unchecked<I: SliceIndex<[T]>>(&self, index: I) -> &I::Output { unsafe {
         self.0.0.get_unchecked(index)
     }}
 
     /// mutably references the element at index without checking bounds
     /// safety: index is in bounds
-    #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output { unsafe {
+    #[inline] pub unsafe fn get_unchecked_mut<I: SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output { unsafe {
         self.0.0.get_unchecked_mut(index)
     }}
 }
@@ -469,8 +470,32 @@ impl<V: VectorLike> IntoIterator for RSVectorExpr<V> where V: HasReuseBuf<BoundT
 pub type RSMathVector<T> = RSVectorExpr<OwnedSlice<T>>;
 
 impl<T> RSMathVector<T> {
-    #[inline] pub fn reuse(self) -> RSVectorExpr<ReplaceSlice<T>> {
-        todo!()
+    #[inline] 
+    pub fn reuse(self) -> RSVectorExpr<ReplaceSlice<T>> {
+        let size = self.size;
+        RSVectorExpr{ vec: ReplaceSlice(ManuallyDrop::new(self.unwrap().0)), size }
+    }
+
+    #[inline] 
+    pub fn borrow<'a>(&'a self) -> RefRSMathVector<'a, T> {
+        let size = self.size;
+        RSVectorExpr { vec: &**self, size }
+    }
+
+    #[inline]
+    pub fn borrow_mut<'a>(&'a mut self) -> RefMutRSMathVector<'a, T> {
+        let size = self.size;
+        RSVectorExpr { vec: &mut **self, size }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked<I: SliceIndex<[T]>>(&self, index: I) -> &I::Output {
+        unsafe { self.vec.0.get_unchecked(index) }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_mut<I: SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output {
+        unsafe { self.vec.0.get_unchecked_mut(index) }
     }
 }
 
@@ -521,6 +546,66 @@ impl<T, I> IndexMut<I> for RSMathVector<T> where [T]: IndexMut<I> {
     }
 }
 
+
+pub type RefRSMathVector<'a, T> = RSVectorExpr<&'a [T]>; 
+
+impl<'a, T> From<&'a [T]> for RefRSMathVector<'a, T> {
+    #[inline]
+    fn from(value: &'a [T]) -> Self {
+        let size = value.len();
+        RSVectorExpr { vec: value, size: size }
+    }
+}
+
+impl<'a, T> Into<&'a [T]> for RefRSMathVector<'a, T> {
+    #[inline]
+    fn into(self) -> &'a [T] {
+        self.vec
+    }
+}
+
+impl<'a, T, I> Index<I> for RefRSMathVector<'a, T> where [T]: Index<I> {
+    type Output = <[T] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.vec[index]
+    }
+}
+
+
+pub type RefMutRSMathVector<'a, T> = RSVectorExpr<&'a mut [T]>; 
+
+impl<'a, T> From<&'a mut [T]> for RefMutRSMathVector<'a, T> {
+    #[inline]
+    fn from(value: &'a mut [T]) -> Self {
+        let size = value.len();
+        RSVectorExpr { vec: value, size: size }
+    }
+}
+
+impl<'a, T> Into<&'a mut [T]> for RefMutRSMathVector<'a, T> {
+    #[inline]
+    fn into(self) -> &'a mut [T] {
+        self.unwrap()
+    }
+}
+
+impl<'a, T, I> Index<I> for RefMutRSMathVector<'a, T> where [T]: Index<I> {
+    type Output = <[T] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.vec[index]
+    }
+}
+
+impl<'a, T, I> IndexMut<I> for RefMutRSMathVector<'a, T> where [T]: IndexMut<I> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.vec[index]
+    }
+}
 
 /// a VectorExpr iterator
 pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
