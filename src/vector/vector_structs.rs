@@ -296,6 +296,53 @@ impl<T> HasReuseBuf for OwnedSlice<T> {
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+/// an owned slice rigged up to repeatable return references to its elements via Get
+pub struct ReferringOwnedSlice<'a, T: 'a>(pub(crate) Box<[T]>, pub(crate) std::marker::PhantomData<&'a T>);
+
+unsafe impl<'a, T: 'a> Get for ReferringOwnedSlice<'a, T> {
+    type GetBool = Y;
+    type Inputs = &'a T;
+    type Item = &'a T;
+    type BoundItems = ();
+
+    #[inline] unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs { unsafe {&*(self.0.get_unchecked(index) as *const T)}}
+    #[inline] fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {(inputs, ())}
+    #[inline] unsafe fn drop_inputs(&mut self, _: usize) {}
+}
+
+unsafe impl<'a, T: 'a> IsRepeatable for ReferringOwnedSlice<'a, T> {}
+
+impl<'a, T: 'a> HasOutput for ReferringOwnedSlice<'a, T> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline] unsafe fn output(&mut self) -> Self::Output {}
+    #[inline] unsafe fn drop_output(&mut self) {}
+}
+
+impl<'a, T: 'a> HasReuseBuf for ReferringOwnedSlice<'a, T> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline] unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline] unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline] unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline] unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline] unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline] unsafe fn drop_2nd_buffer(&mut self) {}
+    #[inline] unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline] unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
 
 
 unsafe impl<'a, T> Get for &'a [T] {

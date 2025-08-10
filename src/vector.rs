@@ -476,6 +476,12 @@ impl<T> RSMathVector<T> {
         RSVectorExpr{ vec: ReplaceSlice(ManuallyDrop::new(self.unwrap().0)), size }
     }
 
+    /// converts this RSMathVector to a repeatable VectorExpr w/ Item = &'a T
+    #[inline] pub fn referred<'a>(self) -> RSVectorExpr<ReferringOwnedSlice<'a, T>> where T: 'a {
+        let size = self.size;
+        RSVectorExpr{vec: ReferringOwnedSlice(unsafe {mem::transmute_copy::<Box<ManuallyDrop<[T]>>, Box<[T]>>(&self.unwrap().0)}, std::marker::PhantomData), size} //FIXME: unecessary transmute copy to get the compiler to not complain
+    }
+
     #[inline] 
     pub fn borrow<'a>(&'a self) -> RefRSMathVector<'a, T> {
         let size = self.size;
