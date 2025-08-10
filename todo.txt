@@ -38,7 +38,6 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - add ReferringSlice
         - add VectorOps extension(s) for evaluation / consumption
         - Add Vector and Matrix multiplication
         X Add addassign and subassign for generic V2: VectorOps
