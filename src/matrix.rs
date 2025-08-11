@@ -171,7 +171,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
 
 impl<M: MatrixLike + Is2DRepeatable, const D1: usize, const D2: usize> MatrixExpr<M,D1,D2> {
     /// Retrieves the value at an arbitrary index of a repeatable matrix
-    /// Note:   This method does NOT fill any buffers bound to the matrix, if you need that, see binding_get
+    /// Note:   This method does NOT fill any buffers bound to the matrix
     pub fn get(&mut self, col_index: usize, row_index: usize) -> M::Item {
         if (col_index >= D2) | (row_index >= D1) {panic!("math_vector Error: index access out of bound")}
         unsafe {
@@ -357,6 +357,23 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[[T; D1]]>>(&mut self, index: I) -> &mut I::Output { unsafe {
         self.0.0.get_unchecked_mut(index)
     }}
+
+    pub fn rref(&mut self) where T: Div + DivAssign + SubAssign<<<T as Div>::Output as Mul<T>>::Output> + Copy, <T as Div>::Output: Mul<T> + Copy {
+        assert!(D2 >= D1, "math_vector Error: cannot convert matrix with dimensions {}x{} to rref", D1, D2);
+        for row_idx in 0..D1 {
+            let base_val = self[row_idx][row_idx];
+            for j in row_idx..D2 {
+                self[j][row_idx] /= base_val;
+            }
+            for i in row_idx +1..D1 {
+                let multiplier = self[row_idx][i] / base_val;
+                for j in row_idx..D2 {
+                    let sub = multiplier * self[j][row_idx];
+                    self[j][i] -= sub;
+                }
+            }
+        }
+    }
 }
 
 impl<T: Clone, const D1: usize, const D2: usize> Clone for MathMatrix<T, D1, D2> {
