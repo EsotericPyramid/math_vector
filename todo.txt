@@ -32,6 +32,9 @@ To Do's:
         - add heap_make_repeatable
         - add runtime sized wrappers
         - add wrap shortcut macro to MatrixOps
+        - generalize rref outside of f64 
+        X optimize rref to be closer to det
+        - check pivot management of rref & det
 
         + mat_util_traits.rs:
             ? remove transposition information

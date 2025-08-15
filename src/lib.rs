@@ -393,14 +393,47 @@ mod test {
         println!("Dyn Heap Time:  {}", dyn_heap_time.as_nanos());
     }
 
-    ///tests rref
+    ///tests rref basic correctness
     #[test]
     fn rref_test() {
-        let mut rng = rand::rng();
-        let mut mat = matrix_gen::<_, f64, 2000, 2000>(|| rng.random()).heap_eval();
-        let now = Instant::now();
+        let mut mat = MathMatrix::from([
+            [0.242, 0.740, 0.959, 0.774],
+            [0.454, 0.501, 0.535, 0.969],
+            [0.442, 0.081, 0.973, 0.506],
+        ]).transpose().eval();
         mat.rref();
-        let elapsed = now.elapsed();
-        println!("Elapsed: {}", elapsed.as_nanos());
+        println!("rref: {:#?}", mat.into_2d_array());
+    }
+
+    //tests det basic correctness
+    #[test]
+    fn det_test() {
+        let mat = MathMatrix::from([
+            [0.242, 0.740, 0.959],
+            [0.454, 0.501, 0.535],
+            [0.442, 0.081, 0.973],
+        ]).transpose().eval();
+        let det = mat.det();
+        println!("det: {}", det);
+    }
+
+    // tests the performance of rref & det
+    #[test]
+    fn mat_math_performance_test() {
+        let mut rng = rand::rng();
+        let mut rref_mat = matrix_gen::<_, f64, 1000, 2000>(|| rng.random()).heap_eval();
+        let det_mat = matrix_gen::<_, f64, 1500, 1500>(|| rng.random()).heap_eval();
+
+        let now = Instant::now();
+        rref_mat.rref();
+        black_box(rref_mat);
+        let rref_elapsed = now.elapsed();
+
+        let now = Instant::now();
+        black_box(det_mat.det_heap());
+        let det_elapsed = now.elapsed();
+
+        println!("rref: {}", rref_elapsed.as_nanos());
+        println!("det: {}", det_elapsed.as_nanos());
     }
 }

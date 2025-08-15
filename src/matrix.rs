@@ -410,6 +410,50 @@ impl<const D1: usize, const D2: usize> MathMatrix<f64, D1, D2> {
             }
         }
     }
+
+    fn det_inner(&mut self) -> f64 {
+        assert_eq!(D1, D2, "math_vector error: can't get the determinant of a {}x{} matrix (not square)", D1, D2);
+
+        let mut out = 1.0;
+        let mut pivots = Vec::with_capacity(D2);
+        for col_idx in 0..D2 {
+            let mut pivot = 0;
+            while (pivot < D1) && (self[col_idx][pivot] == 0.0) {pivot += 1;}
+            pivots.push(pivot);
+            if pivot == D1 {return 0.0;}
+            let base_val = self[col_idx][pivot];
+            out *= base_val;
+
+            for j in pivot..D1 {
+                self[col_idx][j] /= base_val;
+            }
+            for i in col_idx +1..D2 {
+                let multiplier = self[i][pivot];
+                self[i][pivot] = 0.0;
+                for j in pivot+1..D1 {
+                    let sub = multiplier * self[col_idx][j];
+                    self[i][j] -= sub;
+                }
+            }
+        }
+        
+        for src in 0..D2 {
+            if pivots[src] != src {
+                out = -out;
+                let dst = pivots[src];
+                let temp = pivots[dst];
+                pivots[dst] = pivots[src];
+                pivots[src] = temp;
+            }
+        }
+        out
+    }
+
+    #[inline(always)]
+    pub fn det(mut self) -> f64 {self.det_inner()}
+
+    #[inline(always)]
+    pub fn det_heap(mut self: Box<Self>) -> f64 {self.det_inner()}
 }
 
 impl<T: Clone, const D1: usize, const D2: usize> Clone for MathMatrix<T, D1, D2> {
