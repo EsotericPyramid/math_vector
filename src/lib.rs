@@ -393,22 +393,14 @@ mod test {
         println!("Dyn Heap Time:  {}", dyn_heap_time.as_nanos());
     }
 
+    ///tests rref
     #[test]
-    fn test() {
+    fn rref_test() {
         let mut rng = rand::rng();
-        let mut total = 0.0;
-        let mut time = Duration::new(0, 0);
-            let vec1: MathVector<f64, 3> = vector_gen(|| rng.random()).eval();
-            let vec2: MathVector<f64, 3> = vector_gen(|| rng.random()).eval();
-            println!("{:?}", vec1.to_vec());
-            println!("{:?}", vec2.to_vec());
-            let now = Instant::now();
-            let ((vec1_sqr_mag, vec2_sqr_mag), dot_product): ((f64, f64), f64) = (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
-            let elapsed = now.elapsed();
-            time += elapsed;
-            let mag = dot_product/((vec1_sqr_mag * vec2_sqr_mag).sqrt());
-            total += mag;
-        println!("{}", total);
-        println!("Elapsed: {}", time.as_nanos());
+        let mut mat = matrix_gen::<_, f64, 2000, 2000>(|| rng.random()).heap_eval();
+        let now = Instant::now();
+        mat.rref();
+        let elapsed = now.elapsed();
+        println!("Elapsed: {}", elapsed.as_nanos());
     }
 }

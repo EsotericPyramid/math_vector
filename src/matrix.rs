@@ -12,12 +12,12 @@ use std::{
         Sum
     }, 
     mem::{
+        self, 
         ManuallyDrop, 
-        MaybeUninit, 
-        self
+        MaybeUninit
     }, 
-    ops::*,
-    ptr,
+    ops::*, 
+    ptr
 };
 
 pub mod mat_util_traits;
@@ -358,18 +358,54 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
         self.0.0.get_unchecked_mut(index)
     }}
 
-    pub fn rref(&mut self) where T: Div + DivAssign + SubAssign<<<T as Div>::Output as Mul<T>>::Output> + Copy, <T as Div>::Output: Mul<T> + Copy {
-        assert!(D2 >= D1, "math_vector Error: cannot convert matrix with dimensions {}x{} to rref", D1, D2);
+    
+}
+
+impl<const D1: usize, const D2: usize> MathMatrix<f64, D1, D2> {
+    pub fn rref(&mut self) {
+        use std::collections::HashMap;
+        use std::cmp::min;
+
+        let mut pivots = Vec::with_capacity(D1);
         for row_idx in 0..D1 {
-            let base_val = self[row_idx][row_idx];
-            for j in row_idx..D2 {
+            let mut pivot = 0;
+            while (pivot < D2) && (self[pivot][row_idx] == 0.0) {pivot += 1;}
+            pivots.push(pivot);
+            if pivot == D2 {continue;}
+            let base_val = self[pivot][row_idx];
+
+            for j in pivot..D2 {
                 self[j][row_idx] /= base_val;
             }
-            for i in row_idx +1..D1 {
-                let multiplier = self[row_idx][i] / base_val;
-                for j in row_idx..D2 {
+            for i in (0..row_idx).into_iter().chain(row_idx +1..D1) {
+                let multiplier = self[pivot][i];
+                self[pivot][i] = 0.0;
+                for j in pivot+1..D2 {
                     let sub = multiplier * self[j][row_idx];
                     self[j][i] -= sub;
+                }
+            }
+        }
+        let mut sorted_pivots = pivots.clone();
+        sorted_pivots.sort_unstable();
+        let mut pivot_idx_map = HashMap::with_capacity(D1);
+        for (idx, pivot) in sorted_pivots.into_iter().enumerate() {
+            if pivot == D2 {break;}
+            pivot_idx_map.insert(pivot, idx);
+        }
+        for src in 0..D1 {
+            if let Some(dst) = pivot_idx_map.get(&pivots[src]) {
+                let dst = *dst;
+                
+                if src != dst {
+                    for i in min(pivots[src], pivots[dst])..D2 {
+                        let temp = self[i][src];
+                        self[i][src] = self[i][dst];
+                        self[i][dst] = temp;
+                    }
+                    let temp = pivots[src];
+                    pivots[src] = pivots[dst];
+                    pivots[dst] = temp;
                 }
             }
         }

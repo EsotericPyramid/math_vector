@@ -32,7 +32,6 @@ To Do's:
         - add heap_make_repeatable
         - add runtime sized wrappers
         - add wrap shortcut macro to MatrixOps
-        - add rref
 
         + mat_util_traits.rs:
             ? remove transposition information
