@@ -377,12 +377,19 @@ impl<const D1: usize, const D2: usize> MathMatrix<f64, D1, D2> {
             for j in pivot..D2 {
                 self[j][row_idx] /= base_val;
             }
-            for i in (0..row_idx).into_iter().chain(row_idx +1..D1) {
-                let multiplier = self[pivot][i];
+
+            
+            let mut multipliers = Vec::with_capacity(D1 - 1);
+            for i in 0..D1 {
+                multipliers.push(self[pivot][i]);
                 self[pivot][i] = 0.0;
-                for j in pivot+1..D2 {
-                    let sub = multiplier * self[j][row_idx];
-                    self[j][i] -= sub;
+            }
+            self[pivot][row_idx] = 1.0;
+            multipliers[row_idx] = 0.0;
+            for j in pivot +1..D2 {
+                let target_row_col_val = self[j][row_idx];
+                for i in 0..D1 {
+                    self[j][i] -= multipliers[i] * target_row_col_val;
                 }
             }
         }

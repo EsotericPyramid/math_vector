@@ -33,8 +33,9 @@ To Do's:
         - add runtime sized wrappers
         - add wrap shortcut macro to MatrixOps
         - generalize rref outside of f64 
-        X optimize rref to be closer to det
+            - adapt more complex num bounds to use premade ones from a crate
         - check pivot management of rref & det
+        ~ check numerical stability of det && rref
 
         + mat_util_traits.rs:
             ? remove transposition information

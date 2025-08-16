@@ -1,3 +1,6 @@
 /target
 /Cargo.lock
+#created automatically on mac for FS reasons (i think, no clue what it actually does)
 /.DS_Store
+#this file is created by the Samply Profiler
+/profile.json
