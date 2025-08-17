@@ -18,6 +18,7 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     type Wrapped<T: VectorLike> = VectorExpr<T, D>;
     
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {VectorExpr(vec)}
+    fn size(&self) -> usize {D}
 }
 
 /// a simple runtime sized VectorBuilder
@@ -30,6 +31,7 @@ impl VectorBuilder for RSVectorExprBuilder {
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
         RSVectorExpr{vec, size: self.size}
     }
+    fn size(&self) -> usize {self.size}
 }
 
 

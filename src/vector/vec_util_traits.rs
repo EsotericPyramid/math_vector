@@ -152,6 +152,8 @@ pub trait VectorBuilder: Clone {
 
     ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
+
+    fn size(&self) -> usize;
 }
 
 /// Enables an union operation between 2 VectorBuilders into a single VectorBuilder
