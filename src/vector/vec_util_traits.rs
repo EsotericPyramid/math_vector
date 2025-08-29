@@ -167,4 +167,6 @@ pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
 }
 
 /// Implies that the struct's impl of Get is repeatable and can be called multiple times at a given idx
+/// 
+/// also implies that no exposed part of the API will change behaviour if repeated
 pub unsafe trait IsRepeatable {}
