@@ -607,6 +607,16 @@ impl<'a, T, I> IndexMut<I> for RefMutRSMathVector<'a, T> where [T]: IndexMut<I> 
 pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive
 
 impl<V: VectorLike> VectorIter<V> {
+    #[inline]
+    pub unsafe fn new_from_parts<B: VectorBuilder>(vec: V, builder: B) -> Self{
+        VectorIter{
+            vec,
+            live_input_start: 0,
+            dead_output_start: 0,
+            size: builder.size()
+        }
+    }
+
     /// retrieves the next item without checking
     /// Safety: there must be another item to return
     #[inline]
@@ -716,12 +726,21 @@ pub unsafe trait VectorOps {
     /// get the size of this vector
     fn size(&self) -> usize;
 
-    fn consume(self) -> <Self::Unwrapped as HasOutput>::Output where 
+    #[inline]
+    fn into_vec_iter(self) -> VectorIter<Self::Unwrapped> where 
         Self::Unwrapped: HasReuseBuf<BoundTypes = <Self::Unwrapped as Get>::BoundItems>,
         Self: Sized,
     {
         let size = self.size();
-        VectorIter{vec: self.unwrap(), live_input_start: 0, dead_output_start: 0, size}.consume()
+        VectorIter{vec: self.unwrap(), live_input_start: 0, dead_output_start: 0, size}
+    }
+
+    #[inline]
+    fn consume(self) -> <Self::Unwrapped as HasOutput>::Output where 
+        Self::Unwrapped: HasReuseBuf<BoundTypes = <Self::Unwrapped as Get>::BoundItems>,
+        Self: Sized,
+    {
+        self.into_vec_iter().consume()
     }
 
     /// binds the vector's item to its fst buffer, adding the buffer to Output if owned by the vector
