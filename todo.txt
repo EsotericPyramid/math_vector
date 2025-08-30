@@ -21,10 +21,8 @@ To Do's:
     ~ figure out vectored matrices (seems like a really niche optimization which brings tons of complexity)
     ~ figure out hinting / encouraging SIMD 
     + test:
-        - Update mat_vec_mul to use matrix types
     + matrix.rs:
         - add MatrixOps extension(s) for evaluation / consumption
-        - Add Matrix and Vector multiplication
         - remove into_2d_array (not Into<[[T; D1]; D2]>)
         - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
