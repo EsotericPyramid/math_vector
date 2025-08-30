@@ -255,28 +255,8 @@ pub mod matrix;
 #[cfg(test)]
 mod test {
     use rand::Rng; 
-    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, }};
+    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps }};
     use std::{hint::black_box, time::*};
-
-
-    /// preforms a multiplication between a matrix and a vector
-    /// prints:
-    ///     a value from the resulting vector
-    ///     duration of the calculation in nanoseconds
-    /// 
-    // TODO: update this use a proper Matrix type
-    #[test]
-    fn mat_vec_mul() {
-        let mut rng = rand::rng();
-        let vec: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
-        let mat: Box<MathVector<MathVector<f64, 10000>, 10000>> = vector_gen(|| vector_gen(|| rng.random()).eval()).heap_eval();
-        let now = Instant::now();
-        let out = mat.zip(vec).map(|(mat_vec, scalar)| (mat_vec.reuse() * scalar).eval()).sum::<MathVector<f64, 10000>>().consume();
-        black_box(out);
-        let elapsed = now.elapsed();
-        
-        println!("Elapsed: {}", elapsed.as_nanos());
-    }
 
     /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
     /// meant to test stacking outputs
