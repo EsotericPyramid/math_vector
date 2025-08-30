@@ -436,4 +436,36 @@ mod test {
         println!("rref: {}", rref_elapsed.as_nanos());
         println!("det: {}", det_elapsed.as_nanos());
     }
+
+    // tests mat_vec_mul basic correctness
+    #[test]
+    fn mat_vec_mul_test() {
+        let mat = MathMatrix::from([
+            [0.242, 0.740, 0.959],
+            [0.454, 0.501, 0.535],
+            [0.442, 0.081, 0.973],
+        ]).transpose().eval();
+        let vec = MathVector::from([
+            0.774,
+            0.969,
+            0.506,            
+        ]);
+        let out_vec = mat.mat_vec_mul::<_, f64>(vec).eval();
+        let print: [_; _] = out_vec.into();
+        println!("mat * vec: \n{:#?}", print);
+    }
+
+    /// tests mat_vec_mul performance
+    #[test]
+    fn mat_vec_mul_performance_test() {
+        let mut rng = rand::rng();
+        let mat = matrix_gen::<_, f64, 10000, 10000>(|| rng.random()).heap_eval();
+        let vec = vector_gen::<_, f64, 10000>(|| rng.random()).eval();
+
+        let now = Instant::now();
+        black_box(mat.mat_vec_mul::<_, f64>(vec).eval());
+        let elapsed = now.elapsed();
+
+        println!("{}", elapsed.as_nanos());
+    }
 }

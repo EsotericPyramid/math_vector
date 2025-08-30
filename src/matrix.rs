@@ -4,20 +4,18 @@ use crate::{
     trait_specialization_utils::*,
     util_structs::NoneIter, 
     util_traits::HasOutput, 
-    vector::MathVector
+    vector::{vec_util_traits::{Get, HasReuseBuf, IsRepeatable, VectorBuilder, VectorBuilderUnion}, vector_structs::MatVecMul, MathVector, VectorOps}
+    
 };
 use std::{
     iter::{
         Product, 
         Sum
-    }, 
-    mem::{
+    }, marker::PhantomData, mem::{
         self, 
         ManuallyDrop, 
         MaybeUninit
-    }, 
-    ops::*, 
-    ptr
+    }, ops::*, ptr
 };
 
 pub mod mat_util_traits;
@@ -588,7 +586,7 @@ pub fn matrix_index_gen<F: FnMut(usize, usize) -> O, O, const D1: usize, const D
 /// 
 /// the "1" value is obtained from Product as the multiplicative identity
 /// the "0" value is obtained from Sum as the additive identity
-pub fn matrix_identiry_gen<T: Copy + Sum + Product, const D: usize>() -> MatrixExpr<MatIdentityGenerator<T>, D, D> {
+pub fn matrix_identity_gen<T: Copy + Sum + Product, const D: usize>() -> MatrixExpr<MatIdentityGenerator<T>, D, D> {
     MatrixExpr(MatIdentityGenerator { zero: NoneIter::<T>::new().sum(), one: NoneIter::<T>::new().product() })
 }
 
@@ -943,6 +941,24 @@ pub trait MatrixOps {
         let shared_size = self.dimensions().1;
         let builder = self.get_builder().decompose().0.compose(other.get_builder().decompose().1);
         unsafe { builder.wrap_mat(FullMatMul{l_mat: self.unwrap(), r_mat: other.unwrap(), shared_size}) }
+    }
+
+    /// multiplies this matrix with a vector (M * V)
+    #[inline]
+    fn mat_vec_mul<V: VectorOps, O: AddAssign<<<Self::Unwrapped as Get2D>::Item as std::ops::Mul<<V::Unwrapped as Get>::Item>>::Output> + std::iter::Sum>(self, vec: V) -> <<<Self as MatrixOps>::Builder as MatrixBuilder>::ColBuilder as VectorBuilder>::Wrapped<MatVecMul<<Self as MatrixOps>::Unwrapped, <V as VectorOps>::Unwrapped, <<<Self as MatrixOps>::Builder as MatrixBuilder>::RowBuilder as VectorBuilderUnion<<V as VectorOps>::Builder>>::Union, O>> where 
+        <Self::Builder as MatrixBuilder>::RowBuilder: VectorBuilderUnion<V::Builder>,
+        V::Unwrapped: IsRepeatable,
+        <Self::Unwrapped as Get2D>::Item: std::ops::Mul<<V::Unwrapped as Get>::Item>,
+        MatrixRow<Self::Unwrapped>: HasReuseBuf<BoundTypes = <MatrixRow<Self::Unwrapped> as Get>::BoundItems>,
+        (<MatRowVectorExprs<Self::Unwrapped> as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool): FilterPair,
+
+        Self: Sized,
+    {
+        unsafe{
+            let (mat_col_builder, mat_row_builder) = self.get_builder().decompose();
+            let vec_builder = vec.get_builder();
+            mat_col_builder.wrap(MatVecMul{mat: MatRowVectorExprs { mat: self.unwrap()}, vec: vec.unwrap(), inner_builder: mat_row_builder.union(vec_builder), phantom: PhantomData::<O>})
+        }
     }
 
     /// zips together the items of 2 matrices into 2 element tuples
