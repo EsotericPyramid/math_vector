@@ -491,8 +491,9 @@ impl<T, const D1: usize, const D2: usize> From<[[T; D1]; D2]> for MathMatrix<T, 
     }
 }
 
-impl<T, const D1: usize, const D2: usize> Into<[[T; D1]; D2]> for MathMatrix<T, D1, D2> {
-    #[inline] fn into(self) -> [[T; D1]; D2] {self.into_2d_array()}
+impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>> for [[T; D1]; D2] {
+    #[inline] 
+    fn from(value: MathMatrix<T, D1, D2>) -> Self {value.into_2d_array()}
 }
 
 impl<'a, T, const D1: usize, const D2: usize> From<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
@@ -502,10 +503,10 @@ impl<'a, T, const D1: usize, const D2: usize> From<&'a [[T; D1]; D2]> for &'a Ma
     }
 }
 
-impl<'a, T, const D1: usize, const D2: usize> Into<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
+impl<'a, T, const D1: usize, const D2: usize> From<&'a MathMatrix<T, D1, D2>> for &'a [[T; D1]; D2] {
     #[inline]
-    fn into(self) -> &'a [[T; D1]; D2] {
-        unsafe { mem::transmute::<&'a MathMatrix<T, D1, D2>, &'a [[T; D1]; D2]>(self) }
+    fn from(value: &'a MathMatrix<T, D1, D2>) -> Self {
+        unsafe { mem::transmute::<&'a MathMatrix<T, D1, D2>, &'a [[T; D1]; D2]>(value) }
     }
 }
 
@@ -516,10 +517,10 @@ impl<'a, T, const D1: usize, const D2: usize> From<&'a mut [[T; D1]; D2]> for &'
     }
 }
 
-impl<'a, T, const D1: usize, const D2: usize> Into<&'a mut [[T; D1]; D2]> for &'a mut MathMatrix<T, D1, D2> {
+impl<'a, T, const D1: usize, const D2: usize> From<&'a mut MathMatrix<T, D1, D2>> for &'a mut [[T; D1]; D2] {
     #[inline]
-    fn into(self) -> &'a mut [[T; D1]; D2] {
-        unsafe { mem::transmute::<&'a mut MathMatrix<T, D1, D2>, &'a mut [[T; D1]; D2]>(self) }
+    fn from(value: &'a mut MathMatrix<T, D1, D2>) -> Self {
+        unsafe { mem::transmute::<&'a mut MathMatrix<T, D1, D2>, &'a mut [[T; D1]; D2]>(value) }
     }
 }
 
@@ -538,9 +539,9 @@ impl<T, const D1: usize, const D2: usize> From<MathVectoredMatrix<T, D1, D2>> fo
     }
 }
 
-impl<T, const D1: usize, const D2: usize> Into<MathVectoredMatrix<T, D1, D2>> for MathMatrix<T, D1, D2> {
+impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>> for MathVectoredMatrix<T, D1, D2> {
     #[inline]
-    fn into(self) -> MathVectoredMatrix<T, D1, D2> {
+    fn from(value: MathMatrix<T, D1, D2>) -> MathVectoredMatrix<T, D1, D2> {
         //  safety:
         //      MathVectoredMatrix<T, D1, D2> == VectorExpr<OwnedArray<VectorExpr<OwnedArray<T, D1>, D1>, D2>, D2>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[ManuallyDrop<[T; D1]>; D2]>
@@ -549,7 +550,7 @@ impl<T, const D1: usize, const D2: usize> Into<MathVectoredMatrix<T, D1, D2>> fo
         //      MathVectoredMatrix<T, D1, D2> == MathMatrix<T, D1, D2>
         //
         //  FIXME: transmute_copy copies (:O), this shouldn't need to be done but gets the compiler to not complain about it
-        unsafe { mem::transmute_copy::<MathMatrix<T, D1, D2>, MathVectoredMatrix<T, D1, D2>>(&ManuallyDrop::new(self)) }
+        unsafe { mem::transmute_copy::<MathMatrix<T, D1, D2>, MathVectoredMatrix<T, D1, D2>>(&ManuallyDrop::new(value)) }
     }
 }
 

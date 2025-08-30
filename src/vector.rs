@@ -270,10 +270,10 @@ impl<T, const D: usize> From<[T; D]> for MathVector<T, D> {
     }
 }
 
-impl<T, const D: usize> Into<[T; D]> for MathVector<T, D> {
+impl<T, const D: usize> From<MathVector<T, D>> for [T; D] {
     #[inline] 
-    fn into(self) -> [T; D] {
-        self.unwrap().unwrap()
+    fn from(value: MathVector<T, D>) -> Self {
+        value.unwrap().unwrap()
     }
 }
 
@@ -284,10 +284,10 @@ impl<'a, T, const D: usize> From<&'a [T; D]> for &'a MathVector<T, D> {
     }
 } 
 
-impl<'a, T, const D: usize> Into<&'a [T; D]> for &'a MathVector<T, D> {
+impl<'a, T, const D: usize> From<&'a MathVector<T, D>> for &'a [T; D] {
     #[inline]
-    fn into(self) -> &'a [T; D] {
-        unsafe { mem::transmute::<&'a MathVector<T, D>, &'a [T; D]>(self) }
+    fn from(value: &'a MathVector<T, D>) -> Self {
+        unsafe { mem::transmute::<&'a MathVector<T, D>, &'a [T; D]>(value) }
     }
 } 
 
@@ -298,10 +298,10 @@ impl<'a, T, const D: usize> From<&'a mut [T; D]> for &'a mut MathVector<T, D> {
     }
 } 
 
-impl<'a, T, const D: usize> Into<&'a mut [T; D]> for &'a mut MathVector<T, D> {
+impl<'a, T, const D: usize> From<&'a mut MathVector<T, D>> for &'a mut [T; D] {
     #[inline]
-    fn into(self) -> &'a mut [T; D] {
-        unsafe { mem::transmute::<&'a mut MathVector<T, D>, &'a mut [T; D]>(self) }
+    fn from(value: &'a mut MathVector<T, D>) -> Self {
+        unsafe { mem::transmute::<&'a mut MathVector<T, D>, &'a mut [T; D]>(value) }
     }
 } 
 
@@ -312,10 +312,10 @@ impl<T, const D: usize> From<Box<[T; D]>> for Box<MathVector<T, D>> {
     }
 }
 
-impl<T, const D: usize> Into<Box<[T; D]>> for Box<MathVector<T,D>> {
+impl<T, const D: usize> From<Box<MathVector<T,D>>> for Box<[T; D]> {
     #[inline] 
-    fn into(self) -> Box<[T; D]> {
-        unsafe { mem::transmute::<Box<MathVector<T,D>>, Box<[T; D]>>(self) }
+    fn from(value: Box<MathVector<T,D>>) -> Self {
+        unsafe { mem::transmute::<Box<MathVector<T,D>>, Box<[T; D]>>(value) }
     }
 } 
 
@@ -519,10 +519,10 @@ impl<T> From<Box<[T]>> for RSMathVector<T> {
     }
 }
 
-impl<T> Into<Box<[T]>> for RSMathVector<T> {
+impl<T> From<RSMathVector<T>> for Box<[T]> {
     #[inline]
-    fn into(self) -> Box<[T]> {
-        unsafe {  mem::transmute_copy::<OwnedSlice<T>, Box<[T]>>(&ManuallyDrop::new(self).vec) }
+    fn from(value: RSMathVector<T>) -> Self {
+        unsafe {  mem::transmute_copy::<OwnedSlice<T>, Box<[T]>>(&ManuallyDrop::new(value).vec) }
     }
 }
 
@@ -553,10 +553,10 @@ impl<'a, T> From<&'a [T]> for RefRSMathVector<'a, T> {
     }
 }
 
-impl<'a, T> Into<&'a [T]> for RefRSMathVector<'a, T> {
+impl<'a, T> From<RefRSMathVector<'a, T>> for &'a [T] {
     #[inline]
-    fn into(self) -> &'a [T] {
-        self.vec
+    fn from(value: RefRSMathVector<'a, T>) -> &'a [T] {
+        value.vec
     }
 }
 
@@ -580,10 +580,10 @@ impl<'a, T> From<&'a mut [T]> for RefMutRSMathVector<'a, T> {
     }
 }
 
-impl<'a, T> Into<&'a mut [T]> for RefMutRSMathVector<'a, T> {
+impl<'a, T> From<RefMutRSMathVector<'a, T>> for &'a mut [T] {
     #[inline]
-    fn into(self) -> &'a mut [T] {
-        self.unwrap()
+    fn from(value: RefMutRSMathVector<'a, T>) -> &'a mut [T] {
+        value.unwrap()
     }
 }
 
