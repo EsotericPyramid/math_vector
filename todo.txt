@@ -42,7 +42,6 @@ To Do's:
         + matrix_structs.rs:
     + vector.rs:
         - remove redundant consumes / evals
-        X modify RSVectorExpr to work with DST's (should allow for deletion of RefRSMathVector)
         X improve VectorEvalOps to allow differentiation of attempted buffer types
         - Add Vector and Matrix multiplication
         X Add addassign and subassign for generic V2: VectorOps
@@ -51,6 +50,7 @@ To Do's:
         X move make_dynamic to VectorOps
         X merge ArrayVectorOps & SliceVectorOps into VectorOps using Builder bounds
         - figure out implementing Clone for RSMathVector
+        X modify RSVectorExpr to work with DST's (should allow for deletion of RefRSMathVector) (requires converting one pointer into another of different size, not sure if legal / posssible)
 
         + vec_util_traits.rs:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
