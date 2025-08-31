@@ -41,7 +41,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - remove redundant consumes / evals
+        ? generic MaybeCreate wrapper
         X improve VectorEvalOps to allow differentiation of attempted buffer types
         - Add Vector and Matrix multiplication
         X Add addassign and subassign for generic V2: VectorOps
