@@ -1,23 +1,15 @@
 //! Module containing all to do with Vectors and basic operations to do on them
 
 use crate::{
-    trait_specialization_utils::*, 
-    util_structs::NoneIter, 
-    util_traits::HasOutput,
+    matrix::{mat_util_traits::{Get2D, MatrixBuilder}, matrix_structs::{MatColVectorExprs, MatrixColumn}, MatrixOps}, trait_specialization_utils::*, util_structs::NoneIter, util_traits::HasOutput
 };
 use std::{
     iter::{
         Product,
         Sum,
-    },
-    mem::{
-        MaybeUninit, 
-        ManuallyDrop, 
-        self,
-    }, 
-    ops::*, 
-    slice::SliceIndex,
-    ptr,
+    }, marker::PhantomData, mem::{
+        self, ManuallyDrop, MaybeUninit
+    }, ops::*, ptr, slice::SliceIndex
 };
 
 pub mod vec_util_traits;
@@ -947,6 +939,24 @@ pub unsafe trait VectorOps {
         let builder = self.get_builder();
         unsafe { builder.wrap(VecCopiedSqrMag{vec: self.unwrap(), scalar: ManuallyDrop::new(NoneIter::new().sum())})}
     }
+
+    /// multiplies this vector with a matrix (V * M)
+    #[inline]
+    fn vec_mat_mul<M: MatrixOps, O: Sum + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output>>(self, mat: M) -> <<M::Builder as MatrixBuilder>::RowBuilder as VectorBuilder>::Wrapped<VecMatMul<Self::Unwrapped, M::Unwrapped, <Self::Builder as VectorBuilderUnion<<M::Builder as MatrixBuilder>::ColBuilder>>::Union, O>> where 
+        Self::Unwrapped: IsRepeatable,
+        <Self::Unwrapped as Get>::Item: Mul<<M::Unwrapped as Get2D>::Item>,
+        MatrixColumn<M::Unwrapped>: HasReuseBuf<BoundTypes = <MatrixColumn<M::Unwrapped> as Get>::BoundItems>,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <MatColVectorExprs<M::Unwrapped> as HasOutput>::OutputBool): FilterPair,
+        Self::Builder: VectorBuilderUnion<<M::Builder as MatrixBuilder>::ColBuilder>,
+        Self: Sized,
+    {
+        unsafe{
+            let (mat_col_builder, mat_row_builder) = mat.get_builder().decompose();
+            let vec_builder = self.get_builder();
+            mat_row_builder.wrap(VecMatMul{mat: MatColVectorExprs { mat: mat.unwrap()}, vec: self.unwrap(), inner_builder: vec_builder.union(mat_col_builder), phantom: PhantomData::<O>})
+        }
+    }
+
 
     /// zips together the items of 2 vectors into 2 element tuples
     #[inline] fn zip<V: VectorOps>(self, other: V) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<VecZip<Self::Unwrapped, V::Unwrapped>> 
