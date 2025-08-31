@@ -90,52 +90,6 @@ impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
         >>)
     }
 
-    /// consumes the VectorExpr and returns the built up output
-    /// 
-    /// Note:
-    /// methods like sum, product, or fold can place build up outputs
-    /// 
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
-    /// binary operators merge the output of the 2 vectors
-    #[inline] 
-    pub fn consume(self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        VectorIter::<V>{
-            vec: unsafe { ptr::read(&ManuallyDrop::new(self).0) },
-            live_input_start: 0,
-            dead_output_start: 0,
-            size: D
-        }.consume()
-    }
-
-    /// evaluates the VectorExpr and returns the resulting vector alongside its output (if present)
-    /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements) or the item is irrelevent, see consume to not return that vector
-    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
-    /// 
-    /// Warning: 
-    /// this method trying the evaluate the vector *onto the stack*, it is very possible to overflow the stack with larger vectors
-    /// use heap_eval if this is a concern 
-    /// 
-    /// Note:
-    /// methods like sum, product, or fold can place build up outputs
-    /// 
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
-    /// binary operators merge the output of the 2 vectors
-    #[inline]
-    pub fn eval(self) -> <VecBind<VecMaybeCreateArray<V, V::Item, D>> as HasOutput>::Output 
-    where 
-        <V::FstHandleBool as TyBool>::Neg: Filter,
-        (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair,
-        (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
-        (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-        (V::BoundHandlesBool, Y): FilterPair,
-        VecBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <VecBind<VecMaybeCreateArray<V, V::Item, D>> as Get>::BoundItems>
-    {
-        self.maybe_create_array().bind().consume()
-    }
-
-
     /// evaluates the VectorExpr and returns the resulting vector (on the heap) alongside its output (if present)
     /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements), see consume to not return that vector
     /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
@@ -400,19 +354,6 @@ impl<V: VectorLike> RSVectorExpr<V> {
     pub fn const_sized<const D: usize>(self) -> VectorExpr<V, D> {
         if self.size != D {panic!("math_vector error: cannot convert a RS vector with size {} into a const sized vector with size {}", self.size, D)}
         unsafe {mem::transmute_copy::<V, VectorExpr<V, D>>(&ManuallyDrop::new(self).vec)}
-    }
-
-    /// consumes the VectorExpr and returns the built up output
-    /// 
-    /// Note:
-    /// methods like sum, product, or fold can place build up outputs
-    /// 
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
-    /// binary operators merge the output of the 2 vectors
-    #[inline]
-    pub fn consume(self) -> V::Output where V: HasReuseBuf<BoundTypes = V::BoundItems> {
-        self.into_iter().consume()
     }
 }
 
@@ -726,6 +667,7 @@ pub unsafe trait VectorOps {
     /// get the size of this vector
     fn size(&self) -> usize;
 
+    /// converts the vector into a iterator
     #[inline]
     fn into_vec_iter(self) -> VectorIter<Self::Unwrapped> where 
         Self::Unwrapped: HasReuseBuf<BoundTypes = <Self::Unwrapped as Get>::BoundItems>,
@@ -735,6 +677,14 @@ pub unsafe trait VectorOps {
         VectorIter{vec: self.unwrap(), live_input_start: 0, dead_output_start: 0, size}
     }
 
+    /// consumes the vector and returns the built up output
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
     #[inline]
     fn consume(self) -> <Self::Unwrapped as HasOutput>::Output where 
         Self::Unwrapped: HasReuseBuf<BoundTypes = <Self::Unwrapped as Get>::BoundItems>,
@@ -1327,6 +1277,20 @@ pub trait VectorEvalOps: VectorOps {
         Self: Sized,
     ;
 
+    /// evaluates the VectorExpr and returns the resulting vector alongside its output (if present) without cleanly filtering it with the output
+    /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements) or the item is irrelevent, see consume to not return that vector
+    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
+    /// 
+    /// Warning: 
+    /// if this method is trying the evaluate the vector *onto the stack*, it is very possible to overflow the stack with larger vectors
+    /// use heap_eval if this is a concern 
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
     #[inline]
     fn raw_eval(self) -> (<Self::MaybeCreateBuffer<Self::Unwrapped> as HasOutput>::Output, <Self::MaybeCreateBuffer<Self::Unwrapped> as HasReuseBuf>::FstOwnedBuffer) where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
@@ -1341,6 +1305,20 @@ pub trait VectorEvalOps: VectorOps {
         unsafe { VectorIter::new_from_parts(VecRawBind{vec: self.maybe_create_buffer()}, builder).consume() }
     }
 
+    /// evaluates the VectorExpr and returns the resulting vector alongside its output (if present)
+    /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements) or the item is irrelevent, see consume to not return that vector
+    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
+    /// 
+    /// Warning: 
+    /// if this method is trying the evaluate the vector *onto the stack*, it is very possible to overflow the stack with larger vectors
+    /// use heap_eval if this is a concern 
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
     #[inline]
     fn eval(self) -> <VecBind<Self::MaybeCreateBuffer<Self::Unwrapped>> as HasOutput>::Output where 
         <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
