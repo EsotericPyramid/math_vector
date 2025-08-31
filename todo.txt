@@ -46,10 +46,9 @@ To Do's:
         - Add Vector and Matrix multiplication
         X Add addassign and subassign for generic V2: VectorOps
         ? Add heap_make_repeatable
-        - add wrap shortcut macro to VectorOps 
+        ? add wrap shortcut macro to VectorOps 
         X move make_dynamic to VectorOps
-        X merge ArrayVectorOps & SliceVectorOps into VectorOps using Builder bounds
-        - figure out implementing Clone for RSMathVector
+        ? merge ArrayVectorOps into VectorOps using Builder bounds
         X modify RSVectorExpr to work with DST's (should allow for deletion of RefRSMathVector) (requires converting one pointer into another of different size, not sure if legal / posssible)
 
         + vec_util_traits.rs:
@@ -58,7 +57,6 @@ To Do's:
         + vector_structs.rs:
             - check VecAttachUsedVec dropping
             - make the assign structs maintain the &'a mut T item
-            - add an OwnedSlice struct
 
 Fix Me's:
 + lib.rs:

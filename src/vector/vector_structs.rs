@@ -230,6 +230,15 @@ impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
 #[repr(transparent)]
 pub struct OwnedSlice<T>(pub(crate) Box<ManuallyDrop<[T]>>);
 
+impl<T: Clone> Clone for OwnedSlice<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        let to_be_cloned = unsafe { std::mem::transmute::<&Box<ManuallyDrop<[T]>>, &Box<[T]>>(&self.0) };
+        let cloned = to_be_cloned.clone();
+        OwnedSlice(unsafe { std::mem::transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(cloned)})
+    }
+}
+
 impl<T> OwnedSlice<T> {
     #[inline]
     pub fn unwrap(self) -> Box<[T]> {
