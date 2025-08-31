@@ -344,6 +344,7 @@ pub fn vector_index_gen<F: FnMut(usize) -> O, O, const D: usize>(f: F) -> Vector
 }
 
 // TODO: finish implementing RSVectorExpr
+#[derive(Clone)]
 pub struct RSVectorExpr<V: VectorLike>{pub(crate) vec: V, pub(crate) size: usize}
 
 impl<V: VectorLike> RSVectorExpr<V> {
@@ -1180,6 +1181,34 @@ pub unsafe trait VectorOps {
     {
         let builder = self.get_builder().union(other.get_builder());
         unsafe { builder.wrap(VecCopiedDot { l_vec: self.unwrap(), r_vec: other.unwrap(), scalar: ManuallyDrop::new(NoneIter::new().sum())}) }
+    }
+
+    /// attaches a &mut RSMathVector to the first buffer
+    /// note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
+    #[inline]
+    fn attach_slice<'a, T>(self, buf: &'a mut RSMathVector<T>) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachSlice<'a, Self::Unwrapped, T>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecAttachSlice{vec: self.unwrap(), buf}) }
+    }
+
+    /// creates a slice in the first buffer
+    #[inline] 
+    fn create_slice<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecCreateSlice<Self::Unwrapped, T>> where Self::Unwrapped: HasReuseBuf<FstHandleBool = N>, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecCreateSlice{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new_uninit_slice(builder.size()))}) }
+    }
+
+    /// creates a array in the first buffer if there isn't already one there
+    #[inline] 
+    fn maybe_create_slice<T>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecMaybeCreateSlice<Self::Unwrapped, T>> 
+    where 
+        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized
+    {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecMaybeCreateSlice{vec: self.unwrap(), buf: ManuallyDrop::new(Box::new_uninit_slice(builder.size()))}) }
     }
 }
 
