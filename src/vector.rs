@@ -750,6 +750,14 @@ pub unsafe trait VectorOps {
         unsafe { builder.wrap(VecBufSwap{vec: self.unwrap()}) }
     }
 
+    #[inline] fn repeated(&mut self) -> <Self::Builder as VectorBuilder>::Wrapped<RepeatedVec<'_, Self::Unwrapped>> where 
+        Self::Unwrapped: IsRepeatable,
+        Self: AsMut<Self::Unwrapped>
+    {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(RepeatedVec{vec: self.as_mut()}) }
+    }
+
     /// offsets (with rolling over) each element of the vector up by the given offset
     #[inline] 
     fn offset_up(self, offset: usize) -> <Self::Builder as VectorBuilder>::Wrapped<VecOffset<Self::Unwrapped>> where Self: Sized {
@@ -1857,7 +1865,7 @@ impl_ops_for_wrapper!(
     <'a, T, {D}>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
     <'a, T, {D}>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
     <'a, T, {D}>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
-    
+
     <V: VectorLike>, RSVectorExpr<V>, trait_vector: V, true_vector: V;
     <'a, T>, RefRSMathVector<'a, T>, trait_vector: &'a [T], true_vector: &'a [T], true;
     <'a, T>, RefMutRSMathVector<'a, T>, trait_vector: &'a mut [T], true_vector: &'a mut [T], true;
