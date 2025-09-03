@@ -1663,6 +1663,24 @@ unsafe impl<V: VectorLike> VectorOps for RSVectorExpr<V> {
     #[inline] fn size(&self) -> usize {self.size}
 }
 
+unsafe impl<'a, T> VectorOps for &'a RSMathVector<T> {
+    type Unwrapped = &'a [T];
+    type Builder = RSVectorExprBuilder;
+
+    #[inline] fn unwrap(self) -> Self::Unwrapped {&*self.vec}
+    #[inline] fn get_builder(&self) -> Self::Builder {RSVectorExprBuilder{size: self.size}}
+    #[inline] fn size(&self) -> usize {self.size}
+}
+
+unsafe impl<'a, T> VectorOps for &'a mut RSMathVector<T> {
+    type Unwrapped = &'a mut [T];
+    type Builder = RSVectorExprBuilder;
+
+    #[inline] fn unwrap(self) -> Self::Unwrapped {&mut *self.vec}
+    #[inline] fn get_builder(&self) -> Self::Builder {RSVectorExprBuilder{size: self.size}}
+    #[inline] fn size(&self) -> usize {self.size}
+}
+
 macro_rules! conditional_syntax {
     (
         $cond:tt {$($tt:tt)*} 
@@ -1832,14 +1850,17 @@ macro_rules! impl_ops_for_wrapper {
     }; 
 }
 
-impl_ops_for_wrapper!(
+impl_ops_for_wrapper!( 
     <V: VectorLike, {D}>, VectorExpr<V, D>, trait_vector: V, true_vector: V;
     <V: VectorLike, {D}>, Box<VectorExpr<V, D>>, trait_vector: V, true_vector: Box<V>;
     <'a, T, {D}>, &'a MathVector<T,D>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
     <'a, T, {D}>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
     <'a, T, {D}>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
     <'a, T, {D}>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+    
     <V: VectorLike>, RSVectorExpr<V>, trait_vector: V, true_vector: V;
     <'a, T>, RefRSMathVector<'a, T>, trait_vector: &'a [T], true_vector: &'a [T], true;
     <'a, T>, RefMutRSMathVector<'a, T>, trait_vector: &'a mut [T], true_vector: &'a mut [T], true;
+    <'a, T>, &'a RSMathVector<T>, trait_vector: &'a [T], true_vector: &'a [T];
+    <'a, T>, &'a mut RSMathVector<T>, trait_vector: &'a mut [T], true_vector: &'a mut [T];
 );

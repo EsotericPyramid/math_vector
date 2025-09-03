@@ -13,6 +13,7 @@ To Do's:
 + lib.rs:
     X change gen functions to assoc fns of the wrapper they make
     X deal with transmute_copy when copies aren't actually needed (used in that case to dodge compiler errors)
+    - adapt more complex num bounds to use premade ones from a crate
     - check inlining
     - check get's process updated index parameters
     - clear up entry v. element v. item v. etc.
@@ -32,7 +33,6 @@ To Do's:
         - add runtime sized wrappers
         - add wrap shortcut macro to MatrixOps
         - generalize rref outside of f64 
-            - adapt more complex num bounds to use premade ones from a crate
         - check pivot management of rref & det
         ~ check numerical stability of det && rref
 
