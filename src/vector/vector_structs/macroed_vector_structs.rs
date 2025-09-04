@@ -300,11 +300,11 @@ vec_structs!(
     VecRemL<{V}, S: Copy>{vec, scalar: S} where V::Item: Rem<S>; get: <V::Item as Rem<S>>::Output, |self, input| input % self.scalar;
     
     "Struct mul assigning (*=) a vector's item (&mut T) by a scalar";
-    VecMulAssign<'a, {V}, I: 'a | MulAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input *= self.scalar;
+    VecMulAssign<'a, {V}, I: 'a | MulAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input *= self.scalar; input};
     "Struct div assigning (/=) a vector's item (&mut T) by a scalar";
-    VecDivAssign<'a, {V}, I: 'a | DivAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input /= self.scalar;
+    VecDivAssign<'a, {V}, I: 'a | DivAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input /= self.scalar; input};
     "Struct rem assigning (%=) a vector's item (&mut T) by a scalar";
-    VecRemAssign<'a, {V}, I: 'a | RemAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: (), |self, input| *input %= self.scalar;
+    VecRemAssign<'a, {V}, I: 'a | RemAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input %= self.scalar; input};
     
     "Struct summing up a vector's items, adding it to Output";
     VecSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: AddAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar += input;
