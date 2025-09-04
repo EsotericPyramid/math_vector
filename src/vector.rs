@@ -27,61 +27,6 @@ use vector_builders::*;
 pub struct VectorExpr<V: VectorLike, const D: usize>(pub(crate) V); // note: VectorExpr only holds fully unused VectorLike objects
 
 impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
-    /// converts the underlying VectorLike to a dynamic object
-    /// stabilizes the overall type to a consitent one
-    /// ex:
-    /// ```
-    ///     use math_vector::{vector::*};
-    /// 
-    ///     let mut vec = VectorExpr::from([1; 100]).make_dynamic();
-    ///     for _ in 0..10 {
-    ///         vec = vec.add(VectorExpr::from([1; 100])).make_dynamic();
-    ///     }
-    ///     let output = vec.eval();
-    /// ```
-    #[inline]
-    pub fn make_dynamic(self) -> VectorExpr<Box<dyn VectorLike<
-        GetBool = V::GetBool,
-        Inputs = (),
-        Item = V::Item,
-        BoundItems = V::BoundItems,
-
-        OutputBool = V::OutputBool,
-        Output = V::Output,
-
-        FstHandleBool = V::FstHandleBool,
-        SndHandleBool = V::SndHandleBool,
-        BoundHandlesBool = V::BoundHandlesBool,
-        FstOwnedBufferBool = V::FstOwnedBufferBool,
-        SndOwnedBufferBool = V::SndOwnedBufferBool,
-        FstOwnedBuffer = V::FstOwnedBuffer,
-        SndOwnedBuffer = V::SndOwnedBuffer,
-        FstType = V::FstType,
-        SndType = V::SndType,
-        BoundTypes = V::BoundTypes,
-    >>, D> where V: 'static {
-        VectorExpr(Box::new(DynamicVectorLike{vec: self.unwrap(), inputs: None}) as Box<dyn VectorLike<
-            GetBool = V::GetBool,
-            Inputs = (),
-            Item = V::Item,
-            BoundItems = V::BoundItems,
-
-            OutputBool = V::OutputBool,
-            Output = V::Output,
-
-            FstHandleBool = V::FstHandleBool,
-            SndHandleBool = V::SndHandleBool,
-            BoundHandlesBool = V::BoundHandlesBool,
-            FstOwnedBufferBool = V::FstOwnedBufferBool,
-            SndOwnedBufferBool = V::SndOwnedBufferBool,
-            FstOwnedBuffer = V::FstOwnedBuffer,
-            SndOwnedBuffer = V::SndOwnedBuffer,
-            FstType = V::FstType,
-            SndType = V::SndType,
-            BoundTypes = V::BoundTypes,
-        >>)
-    }
-
     /// evaluates the VectorExpr and returns the resulting vector (on the heap) alongside its output (if present)
     /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements), see consume to not return that vector
     /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
@@ -756,6 +701,62 @@ pub unsafe trait VectorOps {
     {
         let builder = self.get_builder();
         unsafe { builder.wrap(RepeatedVec{vec: self.as_mut()}) }
+    }
+
+    /// converts the underlying VectorLike to a dynamic object
+    /// stabilizes the overall type to a consitent one
+    /// ex:
+    /// ```
+    ///     use math_vector::{vector::*};
+    /// 
+    ///     let mut vec = VectorExpr::from([1; 100]).make_dynamic();
+    ///     for _ in 0..10 {
+    ///         vec = vec.add(VectorExpr::from([1; 100])).make_dynamic();
+    ///     }
+    ///     let output = vec.eval();
+    /// ```
+    #[inline]
+    fn make_dynamic(self) -> <Self::Builder as VectorBuilder>::Wrapped<Box<dyn VectorLike<
+        GetBool = <Self::Unwrapped as Get>::GetBool,
+        Inputs = (),
+        Item = <Self::Unwrapped as Get>::Item,
+        BoundItems = <Self::Unwrapped as Get>::BoundItems,
+
+        OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
+        Output = <Self::Unwrapped as HasOutput>::Output,
+
+        FstHandleBool = <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+        SndHandleBool = <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+        BoundHandlesBool = <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+        FstOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        SndOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+        FstOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::FstOwnedBuffer,
+        SndOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::SndOwnedBuffer,
+        FstType = <Self::Unwrapped as HasReuseBuf>::FstType,
+        SndType = <Self::Unwrapped as HasReuseBuf>::SndType,
+        BoundTypes = <Self::Unwrapped as HasReuseBuf>::BoundTypes,
+    >>> where Self::Unwrapped: 'static, Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(Box::new(DynamicVectorLike{vec: self.unwrap(), inputs: None}) as Box<dyn VectorLike<
+            GetBool = <Self::Unwrapped as Get>::GetBool,
+            Inputs = (),
+            Item = <Self::Unwrapped as Get>::Item,
+            BoundItems = <Self::Unwrapped as Get>::BoundItems,
+    
+            OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
+            Output = <Self::Unwrapped as HasOutput>::Output,
+    
+            FstHandleBool = <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+            SndHandleBool = <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+            BoundHandlesBool = <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+            FstOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            SndOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+            FstOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::FstOwnedBuffer,
+            SndOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::SndOwnedBuffer,
+            FstType = <Self::Unwrapped as HasReuseBuf>::FstType,
+            SndType = <Self::Unwrapped as HasReuseBuf>::SndType,
+            BoundTypes = <Self::Unwrapped as HasReuseBuf>::BoundTypes,
+        >>) }
     }
 
     /// offsets (with rolling over) each element of the vector up by the given offset
