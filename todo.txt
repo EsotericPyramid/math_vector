@@ -56,7 +56,6 @@ To Do's:
         + vector_builders.rs:
         + vector_structs.rs:
             - check VecAttachUsedVec dropping
-            - make the assign structs maintain the &'a mut T item
 
 Fix Me's:
 + lib.rs:
