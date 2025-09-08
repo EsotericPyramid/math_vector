@@ -54,7 +54,7 @@ impl<V: VectorLike> HasReuseBuf for VecBufSwap<V> {
 
 /// Struct attaching a used vector's output and buffers to another vector
 /// SAFETY: it is expected that the used_vec field is safe to output in addition to normal correct implementation
-pub struct VecAttachUsedVec<V: VectorLike, USEDV: VectorLike>{pub(crate) vec: V, pub(crate) used_vec: USEDV}
+pub struct VecAttachUsedVec<V: VectorLike, USEDV: VectorLike>{pub(crate) vec: V, pub(crate) used_vec: USEDV, pub(crate) size: usize}
 
 unsafe impl<V: VectorLike, USEDV: VectorLike> Get for VecAttachUsedVec<V, USEDV> {
     type GetBool = V::GetBool;
@@ -84,6 +84,9 @@ impl<V: VectorLike, USEDV: VectorLike> HasOutput for VecAttachUsedVec<V, USEDV> 
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.vec.drop_output();
+        for i in 0..self.size {
+            self.used_vec.drop_bound_bufs_index(i);
+        }
         self.used_vec.drop_output();
     }}
 }
@@ -144,7 +147,6 @@ where
     }}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, index: usize) { unsafe {
         self.vec.drop_bound_bufs_index(index);
-        self.used_vec.drop_bound_bufs_index(index);
     }}
 }
 
