@@ -1346,7 +1346,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
-            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat)})
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols: D2, num_rows: D1})
         }
     }
 }
@@ -1405,7 +1405,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
         let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
-            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat)})
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols: D2, num_rows: D1})
         }
     }
 }

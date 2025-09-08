@@ -59,7 +59,7 @@ impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
 
 /// struct attaching a *used* matrix's output and buffers to another matrix
 /// SAFETY: it is expected that the used_mat field is safe to output in addition to normal correct implementation
-pub struct MatAttachUsedMat<M: MatrixLike, USEDM: MatrixLike>{pub(crate) mat: M, pub(crate) used_mat: USEDM}
+pub struct MatAttachUsedMat<M: MatrixLike, USEDM: MatrixLike>{pub(crate) mat: M, pub(crate) used_mat: USEDM, pub(crate) num_cols: usize, pub(crate) num_rows: usize}
 
 unsafe impl<M: MatrixLike, USEDM: MatrixLike> Get2D for MatAttachUsedMat<M, USEDM> {
     type GetBool = M::GetBool;
@@ -90,6 +90,11 @@ impl<M: MatrixLike, USEDM: MatrixLike> HasOutput for MatAttachUsedMat<M, USEDM> 
     #[inline]
     unsafe fn drop_output(&mut self) { unsafe {
         self.mat.drop_output();
+        for col_index in 0..self.num_cols {
+            for row_index in 0..self.num_rows {
+                self.used_mat.drop_bound_bufs_index(col_index, row_index);
+            }
+        }
         self.used_mat.drop_output();
     }}
 }
@@ -156,7 +161,6 @@ where
     }}
     #[inline] unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) { unsafe {
         self.mat.drop_bound_bufs_index(col_index, row_index);
-        self.used_mat.drop_bound_bufs_index(col_index, row_index);
     }}
 }
 
