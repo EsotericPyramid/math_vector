@@ -55,7 +55,6 @@ To Do's:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
-            - check VecAttachUsedVec dropping
 
 Fix Me's:
 + lib.rs:

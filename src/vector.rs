@@ -1451,7 +1451,7 @@ where
         let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
         unsafe {
             vec_iter.no_output_consume();
-            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec)})
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
         }
     }
 }
@@ -1523,7 +1523,9 @@ where
         let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
         unsafe {
             vec_iter.no_output_consume();
-            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec)})
+            let out = builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()});
+            mem::forget(vec_iter);
+            out
         }
     }
 }

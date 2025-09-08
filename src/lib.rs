@@ -255,7 +255,7 @@ pub mod matrix;
 #[cfg(test)]
 mod test {
     use rand::Rng; 
-    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorOps, VectorEvalOps}};
+    use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorEvalOps, VectorOps}};
     use std::{hint::black_box, time::*};
 
     /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
@@ -476,5 +476,4 @@ mod test {
 
         println!("{}", elapsed.as_nanos());
     }
-
 }
