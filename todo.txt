@@ -31,10 +31,9 @@ To Do's:
         - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
         ? rename ArrayMatrixOps
-        - add heap_make_repeatable
+        ? add heap_make_repeatable
         - add runtime sized wrappers
-        - add wrap shortcut macro to MatrixOps
-        - generalize rref outside of f64 
+        ? add wrap shortcut macro to MatrixOps
         - check pivot management of rref & det
         ~ check numerical stability of det && rref
 
@@ -43,6 +42,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
         X remove &Box and &mut Box for impls VectorExpr (should be redundant because of Borrow but isn't fully)
         ? generic MaybeCreate wrapper
         X improve VectorEvalOps to allow differentiation of attempted buffer types
