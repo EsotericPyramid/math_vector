@@ -382,7 +382,7 @@ mod test {
             [0.442, 0.081, 0.973, 0.506],
         ]).transpose().eval();
         mat.rref();
-        println!("rref: {:#?}", mat.into_2d_array());
+        println!("rref: {:#?}", <[[_; _]; _]>::from(mat));
     }
 
     //tests det basic correctness

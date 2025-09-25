@@ -27,8 +27,6 @@ To Do's:
     + test:
     + matrix.rs:
         - add MatrixOps extension(s) for evaluation / consumption
-        - remove into_2d_array (not Into<[[T; D1]; D2]>)
-        - replace into_2d_heap_array w/ `Box<MatrixExpr<_>>: Into<Box<[[T; D1]; D2]>>`
         - add assign ops to MathMatrix
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable
@@ -43,6 +41,9 @@ To Do's:
         + matrix_structs.rs:
     + vector.rs:
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
+            - could allow more general eval implementation
+            - currently runs into collision between FstHandleBool = N and FstHandleBool = Y
+                - MaybeCreates could be used but muck up the buffer type
         X remove &Box and &mut Box for impls VectorExpr (should be redundant because of Borrow but isn't fully)
         ? generic MaybeCreate wrapper
         X improve VectorEvalOps to allow differentiation of attempted buffer types
