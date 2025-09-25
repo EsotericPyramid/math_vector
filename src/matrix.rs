@@ -322,10 +322,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Iterator for MatrixEntryIt
 pub type MathMatrix<T, const D1: usize, const D2: usize> = MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>;
 
 impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
-    #[inline] pub fn into_2d_array(self) -> [[T; D1]; D2] {self.unwrap().unwrap()}
-    #[inline] pub fn into_2d_heap_array(self: Box<Self>) -> Box<[[T; D1]; D2]> {
-        unsafe { mem::transmute::<Box<Self>, Box<[[T; D1]; D2]>>(self) }
-    }
     /// Marks this MathMatrix to have its buffer reused
     /// buffer placed in fst slot
     #[inline] pub fn reuse(self) -> MatrixExpr<Replace2DArray<T, D1, D2>, D1, D2> {MatrixExpr(Replace2DArray(self.unwrap().0))}
@@ -493,8 +489,23 @@ impl<T, const D1: usize, const D2: usize> From<[[T; D1]; D2]> for MathMatrix<T, 
 
 impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>> for [[T; D1]; D2] {
     #[inline] 
-    fn from(value: MathMatrix<T, D1, D2>) -> Self {value.into_2d_array()}
+    fn from(value: MathMatrix<T, D1, D2>) -> Self {value.unwrap().unwrap()}
 }
+
+impl<T, const D1: usize, const D2: usize> From<Box<[[T; D1]; D2]>> for Box<MathMatrix<T, D1, D2>> {
+    #[inline] 
+    fn from(value: Box<[[T; D1]; D2]>) -> Self {
+        unsafe { mem::transmute::<Box<[[T; D1]; D2]>, Box<MathMatrix<T, D1, D2>>>(value) }
+    }
+}
+
+impl<T, const D1: usize, const D2: usize> From<Box<MathMatrix<T, D1, D2>>> for Box<[[T; D1]; D2]> {
+    #[inline] 
+    fn from(value: Box<MathMatrix<T, D1, D2>>) -> Self {
+        unsafe { mem::transmute::<Box<MathMatrix<T, D1, D2>>, Box<[[T; D1]; D2]>>(value) }
+    }
+}
+
 
 impl<'a, T, const D1: usize, const D2: usize> From<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
     #[inline]
