@@ -157,12 +157,14 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
 
     /// Creates a column-major iterator across the matrix's elements
     #[inline]
-    pub fn into_entry_iter(self) -> MatrixEntryIter<M, D1, D2> {
+    pub fn into_entry_iter(self) -> MatrixEntryIter<M> {
         MatrixEntryIter{
             mat: self.unwrap(),
             current_col: 0,
             live_input_row_start: 0,
-            dead_output_row_start: 0 
+            dead_output_row_start: 0,
+            num_rows: D1,
+            num_cols: D2,
         }
     }
 }
@@ -197,9 +199,22 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
 }
 
 /// A column majored iterator over a matrix's elements
-pub struct MatrixEntryIter<M: MatrixLike, const D1: usize, const D2: usize>{mat: M, current_col: usize, live_input_row_start: usize, dead_output_row_start: usize}
+pub struct MatrixEntryIter<M: MatrixLike>{mat: M, current_col: usize, live_input_row_start: usize, dead_output_row_start: usize, num_rows: usize, num_cols: usize}
 
-impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2> {
+impl<M: MatrixLike> MatrixEntryIter<M> {
+    #[inline]
+    pub unsafe fn new_from_parts<B: MatrixBuilder>(mat: M, builder: B) -> Self {
+        let (num_rows, num_cols) = builder.dimensions();
+        Self {
+            mat, 
+            current_col: 0,
+            live_input_row_start: 0,
+            dead_output_row_start: 0,
+            num_rows,
+            num_cols, 
+        }
+    }
+
     /// retrieve the output of this matrix without checking consumption
     /// Safety: the matrix must have been fully consumed
     #[inline]
@@ -216,8 +231,8 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
     /// retrieve the output of this matrix
     #[inline]
     pub fn output(self) -> M::Output {
-        assert!((self.current_col == D2-1) & (self.live_input_row_start == D1), "math_vector error: A VectorIter must be fully used before outputting");
-        debug_assert!(self.dead_output_row_start == D1, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
+        assert!((self.current_col == self.num_cols-1) & (self.live_input_row_start == self.num_rows), "math_vector error: A VectorIter must be fully used before outputting");
+        debug_assert!(self.dead_output_row_start == self.num_rows, "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue");
         unsafe {self.unchecked_output()}
     }
 
@@ -236,8 +251,8 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
         let live_input_row_start = &mut self.live_input_row_start;
         let dead_output_row_start = &mut self.dead_output_row_start;
         unsafe {
-            while *current_col < D2-1 {
-                while *live_input_row_start < D1 {
+            while *current_col < self.num_cols-1 {
+                while *live_input_row_start < self.num_rows {
                     let row_index = *live_input_row_start;
                     *live_input_row_start += 1;
                     let inputs = mat.get_inputs(*current_col, row_index);
@@ -249,7 +264,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
                 *dead_output_row_start = 0;
                 *current_col += 1;
             }
-            while *live_input_row_start < D1 {
+            while *live_input_row_start < self.num_rows {
                 let row_index = *live_input_row_start;
                 *live_input_row_start += 1;
                 let inputs = mat.get_inputs(*current_col, row_index);
@@ -261,23 +276,23 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEntryIter<M, D1, D2>
     }
 }
 
-impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixEntryIter<M, D1, D2> {
+impl<M: MatrixLike> Drop for MatrixEntryIter<M> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
             for col_index in 0..self.current_col {
-                for row_index in 0..D1 {
+                for row_index in 0..self.num_rows {
                     self.mat.drop_bound_bufs_index(col_index, row_index);
                 }
             }
             for row_index in 0..self.dead_output_row_start {
                 self.mat.drop_bound_bufs_index(self.current_col, row_index);
             }
-            for row_index in self.live_input_row_start..D1 {
+            for row_index in self.live_input_row_start..self.num_rows {
                 self.mat.drop_inputs(self.current_col, row_index);
             }
-            for col_index in self.current_col+1..D2 {
-                for row_index in 0..D1 {
+            for col_index in self.current_col+1..self.num_cols {
+                for row_index in 0..self.num_rows {
                     self.mat.drop_inputs(col_index, row_index);
                 }
             }
@@ -288,13 +303,13 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixEntryIter<M
     }
 }
 
-impl<M: MatrixLike, const D1: usize, const D2: usize> Iterator for MatrixEntryIter<M, D1, D2> where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
+impl<M: MatrixLike> Iterator for MatrixEntryIter<M> where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
     type Item = M::Item;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            if self.live_input_row_start < D1 { //current vector isn't done
+            if self.live_input_row_start < self.num_rows { //current vector isn't done
                 let row_index = self.live_input_row_start;
                 self.live_input_row_start += 1;
                 let inputs = self.mat.get_inputs(self.current_col, row_index);
@@ -302,7 +317,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Iterator for MatrixEntryIt
                 self.mat.assign_bound_bufs(self.current_col, row_index, bound_items);
                 self.dead_output_row_start += 1;
                 Some(item)
-            } else if self.current_col < D2-1 {
+            } else if self.current_col < self.num_cols-1 {
                 self.current_col += 1;
                 self.live_input_row_start = 1; //we immediately and infallibly get the first one
                 self.dead_output_row_start = 0;
@@ -351,8 +366,6 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     #[inline] pub unsafe fn get_unchecked_mut<I: std::slice::SliceIndex<[[T; D1]]>>(&mut self, index: I) -> &mut I::Output { unsafe {
         self.0.0.get_unchecked_mut(index)
     }}
-
-    
 }
 
 impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
@@ -363,7 +376,7 @@ impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatr
         let mut pivots = Vec::with_capacity(D1);
         for row_idx in 0..D1 {
             let mut pivot = 0;
-            while (pivot < D2) && (self[pivot][row_idx] == T::zero()) {pivot += 1;}
+            while (pivot < D2) && (self[pivot][row_idx].is_zero()) {pivot += 1;}
             pivots.push(pivot);
             if pivot == D2 {continue;}
             let base_val = self[pivot][row_idx];
@@ -419,7 +432,7 @@ impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatr
         let mut pivots = Vec::with_capacity(D2);
         for col_idx in 0..D2 {
             let mut pivot = 0;
-            while (pivot < D1) && (self[col_idx][pivot] == T::zero()) {pivot += 1;}
+            while (pivot < D1) && (self[col_idx][pivot].is_zero()) {pivot += 1;}
             pivots.push(pivot);
             if pivot == D1 {return T::zero();}
             let base_val = self[col_idx][pivot];
@@ -1305,6 +1318,76 @@ pub trait RepeatableMatrixOps: MatrixOps {
     ;
 }
 
+pub trait MatrixEvalOps: MatrixOps {
+    type MaybeCreateBuffer<M: MatrixLike>: MatrixLike<FstHandleBool = Y> where 
+        <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<M as Has2DReuseBuf>::FstHandleBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<M as Has2DReuseBuf>::FstOwnedBufferBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+    
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized,
+    ;
+
+    /// evaluates the MatrixExpr and returns the resulting vector alongside its output (if present) without cleanly filtering it with the output
+    /// if the MatrixExpr has no item (& thus results in a vector w/ ZST elements) or the item is irrelevent, see consume to not return that vector
+    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
+    /// 
+    /// Warning: 
+    /// if this method is trying the evaluate the vector *onto the stack*, it is very possible to overflow the stack with larger vectors
+    /// use heap_eval if this is a concern 
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
+    #[inline]
+    fn raw_eval(self) -> (<Self::MaybeCreateBuffer<Self::Unwrapped> as HasOutput>::Output, <Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::FstOwnedBuffer) where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        (<Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::BoundHandlesBool, Y): FilterPair,
+        (<Self::MaybeCreateBuffer<Self::Unwrapped> as HasOutput>::OutputBool, <Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::FstOwnedBufferBool): TyBoolPair,
+        MatRawBind<Self::MaybeCreateBuffer<Self::Unwrapped>>: Has2DReuseBuf<BoundTypes = <MatRawBind<Self::MaybeCreateBuffer<Self::Unwrapped>> as Get2D>::BoundItems>,
+        Self: Sized 
+    {
+        let builder = self.get_builder();
+        unsafe { MatrixEntryIter::new_from_parts(MatRawBind{mat: self.maybe_create_buffer()}, builder).consume() }
+    }
+
+    /// evaluates the MatrixExpr and returns the resulting vector alongside its output (if present)
+    /// if the MatrixExpr has no item (& thus results in a vector w/ ZST elements) or the item is irrelevent, see consume to not return that vector
+    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
+    /// 
+    /// Warning: 
+    /// if this method is trying the evaluate the vector *onto the stack*, it is very possible to overflow the stack with larger vectors
+    /// use heap_eval if this is a concern 
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 vectors
+    #[inline]
+    fn eval(self) -> <MatBind<Self::MaybeCreateBuffer<Self::Unwrapped>> as HasOutput>::Output where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        (<Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::BoundHandlesBool, Y): FilterPair,
+        (<Self::MaybeCreateBuffer<Self::Unwrapped> as HasOutput>::OutputBool, <Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::FstOwnedBufferBool): FilterPair,
+        MatBind<Self::MaybeCreateBuffer<Self::Unwrapped>>: Has2DReuseBuf<BoundTypes = <MatBind<Self::MaybeCreateBuffer<Self::Unwrapped>> as Get2D>::BoundItems>,
+        Self: Sized 
+    {
+        let builder = self.get_builder();
+        unsafe { MatrixEntryIter::new_from_parts(MatBind{mat: self.maybe_create_buffer()}, builder).consume() }
+    }
+}
  
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for MatrixExpr<M, D1, D2> {
     type Unwrapped = M;
