@@ -12,6 +12,7 @@ To Do's:
 - run rustfmt
 ~ add safety explanations (and check safety along the way)
 + lib.rs:
+    X get heaped things to work outside of `--release`
     ? rename Fst & Snd buffer to Active and Reserve buffer (or similar)
     X change gen functions to assoc fns of the wrapper they make
     X deal with transmute_copy when copies aren't actually needed (used in that case to dodge compiler errors)
@@ -40,6 +41,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - impl Display / ToString
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
             - currently runs into collision between FstHandleBool = N and FstHandleBool = Y
@@ -56,6 +58,8 @@ To Do's:
             ? VectorBuilder: Clone --> VectorBuilder: Copy
         + vector_builders.rs:
         + vector_structs.rs:
+    + tests.rs:
+        - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
 
 Fix Me's:
 + lib.rs:
