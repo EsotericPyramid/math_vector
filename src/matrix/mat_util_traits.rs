@@ -184,6 +184,9 @@ pub trait MatrixBuilder: Clone {
     //FIXME (above is source of issue): currently requires correct implementation even though trait is not unsafe
     /// decomposes this matrix builder into a column and row vector builders
     fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder);
+
+    /// get the dimensions of this builder in `(num_rows, num_cols)` format
+    fn dimensions(&self) -> (usize, usize);
 }
 
 /// Enables an union operation between 2 MatrixBuilders into a single MatrixBuilder

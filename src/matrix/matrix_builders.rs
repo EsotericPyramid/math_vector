@@ -35,6 +35,8 @@ impl<const D1: usize, const D2: usize> MatrixBuilder for MatrixExprBuilder<D1, D
     #[inline] unsafe fn wrap_row_vec<T: VectorLike>(&self, vec: T) -> Self::RowWrapped<T> {VectorExpr(vec)}
 
     #[inline] fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder) {(VectorExprBuilder, VectorExprBuilder)}
+
+    #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 
 impl<const D1: usize, const D2: usize> MatrixBuilderUnion<MatrixExprBuilder<D1, D2>> for MatrixExprBuilder<D1, D2> {
