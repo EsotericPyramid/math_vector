@@ -27,7 +27,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
-        - add MatrixOps extension(s) for evaluation / consumption
+        - add MatrixOps extension for consumption
         - add assign ops to MathMatrix
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable
@@ -42,6 +42,7 @@ To Do's:
         + matrix_structs.rs:
     + vector.rs:
         - impl Display / ToString
+        - impl VectorEvalOps for RSVecs
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
             - currently runs into collision between FstHandleBool = N and FstHandleBool = Y
