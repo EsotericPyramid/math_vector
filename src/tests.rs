@@ -1,5 +1,5 @@
 use rand::Rng; 
-use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorEvalOps, VectorOps}};
+use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps, MatrixEvalOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorEvalOps, VectorOps}};
 use std::{hint::black_box, time::*};
 
 /// returns log of the error, higher is better

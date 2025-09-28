@@ -100,33 +100,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
         self.into_entry_iter().consume()
     }
 
-    /// evaluates the MatrixExpr and returns the resulting matrix alongside its output (if present)
-    /// if the MatrixExpr has no item (& thus results in a matrix w/ ZST elements) or the item is irrelevent, see consume to not return that matrix
-    /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
-    /// 
-    /// Warning: 
-    /// this method trying the evaluate the matrix *onto the stack*, it is very possible to overflow the stack with larger matrixes
-    /// use heap_eval if this is a concern 
-    /// 
-    /// Note:
-    /// methods like sum, product, or fold can place build up outputs
-    /// 
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
-    /// binary operators merge the output of the 2 matrixes
-    #[inline]
-    pub fn eval(self) -> <MatBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>> as HasOutput>::Output 
-    where
-        (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair,
-        (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
-        (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-        <M::FstHandleBool as TyBool>::Neg: Filter,
-        (M::BoundHandlesBool, Y): FilterPair,
-        (M::IsFstBufferTransposed, M::AreBoundBuffersTransposed): TyBoolPair,
-        MatBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>> as Get2D>::BoundItems>
-    {
-        self.maybe_create_2d_buf().bind().consume()
-    }
 
     /// evaluates the MatrixExpr and returns the resulting matrix alongside its output (if present)
     /// if the MatrixExpr has no item (& thus results in a matrix w/ ZST elements) or the item is irrelevent, see consume to not return that matrix
@@ -1445,6 +1418,22 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     }
 }
 
+impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for MatrixExpr<M, D1, D2> {
+    type MaybeCreateBuffer<T: MatrixLike> = MatMaybeCreate2DBuf<T, T::Item, D1, D2> where 
+        <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<T as Has2DReuseBuf>::FstHandleBool, <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<T as Has2DReuseBuf>::FstOwnedBufferBool, <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixOps for Box<MatrixExpr<M, D1, D2>> {
     type Unwrapped = Box<M>;
@@ -1504,7 +1493,22 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
     }
 }
 
+impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for Box<MatrixExpr<M, D1, D2>> {
+    type MaybeCreateBuffer<T: MatrixLike> = MatMaybeCreate2DBuf<T, T::Item, D1, D2> where 
+        <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<T as Has2DReuseBuf>::FstHandleBool, <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<T as Has2DReuseBuf>::FstOwnedBufferBool, <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
 
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1, D2> {
     type Unwrapped = &'a [[T; D1]; D2];
@@ -1516,6 +1520,23 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a MathMatrix<T, D1, D2> {}
 
+impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a MathMatrix<T, D1, D2> {
+    type MaybeCreateBuffer<M: MatrixLike> = MatMaybeCreate2DBuf<M, T, D1, D2> where 
+        <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<M as Has2DReuseBuf>::FstHandleBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<M as Has2DReuseBuf>::FstOwnedBufferBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
+
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T, D1, D2> {
     type Unwrapped = &'a mut [[T; D1]; D2];
     type Builder = MatrixExprBuilder<D1, D2>;
@@ -1525,6 +1546,23 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T
     #[inline] fn dimensions(&self) -> (usize, usize) {(D1, D2)}
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut MathMatrix<T, D1, D2> {}
+
+impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a mut MathMatrix<T, D1, D2> {
+    type MaybeCreateBuffer<M: MatrixLike> = MatMaybeCreate2DBuf<M, T, D1, D2> where 
+        <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<M as Has2DReuseBuf>::FstHandleBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<M as Has2DReuseBuf>::FstOwnedBufferBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
 
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a [[T; D1]; D2];
@@ -1536,6 +1574,23 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a Box<MathMatrix<T, D1, D2>> {}
 
+impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a Box<MathMatrix<T, D1, D2>> {
+    type MaybeCreateBuffer<M: MatrixLike> = MatMaybeCreate2DBuf<M, T, D1, D2> where 
+        <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<M as Has2DReuseBuf>::FstHandleBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<M as Has2DReuseBuf>::FstOwnedBufferBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
+
 impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatrix<T, D1, D2>> {
     type Unwrapped = &'a mut [[T; D1]; D2];
     type Builder = MatrixExprBuilder<D1, D2>;
@@ -1546,6 +1601,22 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatr
 }
 impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a mut Box<MathMatrix<T, D1, D2>> {}
 
+impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a mut Box<MathMatrix<T, D1, D2>> {
+    type MaybeCreateBuffer<M: MatrixLike> = MatMaybeCreate2DBuf<M, T, D1, D2> where 
+        <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<M as Has2DReuseBuf>::FstHandleBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<M as Has2DReuseBuf>::FstOwnedBufferBool, <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped> where 
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
+        (<Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): TyBoolPair,
+        Self: Sized, 
+    {
+        self.maybe_create_2d_buf().unwrap()
+    }
+}
 
 macro_rules! impl_ops_for_wrapper {
     (
