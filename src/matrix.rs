@@ -87,20 +87,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
         >>)
     }
 
-    /// consumes the MatrixExpr and returns the built up output
-    /// 
-    /// Note:
-    /// methods like sum, product, or fold can place build up outputs
-    /// 
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
-    /// binary operators merge the output of the 2 matrixes
-    #[inline] 
-    pub fn consume(self) -> M::Output where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
-        self.into_entry_iter().consume()
-    }
-
-
     /// evaluates the MatrixExpr and returns the resulting matrix alongside its output (if present)
     /// if the MatrixExpr has no item (& thus results in a matrix w/ ZST elements) or the item is irrelevent, see consume to not return that matrix
     /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
@@ -126,19 +112,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
         MatBind<MatMaybeCreate2DHeapBuf<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DHeapBuf<M, M::Item, D1, D2>> as Get2D>::BoundItems>
     {
         self.maybe_create_2d_heap_buf().bind().consume()
-    }
-
-    /// Creates a column-major iterator across the matrix's elements
-    #[inline]
-    pub fn into_entry_iter(self) -> MatrixEntryIter<M> {
-        MatrixEntryIter{
-            mat: self.unwrap(),
-            current_col: 0,
-            live_input_row_start: 0,
-            dead_output_row_start: 0,
-            num_rows: D1,
-            num_cols: D2,
-        }
     }
 }
 
@@ -601,6 +574,32 @@ pub trait MatrixOps {
     fn get_builder(&self) -> Self::Builder;
     /// get the dimensions of this matrix
     fn dimensions(&self) -> (usize, usize); // 0: num rows, 1: num columns
+
+    /// Creates a column-major iterator across the matrix's elements
+    #[inline]
+    fn into_entry_iter(self) -> MatrixEntryIter<Self::Unwrapped> where 
+        Self::Unwrapped: Has2DReuseBuf<BoundTypes = <Self::Unwrapped as Get2D>::BoundItems>,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe { MatrixEntryIter::new_from_parts(self.unwrap(), builder) }
+    }
+
+    /// consumes the MatrixExpr and returns the built up output
+    /// 
+    /// Note:
+    /// methods like sum, product, or fold can place build up outputs
+    /// 
+    /// output is generally nested 2 element tuples
+    /// newer values to the right
+    /// binary operators merge the output of the 2 matrixes
+    #[inline]
+    fn consume(self) -> <Self::Unwrapped as HasOutput>::Output where 
+        Self::Unwrapped: Has2DReuseBuf<BoundTypes = <Self::Unwrapped as Get2D>::BoundItems>,
+        Self: Sized,
+    {
+        self.into_entry_iter().consume()
+    }
 
     /// binds the matrix's item to the buffer in the first slot, adding it to Output if owned
     #[inline]
