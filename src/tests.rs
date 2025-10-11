@@ -2,6 +2,30 @@ use rand::Rng;
 use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps, MatrixEvalOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorEvalOps, VectorOps}};
 use std::{hint::black_box, time::*};
 
+#[test]
+fn vector_display() {
+    let vec = MathVector::from([0; 0]);
+    let str = format!("{}", vec);
+    println!("0d vec: {}", str);
+    assert_eq!("\n[]", str);
+    let vec = MathVector::from([1]);
+    let str = format!("{}", vec);
+    println!("1d vec: {}", str);
+    assert_eq!("\n[ 1 ]", str);
+    let vec = MathVector::from([1, 2]);
+    let str = format!("{}", vec);
+    println!("2d vec: {}", str);
+    assert_eq!("\n┌ 1 ┐\n└ 2 ┘", str);
+    let vec = MathVector::from([1, 2, 3]);
+    let str = format!("{}", vec);
+    println!("3d vec: {}", str);
+    assert_eq!("\n┌ 1 ┐\n│ 2 │\n└ 3 ┘", str);
+    let vec = MathVector::from([11, 2, 333]);
+    let str = format!("{}", vec);
+    println!("padded 3d vec: {}", str);
+    assert_eq!("\n┌ 11  ┐\n│ 2   │\n└ 333 ┘", str);
+}
+
 /// returns log of the error, higher is better
 /// roughly speaking is the number of non-leading-zero digits correct
 fn f64_accuracy(experimental: f64, real: f64) -> f64 {

@@ -226,6 +226,28 @@ impl<T, I, const D: usize> IndexMut<I> for MathVector<T, D> where [T; D]: IndexM
     }
 }
 
+impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut strings = Vec::with_capacity(D);
+        let mut max_length = 0;
+        for v in <&[_; _]>::from(self) {
+            strings.push(v.to_string());
+            max_length = std::cmp::max(max_length, strings[strings.len() - 1].len());
+        }
+        if strings.len() > 1 {
+            write!(f, "\n┌ {:max_length$} ┐\n", strings[0])?;
+            for string in &strings[1..strings.len() -1] {
+                write!(f, "│ {:max_length$} │\n", string)?;
+            }
+            write!(f, "└ {:max_length$} ┘", strings[strings.len() -1])?;
+        } else if strings.len() == 1 {
+            write!(f, "\n[ {} ]", strings[0])?;
+        } else {
+            write!(f, "\n[]")?;
+        }
+        return Ok(());
+    }
+}
 
 //impl<T1: AddAssign<T2>, T2, const D: usize> AddAssign<MathVector<T2, D>> for MathVector<T1, D>
 //{
@@ -421,6 +443,11 @@ impl<T, I> IndexMut<I> for RSMathVector<T> where [T]: IndexMut<I> {
     }
 }
 
+impl<T: std::fmt::Display> std::fmt::Display for RSMathVector<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.borrow().fmt(f)
+    }
+}
 
 pub type RefRSMathVector<'a, T> = RSVectorExpr<&'a [T]>; 
 
@@ -448,8 +475,37 @@ impl<'a, T, I> Index<I> for RefRSMathVector<'a, T> where [T]: Index<I> {
     }
 }
 
+impl<'a, T: std::fmt::Display> std::fmt::Display for RefRSMathVector<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut strings = Vec::with_capacity(self.size());
+        let mut max_length = 0;
+        for v in <&[_]>::from(self.clone()) {
+            strings.push(v.to_string());
+            max_length = std::cmp::max(max_length, strings[strings.len() - 1].len());
+        }
+        if strings.len() > 1 {
+            write!(f, "\n┌ {:max_length$} ┐\n", strings[0])?;
+            for string in &strings[1..strings.len() -1] {
+                write!(f, "│ {:max_length$} │\n", string)?;
+            }
+            write!(f, "└ {:max_length$} ┘", strings[strings.len() -1])?;
+        } else if strings.len() == 1 {
+            write!(f, "\n[ {} ]", strings[0])?;
+        } else {
+            write!(f, "\n[]")?;
+        }
+        return Ok(());
+    }
+}
+
 
 pub type RefMutRSMathVector<'a, T> = RSVectorExpr<&'a mut [T]>; 
+
+impl<'a, T> RefMutRSMathVector<'a, T> {
+    pub fn deref<'b: 'a>(&'b self) -> RefRSMathVector<'a, T> {
+        RSVectorExpr { vec: &self.vec, size: self.size }
+    }
+}
 
 impl<'a, T> From<&'a mut [T]> for RefMutRSMathVector<'a, T> {
     #[inline]
@@ -481,6 +537,13 @@ impl<'a, T, I> IndexMut<I> for RefMutRSMathVector<'a, T> where [T]: IndexMut<I> 
         &mut self.vec[index]
     }
 }
+
+impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.deref().fmt(f)
+    }
+}
+
 
 /// a VectorExpr iterator
 pub struct VectorIter<V: VectorLike>{vec: V, live_input_start: usize, dead_output_start: usize, size: usize} // note: ranges are start inclusive, end exclusive

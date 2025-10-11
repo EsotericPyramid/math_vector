@@ -41,7 +41,6 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - impl Display / ToString
         - impl VectorEvalOps for RSVecs
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
