@@ -27,7 +27,6 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
-        - impl Display / ToString
         - add assign ops to MathMatrix
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable

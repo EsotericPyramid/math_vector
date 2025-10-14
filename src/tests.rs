@@ -26,6 +26,43 @@ fn vector_display() {
     assert_eq!("\n┌ 11  ┐\n│ 2   │\n└ 333 ┘", str);
 }
 
+#[test]
+fn matrix_display() {
+    let mat = MathMatrix::from([[0; 0]; 0]).transpose().eval();
+    let string = mat.to_string();
+    assert_eq!(string, "\n[]");
+    println!("0x0 mat: {}", string);
+    let mat = MathMatrix::from([
+        [1, 2, 3],
+    ]).transpose().eval();
+    let string = mat.to_string();
+    assert_eq!(string, "\n[ 1, 2, 3 ]");
+    println!("1x3 mat: {}", string);
+    let mat = MathMatrix::from([
+        [1, 2, 3],
+        [4, 5, 6],
+    ]).transpose().eval();
+    let string = mat.to_string();
+    assert_eq!(string, "\n┌ 1, 2, 3 ┐\n└ 4, 5, 6 ┘");
+    println!("2x3 mat: {}", string);
+    let mat = MathMatrix::from([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+    ]).transpose().eval();
+    let string = mat.to_string();
+    println!("3x3 mat: {}", string);
+    assert_eq!(string, "\n┌ 1, 2, 3 ┐\n│ 4, 5, 6 │\n└ 7, 8, 9 ┘");
+    let mat = MathMatrix::from([
+        [111, 2, 3],
+        [4, 5, 66666],
+        [77, 8, 9],
+    ]).transpose().eval();
+    let string = mat.to_string();
+    assert_eq!(string, "\n┌ 111, 2, 3     ┐\n│ 4  , 5, 66666 │\n└ 77 , 8, 9     ┘");
+    println!("padded 3x3 mat: {}", string);
+}
+
 /// returns log of the error, higher is better
 /// roughly speaking is the number of non-leading-zero digits correct
 fn f64_accuracy(experimental: f64, real: f64) -> f64 {
