@@ -192,6 +192,7 @@ impl<M: MatrixLike> MatrixEntryIter<M> {
     /// fully consumes the matrix without returning its output
     #[inline]
     pub fn no_output_consume(&mut self) where M: Has2DReuseBuf<BoundTypes = M::BoundItems> {
+        if (self.num_cols == 0) | (self.num_rows == 0) {return;}
         let mat = &mut self.mat;
         let current_col = &mut self.current_col;
         let live_input_row_start = &mut self.live_input_row_start;
@@ -465,7 +466,6 @@ impl<T, const D1: usize, const D2: usize> From<Box<MathMatrix<T, D1, D2>>> for B
     }
 }
 
-
 impl<'a, T, const D1: usize, const D2: usize> From<&'a [[T; D1]; D2]> for &'a MathMatrix<T, D1, D2> {
     #[inline]
     fn from(value: &'a [[T; D1]; D2]) -> Self {
@@ -540,6 +540,47 @@ impl<T, I, const D1: usize, const D2: usize> IndexMut<I> for MathMatrix<T, D1, D
     }
 }
 
+impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display for MathMatrix<T, D1, D2> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn add_line(f: &mut std::fmt::Formatter<'_>, l_end: char, r_end: char, strings: &[Vec<String>], col_max_lengths: &[usize], row: usize) -> std::fmt::Result {
+            write!(f, "\n{} {:2$}", l_end, strings[0][row], col_max_lengths[0])?;
+            for col in 1..strings.len() {
+                write!(f, ", {:1$}", strings[col][row], col_max_lengths[col])?;
+            }
+            write!(f, " {}", r_end)?;
+            Ok(())
+        }
+
+        let mut strings = Vec::with_capacity(D2);
+        let mut col_max_lengths = Vec::with_capacity(D2);
+        for col in <&[[_; _]; _]>::from(self) {
+            let mut col_strings = Vec::with_capacity(D1);
+            let mut max_length = 0;
+            for v in col {
+                let str = v.to_string();
+                max_length = std::cmp::max(max_length, str.len());
+                col_strings.push(str);
+            }
+            strings.push(col_strings);
+            col_max_lengths.push(max_length);
+        }
+        if (D1 != 0) & (D2 != 0) {
+            if D1 > 1 {
+                add_line(f, '┌', '┐', &strings, &col_max_lengths, 0)?;
+                for row in 1..D1-1 {
+                    add_line(f, '│', '│', &strings, &col_max_lengths, row)?;
+                }
+                add_line(f, '└', '┘', &strings, &col_max_lengths, D1 - 1)?;
+            } else {
+                add_line(f, '[', ']', &strings, &col_max_lengths, 0)?;
+            } 
+        } else {
+            write!(f, "\n[]")?;
+        }
+        
+        return Ok(());
+    }
+} 
 
 pub type MathVectoredMatrix<T, const D1: usize, const D2: usize> = MathVector<MathVector<T, D1>, D2>;
 
