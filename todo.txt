@@ -27,11 +27,11 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
-        - add assign ops to MathMatrix
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable
         - add runtime sized wrappers
         ? add wrap shortcut macro to MatrixOps
+        - convert assign impls to use the builder system instead of conditionals
         - check pivot management of rref & det
         ~ check numerical stability of det && rref
 
@@ -40,6 +40,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - convert assign impls to use the builder system instead of conditionals
         - impl VectorEvalOps for RSVecs
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
