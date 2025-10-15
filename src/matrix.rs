@@ -1658,6 +1658,17 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a mut Box<Math
     }
 }
 
+macro_rules! conditional_syntax {
+    (
+        $cond:tt {$($tt:tt)*} 
+    ) => {
+        $($tt)*
+    };
+    (
+        {$($tt:tt)*}
+    ) => {}
+}
+
 macro_rules! impl_ops_for_wrapper {
     (
         $(
@@ -1770,6 +1781,61 @@ macro_rules! impl_ops_for_wrapper {
                     MatrixOps::sub(self, rhs)
                 }
             }
+        
+            conditional_syntax!(
+                $(($d1, $d2))?
+                {
+                    impl<
+                        $($($lifetime),+, )? 
+                        $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                        Z: AddAssign<<$trait_matrix as Get2D>::Item>
+                        $(, const $d1: usize, const $d2: usize)?
+                    > AddAssign<$ty> for MathMatrix<Z $(, $d1, $d2)?> where 
+                        (N, <$trait_matrix as HasOutput>::OutputBool): FilterPair,
+                        (<(N, <$trait_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
+                        $trait_matrix: Has2DReuseBuf<BoundTypes = <$trait_matrix as Get2D>::BoundItems>
+                    {
+                        #[inline]
+                        fn add_assign(&mut self, rhs: $ty) {
+                            MatrixOps::add_assign(self, rhs).consume();
+                        }
+                    }
+
+                    impl<
+                        $($($lifetime),+, )? 
+                        $($generic: $($lifetime_bound |)? $($fst_trait_bound $(| $trait_bound)*)?),+,
+                        Z: SubAssign<<$trait_matrix as Get2D>::Item>
+                        $(, const $d1: usize, const $d2: usize)?
+                    > SubAssign<$ty> for MathMatrix<Z $(, $d1, $d2)?> where 
+                        (N, <$trait_matrix as HasOutput>::OutputBool): FilterPair,
+                        (<(N, <$trait_matrix as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::FstHandleBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::SndHandleBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+                        (N, <$trait_matrix as Get2D>::AreInputsTransposed): TyBoolPair,
+                        $trait_matrix: Has2DReuseBuf<BoundTypes = <$trait_matrix as Get2D>::BoundItems>
+                    {
+                        #[inline]
+                        fn sub_assign(&mut self, rhs: $ty) {
+                            MatrixOps::sub_assign(self, rhs).consume();
+                        }
+                    }
+                }
+            );
         )*
     };
 }
