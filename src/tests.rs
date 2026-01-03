@@ -139,18 +139,20 @@ fn mat_mat_mul_test() {
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
     ]).transpose().eval();
+    println!("input 1: {}", mat1);
     let mat2 = MathMatrix::from([
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
     ]).transpose().eval();
+    println!("input 2: {}", mat2);
     let out_mat = mat1.mat_mul(mat2).eval();
     (&out_mat).copied().zip(MathMatrix::from([
         [0.818402, 0.627499, 1.561085],
         [0.573792, 0.630296, 1.223976],
         [0.573804, 0.446474, 1.413942],
     ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0)).consume();
-    println!("{:#?}", <[[_; _]; _]>::from(out_mat));
+    println!("Multiplication: {}", out_mat);
 }
 
 /// preforms a multiplication between a matrix and a matrix
@@ -231,13 +233,14 @@ fn rref_test() {
         [0.454, 0.501, 0.535, 0.969],
         [0.442, 0.081, 0.973, 0.506],
     ]).transpose().eval();
+    println!("init: {}", mat);
     mat.rref();
     (&mat).zip(MathMatrix::from([
         [1.0, 0.0, 0.0, 1.451144618141667],
         [0.0, 1.0, 0.0, 0.84263819341021],
         [0.0, 0.0, 1.0, -0.209311012214639],
     ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail")).consume();
-    println!("rref: {:#?}", <[[_; _]; _]>::from(mat));
+    println!("rref: {}", mat);
 }
 
 //tests det basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`)
@@ -248,6 +251,7 @@ fn det_test() {
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
     ]).transpose().eval();
+    println!("init: {}", mat);
     let det = mat.det();
     assert!(f64_accuracy(det, -0.221516496) > 12.0, "Det Accuracy Fail");
     println!("det: {}", det);
@@ -282,15 +286,16 @@ fn mat_vec_mul_test() {
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
     ]).transpose().eval();
+    println!("mat: {}", mat);
     let vec = MathVector::from([
         0.774,
         0.969,
         0.506,            
     ]);
+    println!("vec: {}", vec);
     let out_vec = mat.mat_vec_mul::<_, f64>(vec).eval();
     (&out_vec).copied().zip(MathVector::from([1.389622, 1.107575, 0.912935])).map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail")).consume();
-    let print: [_; _] = out_vec.into();
-    println!("mat * vec: \n{:#?}", print);
+    println!("mat * vec: {}", out_vec);
 }
 
 /// tests mat_vec_mul performance
@@ -312,15 +317,16 @@ fn mat_vec_mul_performance_test() {
 #[test]
 fn vec_mat_mul_test() {
     let vec = MathVector::from([0.774, 0.969, 0.506]);
+    println!("vec: {}", vec);
     let mat = MathMatrix::from([
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
     ]).transpose().eval();
+    println!("mat: {}", mat);
     let out_vec = vec.vec_mat_mul::<_, f64>(mat).eval();
     (&out_vec).copied().zip(MathVector::from([0.850886, 1.099215, 1.753019])).map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail")).consume();
-    let print: [_; _] = out_vec.into();
-    println!("vec * mat: \n{:?}", print);
+    println!("vec * mat: \n{}", out_vec);
 }
 
 /// tests vec_mat_mul performance
