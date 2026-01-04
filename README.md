@@ -1,6 +1,6 @@
 # Math Vector
 
-A lazily-evaluated linear algebra for Rust. 
+A lazily-evaluated linear algebra library for Rust. 
 
 ## Usage
 
