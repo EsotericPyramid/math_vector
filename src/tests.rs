@@ -228,6 +228,7 @@ fn vector_variation_test() {
 ///tests rref basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`) (real values only given to 14)
 #[test]
 fn rref_test() {
+    // solving a system of equations
     let mut mat = MathMatrix::from([
         [0.242, 0.740, 0.959, 0.774],
         [0.454, 0.501, 0.535, 0.969],
@@ -239,6 +240,21 @@ fn rref_test() {
         [1.0, 0.0, 0.0, 1.451144618141667],
         [0.0, 1.0, 0.0, 0.84263819341021],
         [0.0, 0.0, 1.0, -0.209311012214639],
+    ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail")).consume();
+    println!("rref: {}", mat);
+
+    // finding an inverse
+    let mut mat = MathMatrix::from([
+        [2.0, 1.0, 3.0, 1.0, 0.0, 0.0],
+        [0.0, 2.0, 4.0, 0.0, 1.0, 0.0],
+        [1.0, 1.0, 2.0, 0.0, 0.0, 1.0],
+    ]).transpose().eval();
+    println!("init: {}", mat);
+    mat.rref();
+    (&mat).zip(MathMatrix::from([
+        [1.0, 0.0, 0.0,  0.0, -0.5,  1.0],
+        [0.0, 1.0, 0.0, -2.0, -0.5,  4.0],
+        [0.0, 0.0, 1.0,  1.0,  0.5, -2.0],
     ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail")).consume();
     println!("rref: {}", mat);
 }
