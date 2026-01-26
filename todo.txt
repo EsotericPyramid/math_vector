@@ -40,8 +40,8 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? rename OwnedArray and OwnedSlice (they are owned but aren't most types so its just dumb)
         - convert assign impls to use the builder system instead of conditionals
-        - impl VectorEvalOps for RSVecs
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
             - currently runs into collision between FstHandleBool = N and FstHandleBool = Y
