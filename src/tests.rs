@@ -1,5 +1,20 @@
 use rand::Rng; 
-use crate::{matrix::{matrix_gen, MathMatrix, MatrixOps, MatrixEvalOps}, vector::{vector_gen, MathVector, RepeatableVectorOps, VectorEvalOps, VectorOps}};
+use crate::{
+    matrix::{
+        matrix_gen, 
+        MathMatrix, 
+        MatrixOps, 
+        MatrixEvalOps
+    }, 
+    vector::{
+        vector_gen, 
+        MathVector, 
+        RSMathVector,
+        RepeatableVectorOps, 
+        VectorEvalOps, 
+        VectorOps
+    }
+};
 use std::{hint::black_box, time::*};
 
 #[test]
@@ -86,6 +101,54 @@ fn f64_accuracy_check() {
     assert!({let x = f64_accuracy(0.8889, 0.88888888888888); (x > 4.0) & (x < 5.0)});
     assert!(f64_accuracy(0.0, 0.0) == f64::INFINITY);
     assert!(f64_accuracy(1.0, 0.0) == -f64::INFINITY);
+}
+
+#[test]
+fn vec_basic_arithmetic_ops_test() {
+    let vec1 = MathVector::from([
+        1,
+        2,
+        3,   
+    ]);
+    let vec2 = MathVector::from([
+        4,
+        6,
+        8,
+    ]);
+    let add = (&vec1 + &vec2).eval();
+    let sub = (&vec1 - &vec2).eval();
+    let mul = (&vec1 * 3).eval();
+    let div = (&vec2 / 2).eval();
+    assert_eq!(<[_; _]>::from(add), [5, 8, 11], "Add failed");
+    assert_eq!(<[_; _]>::from(sub), [-3, -4, -5], "Sub failed");
+    assert_eq!(<[_; _]>::from(mul), [3, 6, 9], "Mul failed");
+    assert_eq!(<[_; _]>::from(div), [2, 3, 4], "Div failed");
+    let compound = ((&vec1 + &vec2) + (&vec1 - &vec2) - (&vec1 * 3) - (&vec2 / 2)).eval();
+    assert_eq!(<[_; _]>::from(compound), [-3, -5, -7], "Compound Expr Failed");
+}
+
+#[test]
+fn rs_vec_basic_arithmetic_ops_test() {
+    let vec1 = RSMathVector::from(Box::new([
+        1,
+        2,
+        3,   
+    ]).into());
+    let vec2 = RSMathVector::from(Box::new([
+        4,
+        6,
+        8,
+    ]).into());
+    let add = (&vec1 + &vec2).eval();
+    let sub = (&vec1 - &vec2).eval();
+    let mul = (&vec1 * 3).eval();
+    let div = (&vec2 / 2).eval();
+    assert_eq!(<[_; _]>::from(add), [5, 8, 11], "Add failed");
+    assert_eq!(<[_; _]>::from(sub), [-3, -4, -5], "Sub failed");
+    assert_eq!(<[_; _]>::from(mul), [3, 6, 9], "Mul failed");
+    assert_eq!(<[_; _]>::from(div), [2, 3, 4], "Div failed");
+    let compound = ((&vec1 + &vec2) + (&vec1 - &vec2) - (&vec1 * 3) - (&vec2 / 2)).eval();
+    assert_eq!(<[_; _]>::from(compound), [-3, -5, -7], "Compound Expr Failed");
 }
 
 /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
