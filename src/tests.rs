@@ -1,20 +1,8 @@
-use rand::Rng; 
 use crate::{
-    matrix::{
-        matrix_gen, 
-        MathMatrix, 
-        MatrixOps, 
-        MatrixEvalOps
-    }, 
-    vector::{
-        vector_gen, 
-        MathVector, 
-        RSMathVector,
-        RepeatableVectorOps, 
-        VectorEvalOps, 
-        VectorOps
-    }
+    matrix::{MathMatrix, MatrixEvalOps, MatrixOps, matrix_gen},
+    vector::{MathVector, RSMathVector, RepeatableVectorOps, VectorEvalOps, VectorOps, vector_gen},
 };
+use rand::Rng;
 use std::{hint::black_box, time::*};
 
 #[test]
@@ -47,34 +35,28 @@ fn matrix_display() {
     let string = mat.to_string();
     assert_eq!(string, "\n[]");
     println!("0x0 mat: {}", string);
-    let mat = MathMatrix::from([
-        [1, 2, 3],
-    ]).transpose().eval();
+    let mat = MathMatrix::from([[1, 2, 3]]).transpose().eval();
     let string = mat.to_string();
     assert_eq!(string, "\n[ 1, 2, 3 ]");
     println!("1x3 mat: {}", string);
-    let mat = MathMatrix::from([
-        [1, 2, 3],
-        [4, 5, 6],
-    ]).transpose().eval();
+    let mat = MathMatrix::from([[1, 2, 3], [4, 5, 6]]).transpose().eval();
     let string = mat.to_string();
     assert_eq!(string, "\n┌ 1, 2, 3 ┐\n└ 4, 5, 6 ┘");
     println!("2x3 mat: {}", string);
-    let mat = MathMatrix::from([
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9],
-    ]).transpose().eval();
+    let mat = MathMatrix::from([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        .transpose()
+        .eval();
     let string = mat.to_string();
     println!("3x3 mat: {}", string);
     assert_eq!(string, "\n┌ 1, 2, 3 ┐\n│ 4, 5, 6 │\n└ 7, 8, 9 ┘");
-    let mat = MathMatrix::from([
-        [111, 2, 3],
-        [4, 5, 66666],
-        [77, 8, 9],
-    ]).transpose().eval();
+    let mat = MathMatrix::from([[111, 2, 3], [4, 5, 66666], [77, 8, 9]])
+        .transpose()
+        .eval();
     let string = mat.to_string();
-    assert_eq!(string, "\n┌ 111, 2, 3     ┐\n│ 4  , 5, 66666 │\n└ 77 , 8, 9     ┘");
+    assert_eq!(
+        string,
+        "\n┌ 111, 2, 3     ┐\n│ 4  , 5, 66666 │\n└ 77 , 8, 9     ┘"
+    );
     println!("padded 3x3 mat: {}", string);
 }
 
@@ -83,7 +65,7 @@ fn matrix_display() {
 fn f64_accuracy(experimental: f64, real: f64) -> f64 {
     if real == 0.0 {
         if experimental == 0.0 {
-            return f64::INFINITY
+            return f64::INFINITY;
         } else {
             return -f64::INFINITY;
         }
@@ -94,27 +76,34 @@ fn f64_accuracy(experimental: f64, real: f64) -> f64 {
 #[test]
 fn f64_accuracy_check() {
     assert!(f64_accuracy(1.0, 1.0).is_infinite());
-    assert!({let x = f64_accuracy(1.0, 0.88888888888888); (x > 0.0) & (x < 1.0)});
-    assert!({let x = f64_accuracy(0.9, 0.88888888888888); (x > 1.0) & (x < 2.0)});
-    assert!({let x = f64_accuracy(0.89, 0.88888888888888); (x > 2.0) & (x < 3.0)});
-    assert!({let x = f64_accuracy(0.889, 0.88888888888888); (x > 3.0) & (x < 4.0)});
-    assert!({let x = f64_accuracy(0.8889, 0.88888888888888); (x > 4.0) & (x < 5.0)});
+    assert!({
+        let x = f64_accuracy(1.0, 0.88888888888888);
+        (x > 0.0) & (x < 1.0)
+    });
+    assert!({
+        let x = f64_accuracy(0.9, 0.88888888888888);
+        (x > 1.0) & (x < 2.0)
+    });
+    assert!({
+        let x = f64_accuracy(0.89, 0.88888888888888);
+        (x > 2.0) & (x < 3.0)
+    });
+    assert!({
+        let x = f64_accuracy(0.889, 0.88888888888888);
+        (x > 3.0) & (x < 4.0)
+    });
+    assert!({
+        let x = f64_accuracy(0.8889, 0.88888888888888);
+        (x > 4.0) & (x < 5.0)
+    });
     assert!(f64_accuracy(0.0, 0.0) == f64::INFINITY);
     assert!(f64_accuracy(1.0, 0.0) == -f64::INFINITY);
 }
 
 #[test]
 fn vec_basic_arithmetic_ops_test() {
-    let vec1 = MathVector::from([
-        1,
-        2,
-        3,   
-    ]);
-    let vec2 = MathVector::from([
-        4,
-        6,
-        8,
-    ]);
+    let vec1 = MathVector::from([1, 2, 3]);
+    let vec2 = MathVector::from([4, 6, 8]);
     let add = (&vec1 + &vec2).eval();
     let sub = (&vec1 - &vec2).eval();
     let mul = (&vec1 * 3).eval();
@@ -124,22 +113,18 @@ fn vec_basic_arithmetic_ops_test() {
     assert_eq!(<[_; _]>::from(mul), [3, 6, 9], "Mul failed");
     assert_eq!(<[_; _]>::from(div), [2, 3, 4], "Div failed");
     let compound = ((&vec1 + &vec2) + (&vec1 - &vec2) - (&vec1 * 3) - (&vec2 / 2)).eval();
-    assert_eq!(<[_; _]>::from(compound), [-3, -5, -7], "Compound Expr Failed");
+    assert_eq!(
+        <[_; _]>::from(compound),
+        [-3, -5, -7],
+        "Compound Expr Failed"
+    );
 }
 
 #[test]
 fn rs_vec_basic_arithmetic_ops_test() {
     // NOTE: the type specification (specfically the `i32` bit) is needed to avoid a bounds checking infinite recursion error, idfk why
-    let vec1: RSMathVector<i32> = RSMathVector::from(vec![
-        1,
-        2,
-        3,   
-    ]);
-    let vec2 = RSMathVector::from(vec![
-        4,
-        6,
-        8,
-    ]);
+    let vec1: RSMathVector<i32> = RSMathVector::from(vec![1, 2, 3]);
+    let vec2 = RSMathVector::from(vec![4, 6, 8]);
     let add = (&vec1 + &vec2).eval();
     let sub = (&vec1 - &vec2).eval();
     let mul = (&vec1 * 3).eval();
@@ -149,7 +134,11 @@ fn rs_vec_basic_arithmetic_ops_test() {
     assert_eq!(<Vec<_>>::from(mul), vec![3, 6, 9], "Mul failed");
     assert_eq!(<Vec<_>>::from(div), vec![2, 3, 4], "Div failed");
     let compound = ((&vec1 + &vec2) + (&vec1 - &vec2) - (&vec1 * 3) - (&vec2 / 2)).eval();
-    assert_eq!(<Vec<_>>::from(compound), vec![-3, -5, -7], "Compound Expr Failed");
+    assert_eq!(
+        <Vec<_>>::from(compound),
+        vec![-3, -5, -7],
+        "Compound Expr Failed"
+    );
 }
 
 /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
@@ -165,8 +154,9 @@ fn vec_angle_cos() {
         let vec1: MathVector<f64, 10000> = black_box(vector_gen(|| rng.random()).eval());
         let vec2: MathVector<f64, 10000> = black_box(vector_gen(|| rng.random()).eval());
         let now = Instant::now();
-        let ((vec1_sqr_mag, vec2_sqr_mag), dot_product): ((f64, f64), f64) = (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
-        let mag = dot_product/((vec1_sqr_mag * vec2_sqr_mag).sqrt());
+        let ((vec1_sqr_mag, vec2_sqr_mag), dot_product): ((f64, f64), f64) =
+            (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
+        let mag = dot_product / ((vec1_sqr_mag * vec2_sqr_mag).sqrt());
         black_box(mag);
         let elapsed = now.elapsed();
         time += elapsed;
@@ -187,8 +177,12 @@ fn repeatable_vectors_test() {
     let mut rng = rand::rng();
     let vec1: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
     let vec2: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
-    let mut vec3 = (vec1.reuse().comp_mul(vec2)).copied_sum::<f64>().make_repeatable().copied();
-    for _ in 0..200 { // enabled by IsRepeatable
+    let mut vec3 = (vec1.reuse().comp_mul(vec2))
+        .copied_sum::<f64>()
+        .make_repeatable()
+        .copied();
+    for _ in 0..200 {
+        // enabled by IsRepeatable
         println!("{}", vec3.get(rng.random_range(0..10000)));
     }
     let (sum, product) = vec3.product::<f64>().consume();
@@ -202,20 +196,31 @@ fn mat_mat_mul_test() {
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("input 1: {}", mat1);
     let mat2 = MathMatrix::from([
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("input 2: {}", mat2);
     let out_mat = mat1.mat_mul(mat2).eval();
-    (&out_mat).copied().zip(MathMatrix::from([
-        [0.818402, 0.627499, 1.561085],
-        [0.573792, 0.630296, 1.223976],
-        [0.573804, 0.446474, 1.413942],
-    ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0)).consume();
+    (&out_mat)
+        .copied()
+        .zip(
+            MathMatrix::from([
+                [0.818402, 0.627499, 1.561085],
+                [0.573792, 0.630296, 1.223976],
+                [0.573804, 0.446474, 1.413942],
+            ])
+            .transpose(),
+        )
+        .entry_map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0))
+        .consume();
     println!("Multiplication: {}", out_mat);
 }
 
@@ -227,7 +232,7 @@ fn mat_mat_mul_test() {
 fn mat_mat_mul_preformance_test() {
     let mut rng = rand::rng();
     let mat1: Box<MathMatrix<f64, 1000, 1000>> = black_box(matrix_gen(|| rng.random()).heap_eval());
-    let mat2: Box<MathMatrix<f64, 1000, 1000>> = black_box(matrix_gen(|| rng.random()).heap_eval()); 
+    let mat2: Box<MathMatrix<f64, 1000, 1000>> = black_box(matrix_gen(|| rng.random()).heap_eval());
     let now = Instant::now();
     let out = (mat1).mat_mul(mat2).heap_eval();
     black_box(out);
@@ -235,7 +240,7 @@ fn mat_mat_mul_preformance_test() {
     println!("Elapsed: {}", elapsed.as_nanos());
 }
 
-/// tests the preformance difference of a light calculation between different vector variants 
+/// tests the preformance difference of a light calculation between different vector variants
 /// variants tested:
 ///     Normal: `VectorExpr<_>`
 ///     Heaped: `Box<VectorExpr<_>>`
@@ -297,14 +302,22 @@ fn rref_test() {
         [0.242, 0.740, 0.959, 0.774],
         [0.454, 0.501, 0.535, 0.969],
         [0.442, 0.081, 0.973, 0.506],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("init: {}", mat);
     mat.rref();
-    (&mat).zip(MathMatrix::from([
-        [1.0, 0.0, 0.0, 1.451144618141667],
-        [0.0, 1.0, 0.0, 0.84263819341021],
-        [0.0, 0.0, 1.0, -0.209311012214639],
-    ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail")).consume();
+    (&mat)
+        .zip(
+            MathMatrix::from([
+                [1.0, 0.0, 0.0, 1.451144618141667],
+                [0.0, 1.0, 0.0, 0.84263819341021],
+                [0.0, 0.0, 1.0, -0.209311012214639],
+            ])
+            .transpose(),
+        )
+        .entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail"))
+        .consume();
     println!("rref: {}", mat);
 
     // finding an inverse
@@ -312,14 +325,22 @@ fn rref_test() {
         [2.0, 1.0, 3.0, 1.0, 0.0, 0.0],
         [0.0, 2.0, 4.0, 0.0, 1.0, 0.0],
         [1.0, 1.0, 2.0, 0.0, 0.0, 1.0],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("init: {}", mat);
     mat.rref();
-    (&mat).zip(MathMatrix::from([
-        [1.0, 0.0, 0.0,  0.0, -0.5,  1.0],
-        [0.0, 1.0, 0.0, -2.0, -0.5,  4.0],
-        [0.0, 0.0, 1.0,  1.0,  0.5, -2.0],
-    ]).transpose()).entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail")).consume();
+    (&mat)
+        .zip(
+            MathMatrix::from([
+                [1.0, 0.0, 0.0, 0.0, -0.5, 1.0],
+                [0.0, 1.0, 0.0, -2.0, -0.5, 4.0],
+                [0.0, 0.0, 1.0, 1.0, 0.5, -2.0],
+            ])
+            .transpose(),
+        )
+        .entry_map(|(v1, v2)| assert!(f64_accuracy(*v1, v2) > 12.0, "Rref Accuracy Fail"))
+        .consume();
     println!("rref: {}", mat);
 }
 
@@ -330,7 +351,9 @@ fn det_test() {
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("init: {}", mat);
     let det = mat.det();
     assert!(f64_accuracy(det, -0.221516496) > 12.0, "Det Accuracy Fail");
@@ -365,16 +388,18 @@ fn mat_vec_mul_test() {
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("mat: {}", mat);
-    let vec = MathVector::from([
-        0.774,
-        0.969,
-        0.506,            
-    ]);
+    let vec = MathVector::from([0.774, 0.969, 0.506]);
     println!("vec: {}", vec);
     let out_vec = mat.mat_vec_mul::<_, f64>(vec).eval();
-    (&out_vec).copied().zip(MathVector::from([1.389622, 1.107575, 0.912935])).map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail")).consume();
+    (&out_vec)
+        .copied()
+        .zip(MathVector::from([1.389622, 1.107575, 0.912935]))
+        .map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail"))
+        .consume();
     println!("mat * vec: {}", out_vec);
 }
 
@@ -402,10 +427,16 @@ fn vec_mat_mul_test() {
         [0.242, 0.740, 0.959],
         [0.454, 0.501, 0.535],
         [0.442, 0.081, 0.973],
-    ]).transpose().eval();
+    ])
+    .transpose()
+    .eval();
     println!("mat: {}", mat);
     let out_vec = vec.vec_mat_mul::<_, f64>(mat).eval();
-    (&out_vec).copied().zip(MathVector::from([0.850886, 1.099215, 1.753019])).map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail")).consume();
+    (&out_vec)
+        .copied()
+        .zip(MathVector::from([0.850886, 1.099215, 1.753019]))
+        .map(|(v1, v2)| assert!(f64_accuracy(v1, v2) > 12.0, "Mat * Vec Accuracy Fail"))
+        .consume();
     println!("vec * mat: \n{}", out_vec);
 }
 

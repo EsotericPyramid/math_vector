@@ -1,12 +1,5 @@
-use crate::{
-    trait_specialization_utils::*,
-    util_traits::*,
-    matrix::mat_util_traits::*,
-};
-use std::{
-    mem::ManuallyDrop,
-    ops::*,
-};
+use crate::{matrix::mat_util_traits::*, trait_specialization_utils::*, util_traits::*};
+use std::{mem::ManuallyDrop, ops::*};
 
 macro_rules! is_unit {
     (()) => {
@@ -23,7 +16,7 @@ macro_rules! is_present {
     };
     () => {
         N
-    }
+    };
 }
 
 macro_rules! if_present {
@@ -31,7 +24,7 @@ macro_rules! if_present {
         $($tokens)*
     };
     ({$($tokens:tt)*}, ) => {
-        
+
     }
 }
 
@@ -41,7 +34,7 @@ macro_rules! optional_type {
     };
     ($ty:ty) => {
         $ty
-    }
+    };
 }
 
 macro_rules! optional_expr {
@@ -50,7 +43,7 @@ macro_rules! optional_expr {
     };
     ($expr:expr_2021) => {
         $expr
-    }
+    };
 }
 
 macro_rules! optimized_or {
@@ -59,9 +52,8 @@ macro_rules! optimized_or {
     };
     ($ty_bool:ty, ) => {
         $ty_bool
-    }
+    };
 }
-
 
 macro_rules! mat_structs {
     ( // Get2D (+ non-lazy)* -> Get2D
@@ -76,45 +68,45 @@ macro_rules! mat_structs {
         $(
             #[doc=$comment]
             pub struct $struct<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $mat: $mat_generic $(, $(pub(crate) $field: $field_ty),+)?}
-    
+
             unsafe impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type GetBool = is_unit!($item);
                 type AreInputsTransposed = <$mat_generic as Get2D>::AreInputsTransposed;
                 type Inputs = <$mat_generic as Get2D>::Inputs;
                 type Item = $item;
                 type BoundItems = <$mat_generic as Get2D>::BoundItems;
-    
+
                 #[inline]
                 unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {self.$mat.get_inputs(col_index, row_index)}}
-    
+
                 #[inline]
                 unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_inputs(col_index, row_index)}}
-    
+
                 #[inline]
                 fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
                     let ($($is_mut)? $input, bound_items) = $self.$mat.process(col_index, row_index,  inputs);
                     ($get_expr, bound_items)
                 }
             }
-    
-            impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> 
+
+            impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
             where ($mat_generic::OutputBool, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type OutputBool = optimized_or!($mat_generic::OutputBool, $($outputted_field)?);
                 type Output = <($mat_generic::OutputBool, is_present!($($outputted_field)?)) as FilterPair>::Filtered<$mat_generic::Output, optional_type!($($output_ty)?)>;
-    
+
                 #[inline]
                 unsafe fn output(&mut self) -> Self::Output { unsafe {
                     <($mat_generic::OutputBool, is_present!($($outputted_field)?)) as FilterPair>::filter(self.$mat.output(), optional_expr!($(self.$outputted_field.output())?))
                 }}
-    
+
                 #[inline]
                 unsafe fn drop_output(&mut self) { unsafe {
                     self.$mat.drop_output();
                     $(self.$outputted_field.output();)?
                 }}
             }
-    
-            impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> 
+
+            impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
             $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type FstHandleBool = <$mat_generic as Has2DReuseBuf>::FstHandleBool;
                 type SndHandleBool = <$mat_generic as Has2DReuseBuf>::SndHandleBool;
@@ -129,7 +121,7 @@ macro_rules! mat_structs {
                 type FstType = <$mat_generic as Has2DReuseBuf>::FstType;
                 type SndType = <$mat_generic as Has2DReuseBuf>::SndType;
                 type BoundTypes = <$mat_generic as Has2DReuseBuf>::BoundTypes;
-    
+
                 #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) { unsafe {self.$mat.assign_1st_buf(col_index, row_index, val)}}
                 #[inline] unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) { unsafe {self.$mat.assign_2nd_buf(col_index, row_index, val)}}
                 #[inline] unsafe fn assign_bound_bufs(&mut self, col_index: usize, row_index: usize, val: Self::BoundTypes) { unsafe {self.$mat.assign_bound_bufs(col_index, row_index, val)}}
@@ -155,23 +147,23 @@ macro_rules! mat_structs {
         $(
             #[doc=$comment]
             pub struct $struct<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_mat: $l_mat_generic, pub(crate) $r_mat: $r_mat_generic $(, $(pub(crate) $field: $field_ty),+)?}
-    
+
             unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool): FilterPair, (<$l_mat_generic as Get2D>::AreInputsTransposed, <$r_mat_generic as Get2D>::AreInputsTransposed): TyBoolPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type GetBool = is_unit!($item);
                 type AreInputsTransposed = <(<$l_mat_generic as Get2D>::AreInputsTransposed, <$r_mat_generic as Get2D>::AreInputsTransposed) as TyBoolPair>::And;
                 type Inputs = ($l_mat_generic::Inputs, $r_mat_generic::Inputs);
                 type Item = $item;
                 type BoundItems = <($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool) as FilterPair>::Filtered<$l_mat_generic::BoundItems, $r_mat_generic::BoundItems>;
-    
+
                 #[inline]
                 unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs { unsafe {(self.$l_mat.get_inputs(col_index, row_index), self.$r_mat.get_inputs(col_index, row_index))}}
-    
+
                 #[inline]
                 unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {
                     self.$l_mat.drop_inputs(col_index, row_index);
                     self.$r_mat.drop_inputs(col_index, row_index);
                 }}
-    
+
                 #[inline]
                 fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
                     let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_mat.process(col_index, row_index,  inputs.0);
@@ -179,13 +171,13 @@ macro_rules! mat_structs {
                     ($get_expr, <($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items, r_bound_items))
                 }
             }
-    
+
             if_present!({unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike + Is2DRepeatable, $r_mat_generic: MatrixLike + Is2DRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Is2DRepeatable for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
-        
+
             impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::OutputBool, $r_mat_generic::OutputBool): FilterPair, (<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type OutputBool = optimized_or!(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, $($outputted_field)?);
                 type Output = <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)) as FilterPair>::Filtered<<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::Filtered<$l_mat_generic::Output, $r_mat_generic::Output>, optional_type!($($output_ty)?)>;
-            
+
                 #[inline]
                 unsafe fn output(&mut self) -> Self::Output { unsafe {
                     <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)) as FilterPair>::filter(
@@ -193,7 +185,7 @@ macro_rules! mat_structs {
                         optional_expr!($(self.$outputted_field.output())?)
                     )
                 }}
-    
+
                 #[inline]
                 unsafe fn drop_output(&mut self) { unsafe {
                     self.$l_mat.drop_output();
@@ -201,9 +193,9 @@ macro_rules! mat_structs {
                     $(self.$outputted_field.output();)?
                 }}
             }
-    
-            impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> 
-            where 
+
+            impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?>
+            where
                 (<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
                 (<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
                 (<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool): SelectPair,
@@ -217,8 +209,8 @@ macro_rules! mat_structs {
                 type FstHandleBool = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as TyBoolPair>::Xor;
                 type SndHandleBool = <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as TyBoolPair>::Xor;
                 type BoundHandlesBool = <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as TyBoolPair>::Or;
-                type FstOwnedBufferBool = <(<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Xor; 
-                type SndOwnedBufferBool = <(<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool) as TyBoolPair>::Xor; 
+                type FstOwnedBufferBool = <(<$l_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Xor;
+                type SndOwnedBufferBool = <(<$l_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool, <$r_mat_generic as Has2DReuseBuf>::SndOwnedBufferBool) as TyBoolPair>::Xor;
                 type IsFstBufferTransposed = <(<$l_mat_generic as Has2DReuseBuf>::IsFstBufferTransposed, <$r_mat_generic as Has2DReuseBuf>::IsFstBufferTransposed) as TyBoolPair>::Xor;
                 type IsSndBufferTransposed = <(<$l_mat_generic as Has2DReuseBuf>::IsSndBufferTransposed, <$r_mat_generic as Has2DReuseBuf>::IsSndBufferTransposed) as TyBoolPair>::Xor;
                 type AreBoundBuffersTransposed = <(<$l_mat_generic as Has2DReuseBuf>::AreBoundBuffersTransposed, <$r_mat_generic as Has2DReuseBuf>::AreBoundBuffersTransposed) as TyBoolPair>::Xor;
@@ -227,7 +219,7 @@ macro_rules! mat_structs {
                 type FstType = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::FstType, <$r_mat_generic as Has2DReuseBuf>::FstType>;
                 type SndType = <(<$l_mat_generic as Has2DReuseBuf>::SndHandleBool, <$r_mat_generic as Has2DReuseBuf>::SndHandleBool) as SelectPair>::Selected<<$l_mat_generic as Has2DReuseBuf>::SndType, <$r_mat_generic as Has2DReuseBuf>::SndType>;
                 type BoundTypes = <(<$l_mat_generic as Has2DReuseBuf>::BoundHandlesBool, <$r_mat_generic as Has2DReuseBuf>::BoundHandlesBool) as FilterPair>::Filtered<<$l_mat_generic as Has2DReuseBuf>::BoundTypes, <$r_mat_generic as Has2DReuseBuf>::BoundTypes>;
-            
+
                 #[inline] unsafe fn assign_1st_buf(&mut self, col_index: usize, row_index: usize, val: Self::FstType) { unsafe {
                     let (l_val, r_val) = <(<$l_mat_generic as Has2DReuseBuf>::FstHandleBool, <$r_mat_generic as Has2DReuseBuf>::FstHandleBool) as SelectPair>::deselect(val);
                     self.$l_mat.assign_1st_buf(col_index, row_index, l_val);
@@ -281,20 +273,20 @@ mat_structs!(
     MatEntryFold<{M}, F: FnMut(O, M::Item) -> O, O>{mat, f: F, cell: Option<O>}; output: cell: O, get2D: (), |self, input| self.cell = Some((self.f)(self.cell.take().unwrap(), input));
     "Struct folding together the entries of a Matrix with its closure (FnMut)";
     MatEntryFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>}; output: cell: O, get2D: (), |self, input| (self.f)(&mut self.cell, input); // note: use of this is preferred to MatEntryFold
-    
+
     "Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item";
     MatEntryCopiedFold<{M}, F: FnMut(O, M::Item) -> O, O>{mat, f: F, cell: Option<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
     "Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item";
     MatEntryCopiedFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {(self.f)(&mut self.cell, input); input};
-    
+
     "Struct copying a Matrix's items, useful for &T -> T";
     MatCopy<'a, {M}, I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self, input| *input, Y;
     "Struct cloning a Matrix's items, useful for &T -> T";
     MatClone<'a, {M}, I: 'a | Clone>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self, input| input.clone();
-    
+
     "Struct negating (-) a Matrix";
     MatNeg<{M}>{mat} where M::Item: Neg; get2D: <M::Item as Neg>::Output, |self, input| -input;
-    
+
     "Struct multiplying a scalar with a Matrix (matrix is rhs)";
     MatMulR<{M}, S: Copy>{mat, scalar: S} where S: Mul<M::Item>; get2D: <S as Mul<M::Item>>::Output, |self, input| self.scalar * input;
     "Struct dividing a scalar by a Matrix";
@@ -307,30 +299,29 @@ mat_structs!(
     MatDivL<{M}, S: Copy>{mat, scalar: S} where M::Item: Div<S>; get2D: <M::Item as Div<S>>::Output, |self, input| input / self.scalar;
     "Struct getting remainder (%) of a Matrix by a scalar";
     MatRemL<{M}, S: Copy>{mat, scalar: S} where M::Item: Rem<S>; get2D: <M::Item as Rem<S>>::Output, |self, input| input % self.scalar;
-    
+
     "Struct mul assigning (*=) a matrix (item = &mut T) by a scalar";
     MatMulAssign<'a, {M}, I: 'a | MulAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input *= self.scalar;
     "Struct div assigning (/=) a matrix (item = &mut T) by a scalar";
     MatDivAssign<'a, {M}, I: 'a | DivAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input /= self.scalar;
     "Struct rem assigning (%=) a matrix (item = &mut T) by a scalar";
     MatRemAssign<'a, {M}, I: 'a | RemAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input %= self.scalar;
-    
+
     "Struct summing up the entries of a Matrix";
     MatEntrySum<{M}, S>{mat, scalar: ManuallyDrop<S>} where S: AddAssign<M::Item>; output: scalar: S, get2D: (), |self, input| *self.scalar += input;
     "Struct multiplying together the entries of a Matrix";
     MatEntryProd<{M}, S>{mat, scalar: ManuallyDrop<S>} where S: MulAssign<M::Item>; output: scalar: S, get2D: (), |self, input| *self.scalar *= input;
-    
+
     "Struct summing up the entries of a Matrix while preserving the item";
     MatCopiedEntrySum<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: AddAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar += input; input};
     "Struct multiplying together the entries of a Matrix while preserving the item";
     MatCopiedEntryProd<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: MulAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar *= input; input};
 );
 
-
 mat_structs!(
     "Struct zipping together the items of 2 matrices into 2 element tuples";
     MatZip<{M1, M2}>{l_mat, r_mat}; get2D: (M1::Item, M2::Item), |self, l_input, r_input| (l_input, r_input), Y;
-    
+
     "Struct adding 2 matrices";
     MatAdd<{M1, M2}>{l_mat, r_mat} where M1::Item: Add<M2::Item>; get2D: <M1::Item as Add<M2::Item>>::Output, |self, l_input, r_input| l_input + r_input;
     "Struct subtracting a matrix from another";
@@ -341,7 +332,7 @@ mat_structs!(
     MatCompDiv<{M1, M2}>{l_mat, r_mat} where M1::Item: Div<M2::Item>; get2D: <M1::Item as Div<M2::Item>>::Output, |self, l_input, r_input| l_input / r_input;
     "Struct component-wise getting remainder (%) of a matrix by another";
     MatCompRem<{M1, M2}>{l_mat, r_mat} where M1::Item: Rem<M2::Item>; get2D: <M1::Item as Rem<M2::Item>>::Output, |self, l_input, r_input| l_input % r_input;
-    
+
     "Struct add assigning (+=) a matrix (item = &mut T) with another";
     MatAddAssign<'a, {M1, M2}, I: 'a | AddAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input += r_input;
     "Struct sub assigning (-=) a matrix (item = &mut T) with another";

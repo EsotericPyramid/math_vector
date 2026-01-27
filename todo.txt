@@ -9,7 +9,7 @@ Key:
 To Do's:
 - document each file
 - clean up documentation
-- run rustfmt
+- run clippy
 ~ add safety explanations (and check safety along the way)
 + lib.rs:
     X get heaped things to work outside of `--release`
@@ -42,7 +42,7 @@ To Do's:
     + vector.rs:
         X fix RS Vec's trait bound infinite recursion when evaluating sometimes (ex: &RSMathVector * 3 with unspecified num type)
         ? rename OwnedArray and OwnedSlice (they are owned but aren't most types so its just dumb)
-        - convert assign impls to use the builder system instead of conditionals
+        X convert assign impls to use the builder system instead of conditionals (non-trivial because of HRTBs I think)
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
             - could allow more general eval implementation
             - currently runs into collision between FstHandleBool = N and FstHandleBool = Y
