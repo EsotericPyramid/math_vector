@@ -194,7 +194,7 @@ where
     type BoundTypes = V::BoundTypes;
 
     #[inline]
-    unsafe fn assign_1st_buf<'z>(&'z mut self, index: usize, val: Self::FstType) {
+    unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
         unsafe {
             let (l_val, r_val) =
                 <(V::FstHandleBool, USEDV::FstHandleBool) as SelectPair>::deselect(val);
@@ -203,7 +203,7 @@ where
         }
     }
     #[inline]
-    unsafe fn assign_2nd_buf<'z>(&'z mut self, index: usize, val: Self::SndType) {
+    unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {
         unsafe {
             let (l_val, r_val) =
                 <(V::SndHandleBool, USEDV::SndHandleBool) as SelectPair>::deselect(val);
@@ -212,7 +212,7 @@ where
         }
     }
     #[inline]
-    unsafe fn assign_bound_bufs<'z>(&'z mut self, index: usize, val: Self::BoundTypes) {
+    unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
         unsafe {
             self.vec.assign_bound_bufs(index, val);
         }

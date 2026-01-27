@@ -9,8 +9,8 @@ Key:
 To Do's:
 - document each file
 - clean up documentation
-- run clippy
 ~ add safety explanations (and check safety along the way)
+~ clean up types to make them more readable
 + lib.rs:
     X get heaped things to work outside of `--release`
     ? rename Fst & Snd buffer to Active and Reserve buffer (or similar)

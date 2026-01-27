@@ -231,8 +231,8 @@ where
     type BoundTypes = M::BoundTypes;
 
     #[inline]
-    unsafe fn assign_1st_buf<'z>(
-        &'z mut self,
+    unsafe fn assign_1st_buf(
+        &mut self,
         col_index: usize,
         row_index: usize,
         val: Self::FstType,
@@ -245,8 +245,8 @@ where
         }
     }
     #[inline]
-    unsafe fn assign_2nd_buf<'z>(
-        &'z mut self,
+    unsafe fn assign_2nd_buf(
+        &mut self,
         col_index: usize,
         row_index: usize,
         val: Self::SndType,
@@ -259,8 +259,8 @@ where
         }
     }
     #[inline]
-    unsafe fn assign_bound_bufs<'z>(
-        &'z mut self,
+    unsafe fn assign_bound_bufs(
+        &mut self,
         col_index: usize,
         row_index: usize,
         val: Self::BoundTypes,

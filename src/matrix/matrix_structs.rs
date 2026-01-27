@@ -240,9 +240,9 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a [[T; D1]; D2]
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a, T, const D1: usize, const D2: usize> Is2DRepeatable for &'a [[T; D1]; D2] {}
+unsafe impl<T, const D1: usize, const D2: usize> Is2DRepeatable for &[[T; D1]; D2] {}
 
-impl<'a, T, const D1: usize, const D2: usize> Has2DReuseBuf for &'a [[T; D1]; D2] {
+impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for &[[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -307,9 +307,9 @@ unsafe impl<'a, T, const D1: usize, const D2: usize> Get2D for &'a mut [[T; D1];
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a, T, const D1: usize, const D2: usize> Is2DRepeatable for &'a mut [[T; D1]; D2] {}
+unsafe impl<T, const D1: usize, const D2: usize> Is2DRepeatable for &mut [[T; D1]; D2] {}
 
-impl<'a, T, const D1: usize, const D2: usize> Has2DReuseBuf for &'a mut [[T; D1]; D2] {
+impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for &mut [[T; D1]; D2] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;

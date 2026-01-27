@@ -334,7 +334,7 @@ pub mod util_traits {
     // NOTE: blanket impls bc outputting implies some level of ownership which
     //      can only claimed once and so it shouldnt _really_ be done from
     //      a reference, thus these impls just force the no output impl
-    impl<'a, T: ?Sized> HasOutput for &'a T {
+    impl<T: ?Sized> HasOutput for &T {
         type OutputBool = N;
         type Output = ();
 
@@ -344,7 +344,7 @@ pub mod util_traits {
         unsafe fn drop_output(&mut self) {}
     }
 
-    impl<'a, T: ?Sized> HasOutput for &'a mut T {
+    impl<T: ?Sized> HasOutput for &mut T {
         type OutputBool = N;
         type Output = ();
 

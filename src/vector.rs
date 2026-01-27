@@ -272,7 +272,7 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
         if strings.len() > 1 {
             write!(f, "\n┌ {:max_length$} ┐\n", strings[0])?;
             for string in &strings[1..strings.len() - 1] {
-                write!(f, "│ {:max_length$} │\n", string)?;
+                writeln!(f, "│ {:max_length$} │", string)?;
             }
             write!(f, "└ {:max_length$} ┘", strings[strings.len() - 1])?;
         } else if strings.len() == 1 {
@@ -280,7 +280,7 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
         } else {
             write!(f, "\n[]")?;
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -551,7 +551,7 @@ impl<'a, T> From<&'a [T]> for RefRSMathVector<'a, T> {
         let size = value.len();
         RSVectorExpr {
             vec: value,
-            size: size,
+            size,
         }
     }
 }
@@ -586,7 +586,7 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefRSMathVector<'a, T> {
         if strings.len() > 1 {
             write!(f, "\n┌ {:max_length$} ┐\n", strings[0])?;
             for string in &strings[1..strings.len() - 1] {
-                write!(f, "│ {:max_length$} │\n", string)?;
+                writeln!(f, "│ {:max_length$} │", string)?;
             }
             write!(f, "└ {:max_length$} ┘", strings[strings.len() - 1])?;
         } else if strings.len() == 1 {
@@ -594,7 +594,7 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefRSMathVector<'a, T> {
         } else {
             write!(f, "\n[]")?;
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -603,7 +603,7 @@ pub type RefMutRSMathVector<'a, T> = RSVectorExpr<&'a mut [T]>;
 impl<'a, T> RefMutRSMathVector<'a, T> {
     pub fn deref<'b: 'a>(&'b self) -> RefRSMathVector<'a, T> {
         RSVectorExpr {
-            vec: &self.vec,
+            vec: self.vec,
             size: self.size,
         }
     }
@@ -615,7 +615,7 @@ impl<'a, T> From<&'a mut [T]> for RefMutRSMathVector<'a, T> {
         let size = value.len();
         RSVectorExpr {
             vec: value,
-            size: size,
+            size,
         }
     }
 }
@@ -799,6 +799,7 @@ impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where
 }
 
 /// a trait with various vector operations
+#[allow(clippy::type_complexity)] // triggers on the output types of the fn's even though they can't be shortened
 pub unsafe trait VectorOps {
     /// the underlying VectorLike contained in Self
     type Unwrapped: VectorLike;
@@ -2935,9 +2936,9 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a MathVector<T, D> {
         D
     }
 }
-impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a MathVector<T, D> {}
+impl<T, const D: usize> ArrayVectorOps<D> for &MathVector<T, D> {}
 
-impl<'a, T, const D: usize> VectorEvalOps for &'a MathVector<T, D> {
+impl<T, const D: usize> VectorEvalOps for &MathVector<T, D> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateArray<V, <V as Get>::Item, D>
     where
@@ -2985,9 +2986,9 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut MathVector<T, D> {
         D
     }
 }
-impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut MathVector<T, D> {}
+impl<T, const D: usize> ArrayVectorOps<D> for &mut MathVector<T, D> {}
 
-impl<'a, T, const D: usize> VectorEvalOps for &'a mut MathVector<T, D> {
+impl<T, const D: usize> VectorEvalOps for &mut MathVector<T, D> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateArray<V, <V as Get>::Item, D>
     where
@@ -3035,9 +3036,9 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
         D
     }
 }
-impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a Box<MathVector<T, D>> {}
+impl<T, const D: usize> ArrayVectorOps<D> for &Box<MathVector<T, D>> {}
 
-impl<'a, T, const D: usize> VectorEvalOps for &'a Box<MathVector<T, D>> {
+impl<T, const D: usize> VectorEvalOps for &Box<MathVector<T, D>> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateHeapArray<V, <V as Get>::Item, D>
     where
@@ -3085,9 +3086,9 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
         D
     }
 }
-impl<'a, T, const D: usize> ArrayVectorOps<D> for &'a mut Box<MathVector<T, D>> {}
+impl<T, const D: usize> ArrayVectorOps<D> for &mut Box<MathVector<T, D>> {}
 
-impl<'a, T, const D: usize> VectorEvalOps for &'a mut Box<MathVector<T, D>> {
+impl<T, const D: usize> VectorEvalOps for &mut Box<MathVector<T, D>> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateHeapArray<V, <V as Get>::Item, D>
     where
@@ -3191,7 +3192,7 @@ unsafe impl<'a, T> VectorOps for &'a RSMathVector<T> {
     }
 }
 
-impl<'a, T> VectorEvalOps for &'a RSMathVector<T> {
+impl<T> VectorEvalOps for &RSMathVector<T> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateSlice<V, <V as Get>::Item>
     where
@@ -3240,7 +3241,7 @@ unsafe impl<'a, T> VectorOps for &'a mut RSMathVector<T> {
     }
 }
 
-impl<'a, T> VectorEvalOps for &'a mut RSMathVector<T> {
+impl<T> VectorEvalOps for &mut RSMathVector<T> {
     type MaybeCreateBuffer<V: VectorLike>
         = VecMaybeCreateSlice<V, <V as Get>::Item>
     where

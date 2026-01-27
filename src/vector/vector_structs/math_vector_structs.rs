@@ -76,6 +76,7 @@ where
     ) as FilterPair>::Filtered<<MatRowVectorExprs<M> as HasOutput>::Output, V::Output>;
 
     #[inline]
+    #[allow(clippy::unit_arg)] //it may not stay a unit type in the future
     unsafe fn output(&mut self) -> Self::Output {
         unsafe {
             <(
@@ -212,6 +213,7 @@ where
     ) as FilterPair>::Filtered<V::Output, <MatColVectorExprs<M> as HasOutput>::Output>;
 
     #[inline]
+    #[allow(clippy::unit_arg)] //it may not stay a unit type in the future
     unsafe fn output(&mut self) -> Self::Output {
         unsafe {
             <(

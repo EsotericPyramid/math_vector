@@ -205,9 +205,9 @@ unsafe impl<'a, T, const D: usize> Get for &'a [T; D] {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-unsafe impl<'a, T, const D: usize> IsRepeatable for &'a [T; D] {}
+unsafe impl<T, const D: usize> IsRepeatable for &[T; D] {}
 
-impl<'a, T, const D: usize> HasReuseBuf for &'a [T; D] {
+impl<T, const D: usize> HasReuseBuf for &[T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -260,7 +260,7 @@ unsafe impl<'a, T, const D: usize> Get for &'a mut [T; D] {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-impl<'a, T, const D: usize> HasReuseBuf for &'a mut [T; D] {
+impl<T, const D: usize> HasReuseBuf for &mut [T; D] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -484,9 +484,9 @@ unsafe impl<'a, T> Get for &'a [T] {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-unsafe impl<'a, T> IsRepeatable for &'a [T] {}
+unsafe impl<T> IsRepeatable for &[T] {}
 
-impl<'a, T> HasReuseBuf for &'a [T] {
+impl<T> HasReuseBuf for &[T] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -539,7 +539,7 @@ unsafe impl<'a, T> Get for &'a mut [T] {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-impl<'a, T> HasReuseBuf for &'a mut [T] {
+impl<T> HasReuseBuf for &mut [T] {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;

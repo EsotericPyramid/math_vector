@@ -36,6 +36,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     /// converts the underlying VectorLike to a dynamic object
     /// stabilizes the overall type to a consitent one
     #[inline]
+    #[allow(clippy::type_complexity)] // you try writing this type more simply
     pub fn make_dynamic(
         self,
     ) -> MatrixExpr<
@@ -433,9 +434,7 @@ impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatr
                         self[i][src] = self[i][dst];
                         self[i][dst] = temp;
                     }
-                    let temp = pivots[src];
-                    pivots[src] = pivots[dst];
-                    pivots[dst] = temp;
+                    pivots.swap(src, dst);
                 }
             }
         }
@@ -479,9 +478,7 @@ impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatr
             if pivots[src] != src {
                 out = T::zero() - out; //scuff math moment
                 let dst = pivots[src];
-                let temp = pivots[dst];
-                pivots[dst] = pivots[src];
-                pivots[src] = temp;
+                pivots.swap(dst, src);
             }
         }
         out
@@ -493,6 +490,7 @@ impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatr
     }
 
     #[inline(always)]
+    #[allow(clippy::boxed_local)] //the box is needed to keep it on the heap
     pub fn det_heap(mut self: Box<Self>) -> T {
         self.det_inner()
     }
@@ -696,7 +694,7 @@ impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display
             write!(f, "\n[]")?;
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -730,6 +728,7 @@ pub fn matrix_identity_gen<T: Copy + Sum + Product, const D: usize>()
 }
 
 /// a trait with various matrix operations
+#[allow(clippy::type_complexity)] // triggers on the output types of the fn's even though they can't be shortened
 pub trait MatrixOps {
     /// the underlying MatrixLike contained in Self
     type Unwrapped: MatrixLike;
@@ -1182,6 +1181,7 @@ pub trait MatrixOps {
 
     /// multiples a scalar with the matrix (matrix items are rhs) (*may* be identitical to mul_l)
     #[inline]
+    #[allow(clippy::multiple_bound_locations)] // for consistency with mul_l
     fn mul_r<S: Copy>(
         self,
         scalar: S,
@@ -1202,6 +1202,7 @@ pub trait MatrixOps {
 
     /// divides a scalar with the matrix
     #[inline]
+    #[allow(clippy::multiple_bound_locations)] // for consistency with div_l
     fn div_r<S: Copy>(
         self,
         scalar: S,
@@ -1222,6 +1223,7 @@ pub trait MatrixOps {
 
     /// gets the remainder (ie. %) of a scalar with the matrix
     #[inline]
+    #[allow(clippy::multiple_bound_locations)] // for consistency with rem_l
     fn rem_r<S: Copy>(
         self,
         scalar: S,
@@ -1591,7 +1593,6 @@ pub trait MatrixOps {
             <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed,
         ): TyBoolPair,
         Self: Sized,
-        M: Sized,
     {
         if self.dimensions().1 != other.dimensions().0 {
             panic!("math_vector Error: cannot multiply matrices with incompatible sizes")
@@ -2169,6 +2170,7 @@ pub trait MatrixEvalOps: MatrixOps {
     /// newer values to the right
     /// binary operators merge the output of the 2 vectors
     #[inline]
+    #[allow(clippy::type_complexity)]
     fn raw_eval(self) -> (<Self::MaybeCreateBuffer<Self::Unwrapped> as HasOutput>::Output, <Self::MaybeCreateBuffer<Self::Unwrapped> as Has2DReuseBuf>::FstOwnedBuffer) where
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool, <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -2453,9 +2455,9 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a MathMatrix<T, D1
         (D1, D2)
     }
 }
-impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &'a MathMatrix<T, D1, D2> {}
+impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &MathMatrix<T, D1, D2> {}
 
-impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a MathMatrix<T, D1, D2> {
+impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &MathMatrix<T, D1, D2> {
     type MaybeCreateBuffer<M: MatrixLike>
         = MatMaybeCreate2DBuf<M, T, D1, D2>
     where
@@ -2503,12 +2505,12 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut MathMatrix<T
         (D1, D2)
     }
 }
-impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
-    for &'a mut MathMatrix<T, D1, D2>
+impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
+    for &mut MathMatrix<T, D1, D2>
 {
 }
 
-impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a mut MathMatrix<T, D1, D2> {
+impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut MathMatrix<T, D1, D2> {
     type MaybeCreateBuffer<M: MatrixLike>
         = MatMaybeCreate2DBuf<M, T, D1, D2>
     where
@@ -2556,12 +2558,12 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a Box<MathMatrix<T
         (D1, D2)
     }
 }
-impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
-    for &'a Box<MathMatrix<T, D1, D2>>
+impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
+    for &Box<MathMatrix<T, D1, D2>>
 {
 }
 
-impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a Box<MathMatrix<T, D1, D2>> {
+impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &Box<MathMatrix<T, D1, D2>> {
     type MaybeCreateBuffer<M: MatrixLike>
         = MatMaybeCreate2DBuf<M, T, D1, D2>
     where
@@ -2609,12 +2611,12 @@ impl<'a, T, const D1: usize, const D2: usize> MatrixOps for &'a mut Box<MathMatr
         (D1, D2)
     }
 }
-impl<'a, T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
-    for &'a mut Box<MathMatrix<T, D1, D2>>
+impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
+    for &mut Box<MathMatrix<T, D1, D2>>
 {
 }
 
-impl<'a, T, const D1: usize, const D2: usize> MatrixEvalOps for &'a mut Box<MathMatrix<T, D1, D2>> {
+impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut Box<MathMatrix<T, D1, D2>> {
     type MaybeCreateBuffer<M: MatrixLike>
         = MatMaybeCreate2DBuf<M, T, D1, D2>
     where
