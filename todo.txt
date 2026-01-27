@@ -40,6 +40,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        X fix RS Vec's trait bound infinite recursion when evaluating sometimes (ex: &RSMathVector * 3 with unspecified num type)
         ? rename OwnedArray and OwnedSlice (they are owned but aren't most types so its just dumb)
         - convert assign impls to use the builder system instead of conditionals
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr

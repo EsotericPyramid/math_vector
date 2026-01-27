@@ -412,11 +412,25 @@ impl<T> DerefMut for RSMathVector<T> {
     }
 }
 
+impl<T> From<Vec<T>> for RSMathVector<T> {
+    #[inline]
+    fn from(value: Vec<T>) -> Self {
+        Self::from(<Box<[T]>>::from(value))
+    }
+}
+
 impl<T> From<Box<[T]>> for RSMathVector<T> {
     #[inline]
     fn from(value: Box<[T]>) -> Self {
         let size = value.len();
         unsafe { RSVectorExpr{vec: mem::transmute::<Box<[T]>, OwnedSlice<T>>(value), size} }
+    }
+}
+
+impl<T> From<RSMathVector<T>> for Vec<T> {
+    #[inline]
+    fn from(value: RSMathVector<T>) -> Self {
+        <Vec<T>>::from(<Box<[T]>>::from(value))
     }
 }
 
