@@ -114,7 +114,7 @@ where
 }
 
 /// a simple type alias for a VectorExpr created from an array of type [T; D]
-pub type MathVector<T, const D: usize> = VectorExpr<OwnedArray<T, D>, D>;
+pub type MathVector<T, const D: usize> = VectorExpr<VectorArray<T, D>, D>;
 
 impl<T, const D: usize> MathVector<T, D> {
     /// marks this MathVector to have its buffer reused
@@ -129,19 +129,19 @@ impl<T, const D: usize> MathVector<T, D> {
     pub fn heap_reuse(self: Box<Self>) -> VectorExpr<Box<ReplaceArray<T, D>>, D> {
         // Safety, series of equivilent types:
         // Box<MathVector<T,D>>
-        // Box<VectorExpr<OwnedArray<T, D>, D>>, de-alias MathVector
-        // Box<ManuallyDrop<[T; D]>>, VectorExpr & OwnedArray are transparent
+        // Box<VectorExpr<VectorArray<T, D>, D>>, de-alias MathVector
+        // Box<ManuallyDrop<[T; D]>>, VectorExpr & VectorArray are transparent
         // VectorExpr<Box<ReplaceArray<T, D>>, D>, VectorExpr & ReplaceArray are transparent
         unsafe { mem::transmute::<Box<Self>, VectorExpr<Box<ReplaceArray<T, D>>, D>>(self) }
     }
 
     /// converts this MathVector to a repeatable VectorExpr w/ Item = &'a T
     #[inline]
-    pub fn referred<'a>(self) -> VectorExpr<ReferringOwnedArray<'a, T, D>, D>
+    pub fn referred<'a>(self) -> VectorExpr<ReferringVectorArray<'a, T, D>, D>
     where
         T: 'a,
     {
-        VectorExpr(ReferringOwnedArray(
+        VectorExpr(ReferringVectorArray(
             unsafe { mem::transmute_copy::<ManuallyDrop<[T; D]>, [T; D]>(&self.unwrap().0) },
             std::marker::PhantomData,
         )) //FIXME: unecessary transmute copy to get the compiler to not complain
@@ -186,7 +186,7 @@ impl<T, const D: usize> DerefMut for MathVector<T, D> {
 impl<T, const D: usize> From<[T; D]> for MathVector<T, D> {
     #[inline]
     fn from(value: [T; D]) -> Self {
-        VectorExpr(OwnedArray(ManuallyDrop::new(value)))
+        VectorExpr(VectorArray(ManuallyDrop::new(value)))
     }
 }
 
@@ -409,7 +409,7 @@ where
     }
 }
 
-pub type RSMathVector<T> = RSVectorExpr<OwnedSlice<T>>;
+pub type RSMathVector<T> = RSVectorExpr<VectorSlice<T>>;
 
 impl<T> RSMathVector<T> {
     #[inline]
@@ -423,13 +423,13 @@ impl<T> RSMathVector<T> {
 
     /// converts this RSMathVector to a repeatable VectorExpr w/ Item = &'a T
     #[inline]
-    pub fn referred<'a>(self) -> RSVectorExpr<ReferringOwnedSlice<'a, T>>
+    pub fn referred<'a>(self) -> RSVectorExpr<ReferringVectorSlice<'a, T>>
     where
         T: 'a,
     {
         let size = self.size;
         RSVectorExpr {
-            vec: ReferringOwnedSlice(
+            vec: ReferringVectorSlice(
                 unsafe {
                     mem::transmute_copy::<Box<ManuallyDrop<[T]>>, Box<[T]>>(&self.unwrap().0)
                 },
@@ -494,7 +494,7 @@ impl<T> From<Box<[T]>> for RSMathVector<T> {
         let size = value.len();
         unsafe {
             RSVectorExpr {
-                vec: mem::transmute::<Box<[T]>, OwnedSlice<T>>(value),
+                vec: mem::transmute::<Box<[T]>, VectorSlice<T>>(value),
                 size,
             }
         }
@@ -511,7 +511,7 @@ impl<T> From<RSMathVector<T>> for Vec<T> {
 impl<T> From<RSMathVector<T>> for Box<[T]> {
     #[inline]
     fn from(value: RSMathVector<T>) -> Self {
-        unsafe { mem::transmute_copy::<OwnedSlice<T>, Box<[T]>>(&ManuallyDrop::new(value).vec) }
+        unsafe { mem::transmute_copy::<VectorSlice<T>, Box<[T]>>(&ManuallyDrop::new(value).vec) }
     }
 }
 
@@ -2770,7 +2770,7 @@ where
     (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
     VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
 {
-    type RepeatableVector<'a> = ReferringOwnedArray<'a, V::Item, D> where Self: 'a;
+    type RepeatableVector<'a> = ReferringVectorArray<'a, V::Item, D> where Self: 'a;
     type UsedVector = VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 
@@ -2861,7 +2861,7 @@ where
     (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
     VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
 {
-    type RepeatableVector<'a> = ReferringOwnedArray<'a, V::Item, D> where Self: 'a;
+    type RepeatableVector<'a> = ReferringVectorArray<'a, V::Item, D> where Self: 'a;
     type UsedVector = VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 

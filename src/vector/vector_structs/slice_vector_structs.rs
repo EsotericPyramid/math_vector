@@ -1,4 +1,4 @@
-use super::OwnedSlice;
+use super::VectorSlice;
 use crate::{
     trait_specialization_utils::*,
     util_traits::*,
@@ -71,7 +71,7 @@ impl<T> HasReuseBuf for ReplaceSlice<T> {
         let size = self.0.len();
         unsafe {
             RSVectorExpr {
-                vec: OwnedSlice(ptr::read(&*self.0)),
+                vec: VectorSlice(ptr::read(&*self.0)),
                 size,
             }
         }
@@ -267,7 +267,7 @@ impl<V: VectorLike<FstHandleBool = N>, T> HasReuseBuf for VecCreateSlice<V, T> {
         let size = self.buf.len();
         unsafe {
             RSVectorExpr {
-                vec: mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, OwnedSlice<T>>(
+                vec: mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, VectorSlice<T>>(
                     &self.buf,
                 ),
                 size,
@@ -424,7 +424,7 @@ where
                                 >],
                             >,
                         >,
-                        OwnedSlice<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>,
+                        VectorSlice<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>,
                     >(&self.buf),
                     size,
                 },

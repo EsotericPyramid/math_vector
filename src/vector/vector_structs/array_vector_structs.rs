@@ -1,4 +1,4 @@
-use super::OwnedArray;
+use super::VectorArray;
 use crate::{
     trait_specialization_utils::*,
     util_traits::*,
@@ -68,7 +68,7 @@ impl<T, const D: usize> HasReuseBuf for ReplaceArray<T, D> {
     unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
-        unsafe { VectorExpr(OwnedArray(ptr::read(&self.0))) }
+        unsafe { VectorExpr(VectorArray(ptr::read(&self.0))) }
     }
     #[inline]
     unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
@@ -263,7 +263,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
-            VectorExpr(OwnedArray(mem::transmute_copy::<
+            VectorExpr(VectorArray(mem::transmute_copy::<
                 [MaybeUninit<T>; D],
                 ManuallyDrop<[T; D]>,
             >(&self.buf)))
@@ -516,7 +516,7 @@ where
         unsafe {
             <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.vec.get_1st_buffer(),
-                VectorExpr(OwnedArray(ManuallyDrop::new(mem::transmute_copy::<
+                VectorExpr(VectorArray(ManuallyDrop::new(mem::transmute_copy::<
                     [MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D],
                     [<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>; D],
                 >(&self.buf)))),

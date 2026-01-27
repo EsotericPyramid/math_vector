@@ -589,7 +589,7 @@ impl<T, const D1: usize, const D2: usize> From<MathVectoredMatrix<T, D1, D2>>
     #[inline]
     fn from(value: MathVectoredMatrix<T, D1, D2>) -> Self {
         //  safety:
-        //      MathVectoredMatrix<T, D1, D2> == VectorExpr<OwnedArray<VectorExpr<OwnedArray<T, D1>, D1>, D2>, D2>
+        //      MathVectoredMatrix<T, D1, D2> == VectorExpr<VectorArray<VectorExpr<VectorArray<T, D1>, D1>, D2>, D2>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[ManuallyDrop<[T; D1]>; D2]>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[[T; D1]; D2]>
         //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<Owned2DArray<T, D1, D2>>
@@ -610,7 +610,7 @@ impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>>
     #[inline]
     fn from(value: MathMatrix<T, D1, D2>) -> MathVectoredMatrix<T, D1, D2> {
         //  safety:
-        //      MathVectoredMatrix<T, D1, D2> == VectorExpr<OwnedArray<VectorExpr<OwnedArray<T, D1>, D1>, D2>, D2>
+        //      MathVectoredMatrix<T, D1, D2> == VectorExpr<VectorArray<VectorExpr<VectorArray<T, D1>, D1>, D2>, D2>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[ManuallyDrop<[T; D1]>; D2]>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[[T; D1]; D2]>
         //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<Owned2DArray<T, D1, D2>>

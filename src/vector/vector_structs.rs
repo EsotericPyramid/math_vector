@@ -26,16 +26,16 @@ pub use slice_vector_structs::*;
 /// an owned array rigged up to manually drop via the VectorLike traits
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub struct OwnedArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
+pub struct VectorArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
-impl<T, const D: usize> OwnedArray<T, D> {
+impl<T, const D: usize> VectorArray<T, D> {
     #[inline]
     pub fn unwrap(self) -> [T; D] {
         ManuallyDrop::into_inner(self.0)
     }
 }
 
-impl<T, const D: usize> Deref for OwnedArray<T, D> {
+impl<T, const D: usize> Deref for VectorArray<T, D> {
     type Target = ManuallyDrop<[T; D]>;
 
     #[inline]
@@ -44,13 +44,13 @@ impl<T, const D: usize> Deref for OwnedArray<T, D> {
     }
 }
 
-impl<T, const D: usize> DerefMut for OwnedArray<T, D> {
+impl<T, const D: usize> DerefMut for VectorArray<T, D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-unsafe impl<T, const D: usize> Get for OwnedArray<T, D> {
+unsafe impl<T, const D: usize> Get for VectorArray<T, D> {
     type GetBool = Y;
     type Inputs = T;
     type Item = T;
@@ -71,9 +71,9 @@ unsafe impl<T, const D: usize> Get for OwnedArray<T, D> {
 }
 
 // Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
-unsafe impl<T: Copy, const D: usize> IsRepeatable for OwnedArray<T, D> {}
+unsafe impl<T: Copy, const D: usize> IsRepeatable for VectorArray<T, D> {}
 
-impl<T, const D: usize> HasOutput for OwnedArray<T, D> {
+impl<T, const D: usize> HasOutput for VectorArray<T, D> {
     type OutputBool = N;
     type Output = ();
 
@@ -83,7 +83,7 @@ impl<T, const D: usize> HasOutput for OwnedArray<T, D> {
     unsafe fn drop_output(&mut self) {}
 }
 
-impl<T, const D: usize> HasReuseBuf for OwnedArray<T, D> {
+impl<T, const D: usize> HasReuseBuf for VectorArray<T, D> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -118,12 +118,12 @@ impl<T, const D: usize> HasReuseBuf for OwnedArray<T, D> {
 }
 
 /// an owned array rigged up to repeatable return references to its elements via Get
-pub struct ReferringOwnedArray<'a, T: 'a, const D: usize>(
+pub struct ReferringVectorArray<'a, T: 'a, const D: usize>(
     pub(crate) [T; D],
     pub(crate) std::marker::PhantomData<&'a T>,
 );
 
-unsafe impl<'a, T: 'a, const D: usize> Get for ReferringOwnedArray<'a, T, D> {
+unsafe impl<'a, T: 'a, const D: usize> Get for ReferringVectorArray<'a, T, D> {
     type GetBool = Y;
     type Inputs = &'a T;
     type Item = &'a T;
@@ -141,9 +141,9 @@ unsafe impl<'a, T: 'a, const D: usize> Get for ReferringOwnedArray<'a, T, D> {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-unsafe impl<'a, T: 'a, const D: usize> IsRepeatable for ReferringOwnedArray<'a, T, D> {}
+unsafe impl<'a, T: 'a, const D: usize> IsRepeatable for ReferringVectorArray<'a, T, D> {}
 
-impl<'a, T: 'a, const D: usize> HasOutput for ReferringOwnedArray<'a, T, D> {
+impl<'a, T: 'a, const D: usize> HasOutput for ReferringVectorArray<'a, T, D> {
     type OutputBool = N;
     type Output = ();
 
@@ -153,7 +153,7 @@ impl<'a, T: 'a, const D: usize> HasOutput for ReferringOwnedArray<'a, T, D> {
     unsafe fn drop_output(&mut self) {}
 }
 
-impl<'a, T: 'a, const D: usize> HasReuseBuf for ReferringOwnedArray<'a, T, D> {
+impl<'a, T: 'a, const D: usize> HasReuseBuf for ReferringVectorArray<'a, T, D> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -295,26 +295,26 @@ impl<T, const D: usize> HasReuseBuf for &mut [T; D] {
 }
 
 #[repr(transparent)]
-pub struct OwnedSlice<T>(pub(crate) Box<ManuallyDrop<[T]>>);
+pub struct VectorSlice<T>(pub(crate) Box<ManuallyDrop<[T]>>);
 
-impl<T: Clone> Clone for OwnedSlice<T> {
+impl<T: Clone> Clone for VectorSlice<T> {
     #[inline]
     fn clone(&self) -> Self {
         let to_be_cloned =
             unsafe { std::mem::transmute::<&Box<ManuallyDrop<[T]>>, &Box<[T]>>(&self.0) };
         let cloned = to_be_cloned.clone();
-        OwnedSlice(unsafe { std::mem::transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(cloned) })
+        VectorSlice(unsafe { std::mem::transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(cloned) })
     }
 }
 
-impl<T> OwnedSlice<T> {
+impl<T> VectorSlice<T> {
     #[inline]
     pub fn unwrap(self) -> Box<[T]> {
         unsafe { std::mem::transmute::<Box<ManuallyDrop<[T]>>, Box<[T]>>(self.0) }
     }
 }
 
-impl<T> Deref for OwnedSlice<T> {
+impl<T> Deref for VectorSlice<T> {
     type Target = ManuallyDrop<[T]>;
 
     #[inline]
@@ -323,13 +323,13 @@ impl<T> Deref for OwnedSlice<T> {
     }
 }
 
-impl<T> DerefMut for OwnedSlice<T> {
+impl<T> DerefMut for VectorSlice<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-unsafe impl<T> Get for OwnedSlice<T> {
+unsafe impl<T> Get for VectorSlice<T> {
     type GetBool = Y;
     type Inputs = T;
     type Item = T;
@@ -350,9 +350,9 @@ unsafe impl<T> Get for OwnedSlice<T> {
 }
 
 // Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
-unsafe impl<T: Copy> IsRepeatable for OwnedSlice<T> {}
+unsafe impl<T: Copy> IsRepeatable for VectorSlice<T> {}
 
-impl<T> HasOutput for OwnedSlice<T> {
+impl<T> HasOutput for VectorSlice<T> {
     type OutputBool = N;
     type Output = ();
 
@@ -362,7 +362,7 @@ impl<T> HasOutput for OwnedSlice<T> {
     unsafe fn drop_output(&mut self) {}
 }
 
-impl<T> HasReuseBuf for OwnedSlice<T> {
+impl<T> HasReuseBuf for VectorSlice<T> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -397,12 +397,12 @@ impl<T> HasReuseBuf for OwnedSlice<T> {
 }
 
 /// an owned slice rigged up to repeatable return references to its elements via Get
-pub struct ReferringOwnedSlice<'a, T: 'a>(
+pub struct ReferringVectorSlice<'a, T: 'a>(
     pub(crate) Box<[T]>,
     pub(crate) std::marker::PhantomData<&'a T>,
 );
 
-unsafe impl<'a, T: 'a> Get for ReferringOwnedSlice<'a, T> {
+unsafe impl<'a, T: 'a> Get for ReferringVectorSlice<'a, T> {
     type GetBool = Y;
     type Inputs = &'a T;
     type Item = &'a T;
@@ -420,9 +420,9 @@ unsafe impl<'a, T: 'a> Get for ReferringOwnedSlice<'a, T> {
     unsafe fn drop_inputs(&mut self, _: usize) {}
 }
 
-unsafe impl<'a, T: 'a> IsRepeatable for ReferringOwnedSlice<'a, T> {}
+unsafe impl<'a, T: 'a> IsRepeatable for ReferringVectorSlice<'a, T> {}
 
-impl<'a, T: 'a> HasOutput for ReferringOwnedSlice<'a, T> {
+impl<'a, T: 'a> HasOutput for ReferringVectorSlice<'a, T> {
     type OutputBool = N;
     type Output = ();
 
@@ -432,7 +432,7 @@ impl<'a, T: 'a> HasOutput for ReferringOwnedSlice<'a, T> {
     unsafe fn drop_output(&mut self) {}
 }
 
-impl<'a, T: 'a> HasReuseBuf for ReferringOwnedSlice<'a, T> {
+impl<'a, T: 'a> HasReuseBuf for ReferringVectorSlice<'a, T> {
     type FstHandleBool = N;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
