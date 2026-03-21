@@ -1,5 +1,6 @@
 use crate::{trait_specialization_utils::*, util_traits::*, vector::vec_util_traits::*};
 use std::{mem::ManuallyDrop, ops::*};
+use alga::general::ComplexField;
 
 macro_rules! is_unit {
     (()) => {
@@ -311,6 +312,9 @@ vec_structs!(
     VecCopiedProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: MulAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar *= input; input};
     "Struct calculating the square magnitude of a vector, adding it to Output while preserving the item";
     VecCopiedSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input*input; input};
+
+    "UHOH, I forgor to write this documentation (FIXME)";
+    VecConjugate<{V}>{vec} where V::Item: ComplexField; get: V::Item, |self, input| {input.conjugate()};
 );
 
 vec_structs!(
@@ -341,7 +345,12 @@ vec_structs!(
 
     "Struct calculating the dot product between 2 vectors, adding it to Output";
     VecDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item>, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input;
+    "UHOH, I forgor to write this documentation (FIXME)";
+    VecEuclidInnerProd<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: ComplexField | Mul<V2::Item>, V2::Item: ComplexField, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input.conjugate();
+
 
     "Struct calculating the dot product between 2 vectors, adding it to Output, while preserving the items by zipping them in 2 element tuples";
-    VecCopiedDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item>, V1::Item: Copy, V2::Item: Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
+    VecCopiedDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item> | Copy, V2::Item: Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
+    "UHOH, I forgor to write this documentation (FIXME)";
+    VecCopiedEuclidInnerProd<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: ComplexField | Mul<V2::Item> | Copy, V2::Item: ComplexField | Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input.conjugate(); (l_input, r_input)};
 );

@@ -22,7 +22,9 @@ use std::{
 pub mod vec_util_traits;
 pub mod vector_builders;
 pub mod vector_structs;
+pub mod vector_math;
 
+use alga::general::ComplexField;
 use vec_util_traits::*;
 use vector_builders::*;
 use vector_structs::*;
@@ -2232,7 +2234,7 @@ pub unsafe trait VectorOps {
     #[inline]
     fn dot<
         V: VectorOps,
-        S: Sum<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>
+        S: num_traits::Zero
             + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
     >(
         self,
@@ -2281,7 +2283,66 @@ pub unsafe trait VectorOps {
             builder.wrap(VecDot {
                 l_vec: self.unwrap(),
                 r_vec: other.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::zero()),
+            })
+        }
+    }
+
+    #[inline]
+    fn euclidean_inner_prod<
+        V: VectorOps,
+        S: num_traits::Zero
+            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
+    >(
+        self,
+        other: V,
+    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
+        VecEuclidInnerProd<Self::Unwrapped, V::Unwrapped, S>,
+    >
+    where
+        <Self::Unwrapped as Get>::Item: ComplexField,
+        <V::Unwrapped as Get>::Item: ComplexField,
+        Self::Builder: VectorBuilderUnion<V::Builder>,
+        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
+        (
+            <Self::Unwrapped as HasOutput>::OutputBool,
+            <V::Unwrapped as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <(
+                <Self::Unwrapped as HasOutput>::OutputBool,
+                <V::Unwrapped as HasOutput>::OutputBool,
+            ) as TyBoolPair>::Or,
+            Y,
+        ): FilterPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        Self: Sized,
+    {
+        let builder = self.get_builder().union(other.get_builder());
+        unsafe {
+            builder.wrap(VecEuclidInnerProd {
+                l_vec: self.unwrap(),
+                r_vec: other.unwrap(),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -2408,6 +2469,19 @@ pub unsafe trait VectorOps {
                 buf: ManuallyDrop::new(Box::new_uninit_slice(builder.size())),
             })
         }
+    }
+
+    #[inline]
+    fn conjugate(
+        self,
+    ) -> <Self::Builder as VectorBuilder>::Wrapped<VecConjugate<Self::Unwrapped>> 
+    where 
+        (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair,
+        <Self::Unwrapped as Get>::Item: ComplexField,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe { builder.wrap(VecConjugate { vec: self.unwrap() }) }
     }
 }
 
