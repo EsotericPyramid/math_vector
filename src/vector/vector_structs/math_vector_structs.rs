@@ -9,7 +9,6 @@ use crate::{
         matrix_structs::{MatColVectorExprs, MatRowVectorExprs, MatrixColumn, MatrixRow},
     },
     trait_specialization_utils::*,
-    util_structs::*,
     util_traits::HasOutput,
     vector::{VectorIter, vec_util_traits::*},
 };
@@ -25,7 +24,7 @@ unsafe impl<
     M: MatrixLike,
     V: VectorLike + IsRepeatable,
     B: VectorBuilder,
-    O: AddAssign<<M::Item as std::ops::Mul<<V as Get>::Item>>::Output> + std::iter::Sum,
+    O: AddAssign<<M::Item as std::ops::Mul<<V as Get>::Item>>::Output> + num_traits::Zero,
 > Get for MatVecMul<M, V, B, O>
 where
     M::Item: std::ops::Mul<<V as Get>::Item>,
@@ -45,7 +44,7 @@ where
     fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         unsafe {
             let bound_item = self.vec.get(index).1;
-            let mut sum = NoneIter::<O>::new().sum::<O>();
+            let mut sum = O::zero();
             let row = self.mat.get(index).0;
             for (index, row_elem) in
                 VectorIter::new_from_parts(row, self.inner_builder.clone()).enumerate()
@@ -162,7 +161,7 @@ unsafe impl<
     V: VectorLike + IsRepeatable,
     M: MatrixLike,
     B: VectorBuilder,
-    O: AddAssign<<V::Item as std::ops::Mul<M::Item>>::Output> + std::iter::Sum,
+    O: AddAssign<<V::Item as std::ops::Mul<M::Item>>::Output> + num_traits::Zero,
 > Get for VecMatMul<V, M, B, O>
 where
     V::Item: std::ops::Mul<M::Item>,
@@ -182,7 +181,7 @@ where
     fn process(&mut self, index: usize, _: Self::Inputs) -> (Self::Item, Self::BoundItems) {
         unsafe {
             let bound_item = self.vec.get(index).1;
-            let mut sum = NoneIter::<O>::new().sum::<O>();
+            let mut sum = O::zero();
             let col = self.mat.get(index).0;
             for (index, col_elem) in
                 VectorIter::new_from_parts(col, self.inner_builder.clone()).enumerate()

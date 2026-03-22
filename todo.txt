@@ -9,6 +9,7 @@ Key:
 To Do's:
 - document each file
 - clean up documentation
+- define when to use operation traits vs. broader num/field traits
 ~ add safety explanations (and check safety along the way)
 ~ clean up types to make them more readable
 + lib.rs:
@@ -59,6 +60,8 @@ To Do's:
             X remove where bounds from `ConcreteVectorExpr`'s `borrow` and `borrow_mut` methods
         + vector_builders.rs:
         + vector_structs.rs:
+        + vector_math.rs:
+            X add lazy equivalents for InnerProd (caused overflow when evaluating types last I tried)
     + tests.rs:
         - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
 

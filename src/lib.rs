@@ -357,27 +357,9 @@ pub mod util_traits {
 
 /// provides utility structs for the Library
 pub(crate) mod util_structs {
-    use std::marker::PhantomData;
-
-    /// an iterator which always return None
-    /// used internally to abuse `Sum` and `Product` to get the additive & multiplicative identity values
-    pub struct NoneIter<T>(PhantomData<T>);
-
-    impl<T> NoneIter<T> {
-        #[inline]
-        pub fn new() -> NoneIter<T> {
-            NoneIter(PhantomData)
-        }
-    }
-
-    impl<T> Iterator for NoneIter<T> {
-        type Item = T;
-
-        #[inline]
-        fn next(&mut self) -> Option<Self::Item> {
-            None
-        }
-    }
+    //! here lies a relic...
+    //! once used for `NoneIter`, a iter with 0 items to extract additive and multiplicative identities
+    //! (This module is being kept around just in case it is later needed (that doesn't sound too unlikely))
 }
 
 pub mod matrix;

@@ -7,11 +7,10 @@ use crate::{
         matrix_structs::{MatColVectorExprs, MatrixColumn},
     },
     trait_specialization_utils::*,
-    util_structs::NoneIter,
     util_traits::HasOutput,
 };
 use std::{
-    iter::{Product, Sum},
+    iter::Sum,
     marker::PhantomData,
     mem::{self, ManuallyDrop, MaybeUninit},
     ops::*,
@@ -315,10 +314,10 @@ impl<T: RemAssign<S>, S: Copy, const D: usize> RemAssign<S> for MathVector<T, D>
     }
 }
 
-impl<T1: Sum<T2> + AddAssign<T2>, T2, const D: usize> Sum<MathVector<T2, D>> for MathVector<T1, D> {
+impl<T1: num_traits::Zero + AddAssign<T2>, T2, const D: usize> Sum<MathVector<T2, D>> for MathVector<T1, D> {
     #[inline]
     fn sum<I: Iterator<Item = MathVector<T2, D>>>(iter: I) -> Self {
-        let mut sum = vector_gen(|| Sum::sum(NoneIter::new()))
+        let mut sum = vector_gen(|| T1::zero())
             .create_array()
             .bind()
             .consume();
@@ -1405,7 +1404,7 @@ pub unsafe trait VectorOps {
 
     /// calculates the sum of the vector's elements and adds it to the output
     #[inline]
-    fn sum<S: Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>>(
+    fn sum<S: num_traits::Zero + AddAssign<<Self::Unwrapped as Get>::Item>>(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecSum<Self::Unwrapped, S>>
     where
@@ -1416,7 +1415,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecSum {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -1443,7 +1442,7 @@ pub unsafe trait VectorOps {
     /// calculates the sum of the vector's elements, adding it to the output, while maintaining the vector's items
     #[inline]
     fn copied_sum<
-        S: Sum<<Self::Unwrapped as Get>::Item> + AddAssign<<Self::Unwrapped as Get>::Item>,
+        S: num_traits::Zero + AddAssign<<Self::Unwrapped as Get>::Item>,
     >(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSum<Self::Unwrapped, S>>
@@ -1456,7 +1455,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecCopiedSum {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -1484,7 +1483,7 @@ pub unsafe trait VectorOps {
     /// calculates the product of the vector's elements and adds it to the output
     #[inline]
     fn product<
-        S: Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>,
+        S: num_traits::One + MulAssign<<Self::Unwrapped as Get>::Item>,
     >(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecProduct<Self::Unwrapped, S>>
@@ -1496,7 +1495,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecProduct {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().product()),
+                scalar: ManuallyDrop::new(S::one()),
             })
         }
     }
@@ -1523,7 +1522,7 @@ pub unsafe trait VectorOps {
     /// calculates the product of the vector's elements, adding it to the output, while maintaining the vector's items
     #[inline]
     fn copied_product<
-        S: Product<<Self::Unwrapped as Get>::Item> + MulAssign<<Self::Unwrapped as Get>::Item>,
+        S: num_traits::One + MulAssign<<Self::Unwrapped as Get>::Item>,
     >(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedProduct<Self::Unwrapped, S>>
@@ -1536,7 +1535,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecCopiedProduct {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().product()),
+                scalar: ManuallyDrop::new(S::one()),
             })
         }
     }
@@ -1561,11 +1560,11 @@ pub unsafe trait VectorOps {
         }
     }
 
-    /// calculates the square of the vector's magnitude (ie. sum of each element's square) and adds it to the output
+    /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
+    /// note: this isn't actually correct if working with complex numbers. In that case, use sqr_euclid_mag or euclid_mag
     #[inline]
     fn sqr_mag<
-        S: Sum<<Self::Unwrapped as Get>::Item>
-            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
+        S: num_traits::One + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
     >(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecSqrMag<Self::Unwrapped, S>>
@@ -1578,7 +1577,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecSqrMag {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::one()),
             })
         }
     }
@@ -1586,8 +1585,7 @@ pub unsafe trait VectorOps {
     /// calculates the square of the vector's magnitude (ie. sum of each element's square), adding it to the output, while maintaining the vector's items
     #[inline]
     fn copied_sqr_mag<
-        S: Sum<<Self::Unwrapped as Get>::Item>
-            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
+        S: num_traits::Zero + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
     >(
         self,
     ) -> <Self::Builder as VectorBuilder>::Wrapped<VecCopiedSqrMag<Self::Unwrapped, S>>
@@ -1600,7 +1598,7 @@ pub unsafe trait VectorOps {
         unsafe {
             builder.wrap(VecCopiedSqrMag {
                 vec: self.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -1609,10 +1607,9 @@ pub unsafe trait VectorOps {
     #[inline]
     fn vec_mat_mul<
         M: MatrixOps,
-        O: Sum
-            + AddAssign<
-                <<Self::Unwrapped as Get>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output,
-            >,
+        O: num_traits::Zero + AddAssign<
+            <<Self::Unwrapped as Get>::Item as Mul<<M::Unwrapped as Get2D>::Item>>::Output,
+        >,
     >(
         self,
         mat: M,
@@ -2351,8 +2348,7 @@ pub unsafe trait VectorOps {
     #[inline]
     fn copied_dot<
         V: VectorOps,
-        S: Sum<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>
-            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
+        S: num_traits::Zero + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
     >(
         self,
         other: V,
@@ -2402,7 +2398,7 @@ pub unsafe trait VectorOps {
             builder.wrap(VecCopiedDot {
                 l_vec: self.unwrap(),
                 r_vec: other.unwrap(),
-                scalar: ManuallyDrop::new(NoneIter::new().sum()),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }

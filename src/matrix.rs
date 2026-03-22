@@ -2,7 +2,6 @@
 
 use crate::{
     trait_specialization_utils::*,
-    util_structs::NoneIter,
     util_traits::HasOutput,
     vector::{
         MathVector, VectorOps,
@@ -11,7 +10,6 @@ use crate::{
     },
 };
 use std::{
-    iter::{Product, Sum},
     marker::PhantomData,
     mem::{self, ManuallyDrop, MaybeUninit},
     ops::*,
@@ -380,7 +378,7 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     }
 }
 
-impl<T: num_traits::NumAssign + Copy, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
+impl<T: alga::general::Field + Copy, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     pub fn rref(&mut self) {
         use std::cmp::min;
         use std::collections::HashMap;
@@ -716,14 +714,11 @@ pub fn matrix_index_gen<F: FnMut(usize, usize) -> O, O, const D1: usize, const D
 }
 
 /// generates a Identity matrix of dimensions D, D
-///
-/// the "1" value is obtained from Product as the multiplicative identity
-/// the "0" value is obtained from Sum as the additive identity
-pub fn matrix_identity_gen<T: Copy + Sum + Product, const D: usize>()
+pub fn matrix_identity_gen<T: Copy + num_traits::One + num_traits::Zero, const D: usize>()
 -> MatrixExpr<MatIdentityGenerator<T>, D, D> {
     MatrixExpr(MatIdentityGenerator {
-        zero: NoneIter::<T>::new().sum(),
-        one: NoneIter::<T>::new().product(),
+        zero: T::zero(),
+        one: T::one(),
     })
 }
 
@@ -1365,7 +1360,7 @@ pub trait MatrixOps {
     /// calculates the sum of the Matrix's entries and adds it to Output
     #[inline]
     fn entry_sum<
-        S: Sum<<Self::Unwrapped as Get2D>::Item> + AddAssign<<Self::Unwrapped as Get2D>::Item>,
+        S: num_traits::Zero + AddAssign<<Self::Unwrapped as Get2D>::Item>,
     >(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntrySum<Self::Unwrapped, S>>
@@ -1377,9 +1372,7 @@ pub trait MatrixOps {
         unsafe {
             builder.wrap_mat(MatEntrySum {
                 mat: self.unwrap(),
-                scalar: ManuallyDrop::new(
-                    NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().sum(),
-                ),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -1406,7 +1399,7 @@ pub trait MatrixOps {
     /// calculates the sum of the Matrix's entries and adds it to Output while preserving the item
     #[inline]
     fn copied_entry_sum<
-        S: Sum<<Self::Unwrapped as Get2D>::Item> + AddAssign<<Self::Unwrapped as Get2D>::Item>,
+        S: num_traits::Zero + AddAssign<<Self::Unwrapped as Get2D>::Item>,
     >(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntrySum<Self::Unwrapped, S>>
@@ -1419,9 +1412,7 @@ pub trait MatrixOps {
         unsafe {
             builder.wrap_mat(MatCopiedEntrySum {
                 mat: self.unwrap(),
-                scalar: ManuallyDrop::new(
-                    NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().sum(),
-                ),
+                scalar: ManuallyDrop::new(S::zero()),
             })
         }
     }
@@ -1449,7 +1440,7 @@ pub trait MatrixOps {
     /// calculates the product of the Matrix's entries and adds it to Output
     #[inline]
     fn entry_product<
-        S: Product<<Self::Unwrapped as Get2D>::Item> + MulAssign<<Self::Unwrapped as Get2D>::Item>,
+        S: num_traits::One + MulAssign<<Self::Unwrapped as Get2D>::Item>,
     >(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatEntryProd<Self::Unwrapped, S>>
@@ -1461,9 +1452,7 @@ pub trait MatrixOps {
         unsafe {
             builder.wrap_mat(MatEntryProd {
                 mat: self.unwrap(),
-                scalar: ManuallyDrop::new(
-                    NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().product(),
-                ),
+                scalar: ManuallyDrop::new(S::one()),
             })
         }
     }
@@ -1490,7 +1479,7 @@ pub trait MatrixOps {
     /// calculates the product of the Matrix's entries and adds it to Output while preserving the item
     #[inline]
     fn copied_entry_product<
-        S: Product<<Self::Unwrapped as Get2D>::Item> + MulAssign<<Self::Unwrapped as Get2D>::Item>,
+        S: num_traits::One + MulAssign<<Self::Unwrapped as Get2D>::Item>,
     >(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCopiedEntryProd<Self::Unwrapped, S>>
@@ -1503,9 +1492,7 @@ pub trait MatrixOps {
         unsafe {
             builder.wrap_mat(MatCopiedEntryProd {
                 mat: self.unwrap(),
-                scalar: ManuallyDrop::new(
-                    NoneIter::<<Self::Unwrapped as Get2D>::Item>::new().product(),
-                ),
+                scalar: ManuallyDrop::new(S::one()),
             })
         }
     }
@@ -1614,7 +1601,7 @@ pub trait MatrixOps {
 
     /// multiplies this matrix with a vector (M * V)
     #[inline]
-    fn mat_vec_mul<V: VectorOps, O: AddAssign<<<Self::Unwrapped as Get2D>::Item as std::ops::Mul<<V::Unwrapped as Get>::Item>>::Output> + std::iter::Sum>(self, vec: V) -> <<<Self as MatrixOps>::Builder as MatrixBuilder>::ColBuilder as VectorBuilder>::Wrapped<MatVecMul<<Self as MatrixOps>::Unwrapped, <V as VectorOps>::Unwrapped, <<<Self as MatrixOps>::Builder as MatrixBuilder>::RowBuilder as VectorBuilderUnion<<V as VectorOps>::Builder>>::Union, O>> where
+    fn mat_vec_mul<V: VectorOps, O: AddAssign<<<Self::Unwrapped as Get2D>::Item as std::ops::Mul<<V::Unwrapped as Get>::Item>>::Output> + num_traits::Zero>(self, vec: V) -> <<<Self as MatrixOps>::Builder as MatrixBuilder>::ColBuilder as VectorBuilder>::Wrapped<MatVecMul<<Self as MatrixOps>::Unwrapped, <V as VectorOps>::Unwrapped, <<<Self as MatrixOps>::Builder as MatrixBuilder>::RowBuilder as VectorBuilderUnion<<V as VectorOps>::Builder>>::Union, O>> where
         <Self::Builder as MatrixBuilder>::RowBuilder: VectorBuilderUnion<V::Builder>,
         V::Unwrapped: IsRepeatable,
         <Self::Unwrapped as Get2D>::Item: std::ops::Mul<<V::Unwrapped as Get>::Item>,
