@@ -111,3 +111,8 @@ impl<V1: VectorOps, V2: VectorOps, F: ComplexField> InnerProduct<V1, V2, F> for 
         lhs_vector.euclidean_inner_prod(rhs_vector).consume()
     }
 }
+
+pub trait Norm<V: VectorOps, F: ComplexField>: InnerProduct<V, V, F> where V::Unwrapped: Get<Item = F> {
+    fn sqr_norm(vector: V) -> F;
+    fn norm(vector: V) -> F {Self::sqr_norm(vector).sqrt()}
+}
