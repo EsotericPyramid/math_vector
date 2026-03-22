@@ -1561,7 +1561,7 @@ pub unsafe trait VectorOps {
     }
 
     /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
-    /// note: this isn't actually correct if working with complex numbers. In that case, use sqr_euclid_mag or euclid_mag
+    /// note: this isn't actually correct if working with complex numbers. In that case, use `sqr_euclid_mag`
     #[inline]
     fn sqr_mag<
         S: num_traits::One + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
@@ -1582,7 +1582,30 @@ pub unsafe trait VectorOps {
         }
     }
 
+    /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
+    /// note: unless actually working with complex numbers, this is the same as `sqr_mag`
+    #[inline]
+    fn sqr_euclid_mag<
+        F: Copy + ComplexField,
+    >(
+        self,
+    ) -> <Self::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<Self::Unwrapped, F>>
+    where
+        (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
+        Self::Unwrapped: Get<Item = F>,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap(VecSqrEuclidMag {
+                vec: self.unwrap(),
+                scalar: ManuallyDrop::new(F::one()),
+            })
+        }
+    }
+
     /// calculates the square of the vector's magnitude (ie. sum of each element's square), adding it to the output, while maintaining the vector's items
+    /// note: this isn't actually correct if working with complex numbers. In that case, use copied_sqr_euclid_mag or copied_euclid_mag
     #[inline]
     fn copied_sqr_mag<
         S: num_traits::Zero + AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>,
@@ -1599,6 +1622,28 @@ pub unsafe trait VectorOps {
             builder.wrap(VecCopiedSqrMag {
                 vec: self.unwrap(),
                 scalar: ManuallyDrop::new(S::zero()),
+            })
+        }
+    }
+
+    /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
+    /// note: unless actually working with complex numbers, this is the same as `sqr_mag`
+    #[inline]
+    fn copied_sqr_euclid_mag<
+        F: Copy + ComplexField,
+    >(
+        self,
+    ) -> <Self::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<Self::Unwrapped, F>>
+    where
+        (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
+        Self::Unwrapped: Get<Item = F>,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap(VecSqrEuclidMag {
+                vec: self.unwrap(),
+                scalar: ManuallyDrop::new(F::one()),
             })
         }
     }

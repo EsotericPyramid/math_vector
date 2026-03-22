@@ -116,3 +116,34 @@ pub trait Norm<V: VectorOps, F: ComplexField>: InnerProduct<V, V, F> where V::Un
     fn sqr_norm(vector: V) -> F;
     fn norm(vector: V) -> F {Self::sqr_norm(vector).sqrt()}
 }
+
+impl<V: VectorOps, F: ComplexField + RealField> Norm<V, F> for DotProduct where 
+    V::Unwrapped: Get<Item = F>, 
+    Self: InnerProduct<V, V, F>,
+    (<V::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
+    <V::Builder as VectorBuilder>::Wrapped<VecSqrMag<V::Unwrapped, F>>: VectorOps,
+    <<V::Builder as VectorBuilder>::Wrapped<VecSqrMag<V::Unwrapped, F>> as VectorOps>::Unwrapped: HasOutput<Output = F>,
+    <<V::Builder as VectorBuilder>::Wrapped<VecSqrMag<V::Unwrapped, F>> as VectorOps>::Unwrapped: HasReuseBuf<
+        BoundTypes = <<<V::Builder as VectorBuilder>::Wrapped<VecSqrMag<V::Unwrapped, F>> as VectorOps>::Unwrapped as Get>::BoundItems,
+    >
+{
+    fn sqr_norm(vector: V) -> F {
+        vector.sqr_mag().consume()
+    }
+}
+
+impl<V: VectorOps, F: ComplexField> Norm<V, F> for EuclideanInnerProduct where 
+    V::Unwrapped: Get<Item = F>, 
+    Self: InnerProduct<V, V, F>,
+    (<V::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
+    <V::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<V::Unwrapped, F>>: VectorOps,
+    <<V::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<V::Unwrapped, F>> as VectorOps>::Unwrapped: HasOutput<Output = F>,
+    <<V::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<V::Unwrapped, F>> as VectorOps>::Unwrapped: HasReuseBuf<
+        BoundTypes = <<<V::Builder as VectorBuilder>::Wrapped<VecSqrEuclidMag<V::Unwrapped, F>> as VectorOps>::Unwrapped as Get>::BoundItems,
+    >
+{
+    fn sqr_norm(vector: V) -> F {
+        vector.sqr_euclid_mag().consume()
+    }
+}
+

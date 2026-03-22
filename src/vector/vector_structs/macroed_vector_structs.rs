@@ -304,14 +304,19 @@ vec_structs!(
     "Struct multiplying together a vector's items, adding it to Output";
     VecProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: MulAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar *= input;
     "Struct calculating the square magnitude of a vector, adding it to Output";
-    VecSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: (), |self, input| *self.scalar += input*input;
+    VecSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: (), |self, input| *self.scalar += input * input;
+    "Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output";
+    VecSqrEuclidMag<{V}, F: ComplexField>{vec, scalar: ManuallyDrop<F>} where V: Get<Item = F>; output: scalar: F, get: (), |self, input| *self.scalar += input * input.conjugate(); 
+
 
     "Struct summing up a vector's items, adding it to Output while preserving the item";
     VecCopiedSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: AddAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input; input};
     "Struct multiplying together a vector's items, adding it to Output while preserving the item";
     VecCopiedProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: MulAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar *= input; input};
     "Struct calculating the square magnitude of a vector, adding it to Output while preserving the item";
-    VecCopiedSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input*input; input};
+    VecCopiedSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input * input; input};
+    "Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output while preserving the item";
+    VecCopiedSqrEuclidMag<{V}, F: ComplexField>{vec, scalar: ManuallyDrop<F>} where V: Get<Item = F>; output: scalar: F, get: F, |self, input| {*self.scalar += input * input.conjugate(); input}; 
 
     "UHOH, I forgor to write this documentation (FIXME)";
     VecConjugate<{V}>{vec} where V::Item: ComplexField; get: V::Item, |self, input| {input.conjugate()};

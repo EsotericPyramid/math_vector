@@ -61,7 +61,7 @@ To Do's:
         + vector_builders.rs:
         + vector_structs.rs:
         + vector_math.rs:
-            X add lazy equivalents for InnerProd (caused overflow when evaluating types last I tried)
+            X add lazy equivalents for InnerProd (caused overflow when evaluating types last I tried) & Norm
     + tests.rs:
         - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
 
