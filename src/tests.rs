@@ -1,6 +1,6 @@
 use crate::{
-    matrix::{MathMatrix, MatrixEvalOps, MatrixOps, matrix_gen},
-    vector::{MathVector, RSMathVector, RepeatableVectorOps, VectorEvalOps, VectorOps, vector_gen},
+    matrix::{matrix_gen, MathMatrix, MatrixEvalOps, MatrixOps},
+    vector::{vector_gen, MathVector, RSMathVector, RepeatableVectorOps, VectorEvalOps, VectorInPlaceEvalOps, VectorOps},
 };
 use rand::Rng;
 use std::{hint::black_box, time::*};
@@ -186,6 +186,33 @@ fn repeatable_vectors_test() {
         println!("{}", vec3.get(rng.random_range(0..10000)));
     }
     let (sum, product) = vec3.product::<f64>().consume();
+    println!("sum: {}, product: {}", sum, product);
+}
+
+#[test]
+#[ignore]
+fn eval_in_place_vectors_test() {
+    let mut rng = rand::rng();
+    let vec1: MathVector<u64, 10> = vector_gen(|| rng.random_range(0..10)).eval();
+    let vec2: MathVector<u64, 10> = vector_gen(|| rng.random_range(0..10)).eval();
+    println!("vec1: {}", vec1);
+    println!("vec2: {}", vec2);
+    let mut vec3 = (vec1.reuse().comp_mul(vec2))
+        .copied_sum::<u64>()
+        .eval_in_place();
+    println!("vec3: ");
+    for i in 0..10 {
+        println!("{}", vec3[i]);
+    }
+    println!("prefix_summing...");
+    for i in 1..10 {
+        vec3[i] += vec3[i-1];
+    }
+    println!("vec3: ");
+    for i in 0..10 {
+        println!("{}", vec3[i]);
+    }
+    let (sum, product) = vec3.product::<u64>().consume();
     println!("sum: {}, product: {}", sum, product);
 }
 

@@ -17,15 +17,23 @@ pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where
 
     <Self as Index<usize>>::Output: Sized,
 {
-    type Referenced<'a>: VectorOps + Index<usize, Output = <Self as Index<usize>>::Output> 
+    type ReferencedInner<'a>: VectorLike<Item = &'a <Self as Index<usize>>::Output> 
     where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
         <Self as Index<usize>>::Output: 'a,
         Self: 'a,
     ;
-    type ReferencedMut<'a>: VectorOps + Index<usize, Output = <Self as Index<usize>>::Output> + IndexMut<usize>
+    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = <Self as Index<usize>>::Output> 
+    where
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut <Self as Index<usize>>::Output> 
     where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a,
+    ;
+    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = <Self as Index<usize>>::Output> + IndexMut<usize>
+    where 
         <Self as Index<usize>>::Output: 'a,
         Self: 'a,
     ;

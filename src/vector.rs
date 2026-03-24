@@ -250,6 +250,54 @@ where
     }
 }
 
+impl<'a, T, I, const D: usize> Index<I> for &'a MathVector<T, D>
+where
+    [T; D]: Index<I>,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.0[index]
+    }
+}
+
+impl<'a, T, I, const D: usize> Index<I> for VectorExpr<&'a [T; D], D>
+where
+    [T; D]: Index<I>,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<'a, T, I, const D: usize> Index<I> for &'a mut MathVector<T, D>
+where
+    [T; D]: Index<I>,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.0[index]
+    }
+}
+
+impl<'a, T, I, const D: usize> Index<I> for VectorExpr<&'a mut [T; D], D>
+where
+    [T; D]: Index<I>,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
 impl<T, I, const D: usize> IndexMut<I> for MathVector<T, D>
 where
     [T; D]: IndexMut<I>,
@@ -257,6 +305,63 @@ where
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0.0[index]
+    }
+}
+
+impl<'a, T, I, const D: usize> IndexMut<I> for &'a mut MathVector<T, D>
+where
+    [T; D]: IndexMut<I>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0.0[index]
+    }
+}
+
+impl<'a, T, I, const D: usize> IndexMut<I> for VectorExpr<&'a mut [T; D], D>
+where
+    [T; D]: IndexMut<I>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
+    type ReferencedInner<'a> = &'a [T; D] 
+    where 
+        T: 'a,
+        Self: 'a,
+    ;
+    type Referenced<'a> = &'a MathVector<T, D>
+    where
+        T: 'a,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> = &'a mut [T; D] 
+    where 
+        T: 'a,
+        Self: 'a,
+    ;
+    type ReferencedMut<'a> = &'a mut MathVector<T, D>
+    where
+        T: 'a,
+        Self: 'a
+    ;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+            <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a {
+        self
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+            <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a, {
+        self
     }
 }
 
@@ -293,6 +398,82 @@ where
         &mut self.0.vec.0[index]
     }
 }
+
+impl<T, I, USEDV: VectorLike, const D: usize> Index<I> for VectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D>
+where
+    [T; D]: Index<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.vec.0[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike, const D: usize> IndexMut<I> for VectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D>
+where
+    [T; D]: IndexMut<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0.vec.0[index]
+    }
+}
+
+impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<VecAttachUsedVec<VectorArray<T, D>, USEDV>, D> where
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type ReferencedInner<'a> = &'a [T; D]
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type Referenced<'a> = VectorExpr<&'a [T; D], D>
+        where
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type ReferencedMutInner<'a> =  &'a mut [T; D]
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type ReferencedMut<'a> = VectorExpr<&'a mut [T; D], D>
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+            <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a 
+    {
+        VectorExpr(&*self.0.vec.0)
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+            <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a, {
+        VectorExpr(&mut *self.0.vec.0)
+    }
+}
+
 
 impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -3004,7 +3185,8 @@ where
     }
 }
 
-impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for VectorExpr<V, D> where 
+impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for VectorExpr<V, D> 
+where 
     <V::FstHandleBool as TyBool>::Neg: Filter,
     (V::BoundHandlesBool, Y): FilterPair,
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
@@ -3159,6 +3341,74 @@ where
             let out = builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()});
             mem::forget(vec_iter);
             out
+        }
+    }
+}
+
+impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for Box<VectorExpr<V, D>>
+where 
+    <V::FstHandleBool as TyBool>::Neg: Filter,
+    (V::BoundHandlesBool, Y): FilterPair,
+    (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
+        Selected<V::FstOwnedBuffer, Box<MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>>> = Box<MathVector<V::Item, D>>
+    >,
+    (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
+    (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>,
+    (N, <(V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or) as TyBoolPair>::Or): FilterPair,
+    (N, <VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>> as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>> as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>> as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>> as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>> as HasReuseBuf>::BoundHandlesBool): FilterPair,
+{
+    type ConcreteVectorLike = Box<VectorArray<V::Item, D>>;
+    type UsedVector = VecHalfBind<VecMaybeCreateHeapArray<Box<V>, V::Item, D>>;
+
+    fn eval_in_place(self) -> <Self::Builder as VectorBuilder>::Wrapped<
+            VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+        > where 
+            (
+                <Self::ConcreteVectorLike as HasOutput>::OutputBool,
+                <Self::UsedVector as HasOutput>::OutputBool,
+            ): FilterPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::FstHandleBool,
+                <Self::UsedVector as HasReuseBuf>::FstHandleBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::SndHandleBool,
+                <Self::UsedVector as HasReuseBuf>::SndHandleBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::BoundHandlesBool,
+                <Self::UsedVector as HasReuseBuf>::BoundHandlesBool,
+            ): FilterPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::FstOwnedBufferBool,
+                <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::SndOwnedBufferBool,
+                <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
+            ): SelectPair,
+            (
+                <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+                <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            ): TyBoolPair,
+            <(
+                <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+                <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            ) as TyBoolPair>::Or: IsTrue,
+            
+            Self: Sized, 
+    {
+        let builder = self.get_builder();
+        let mut vec_iter = self.maybe_create_heap_array().half_bind().into_iter();
+        unsafe {
+            vec_iter.no_output_consume();
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
         }
     }
 }
