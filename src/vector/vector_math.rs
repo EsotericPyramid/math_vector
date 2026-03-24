@@ -11,8 +11,8 @@ use std::ops::{Index, IndexMut};
 use alga::general::{ComplexField, RealField};
 
 pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where 
-    Self: From<Vec<<Self as Index<usize>>::Output>>,
-    Vec<<Self as Index<usize>>::Output>: From<Self>,
+    //Self: From<Vec<<Self as Index<usize>>::Output>>,
+    //Vec<<Self as Index<usize>>::Output>: From<Self>,
     <Self as VectorOps>::Unwrapped: Get<Item = <Self as Index<usize>>::Output>,
 
     <Self as Index<usize>>::Output: Sized,

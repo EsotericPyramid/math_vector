@@ -2,12 +2,10 @@
 
 use crate::{
     matrix::{
-        MatrixOps,
-        mat_util_traits::{Get2D, MatrixBuilder},
-        matrix_structs::{MatColVectorExprs, MatrixColumn},
+        mat_util_traits::{Get2D, MatrixBuilder}, matrix_structs::{MatColVectorExprs, MatrixColumn}, MatrixOps
     },
     trait_specialization_utils::*,
-    util_traits::HasOutput,
+    util_traits::HasOutput, vector::vector_math::ConcreteVectorExpr,
 };
 use std::{
     iter::Sum,
@@ -259,6 +257,40 @@ where
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0.0[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike, const D: usize> Index<I> for VectorExpr<VecAttachUsedVec<VectorArray<T, D>, USEDV>, D>
+where
+    [T; D]: Index<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.vec.0[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike, const D: usize> IndexMut<I> for VectorExpr<VecAttachUsedVec<VectorArray<T, D>, USEDV>, D>
+where
+    [T; D]: IndexMut<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0.vec.0[index]
     }
 }
 
@@ -2695,6 +2727,69 @@ pub trait RepeatableVectorOps: VectorOps {
         ) as TyBoolPair>::Or: IsTrue;
 }
 
+pub trait VectorInPlaceEvalOps: VectorOps {
+    type ConcreteVectorLike: VectorLike;
+    type UsedVector: VectorLike;
+
+    fn eval_in_place(self) -> <Self::Builder as VectorBuilder>::Wrapped<
+        VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+    > where 
+        <Self::Builder as VectorBuilder>::Wrapped<
+            VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+        >: ConcreteVectorExpr,
+
+        <<Self::Builder as VectorBuilder>::Wrapped<
+            VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+        > as VectorOps>::Unwrapped: Get<Item = 
+            <
+                <Self::Builder as VectorBuilder>::Wrapped<
+                    VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+                > as Index<usize>
+            >::Output
+        >,
+
+        <
+            <Self::Builder as VectorBuilder>::Wrapped<
+                VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+            > as Index<usize>
+        >::Output: Sized,
+
+        (
+            <Self::ConcreteVectorLike as HasOutput>::OutputBool,
+            <Self::UsedVector as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::FstHandleBool,
+            <Self::UsedVector as HasReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::SndHandleBool,
+            <Self::UsedVector as HasReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::BoundHandlesBool,
+            <Self::UsedVector as HasReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::FstOwnedBufferBool,
+            <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::SndOwnedBufferBool,
+            <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+        Self: Sized,
+    ;
+}
+
 pub trait VectorEvalOps: VectorOps {
     type MaybeCreateBuffer<V: VectorLike>: VectorLike<FstHandleBool = Y>
     where
@@ -2905,6 +3000,72 @@ where
         unsafe {
             vec_iter.no_output_consume();
             builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
+        }
+    }
+}
+
+impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for VectorExpr<V, D> where 
+    <V::FstHandleBool as TyBool>::Neg: Filter,
+    (V::BoundHandlesBool, Y): FilterPair,
+    (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
+    Selected<V::FstOwnedBuffer, MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>> = MathVector<V::Item, D>>,
+    (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
+    (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>,
+    (N, <(V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or) as TyBoolPair>::Or): FilterPair,
+    (N, <VecHalfBind<VecMaybeCreateArray<V, V::Item, D>> as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateArray<V, V::Item, D>> as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateArray<V, V::Item, D>> as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateArray<V, V::Item, D>> as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateArray<V, V::Item, D>> as HasReuseBuf>::BoundHandlesBool): FilterPair,
+{
+    type ConcreteVectorLike = VectorArray<V::Item, D>;
+    type UsedVector = VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>;
+
+    fn eval_in_place(self) -> <Self::Builder as VectorBuilder>::Wrapped<
+            VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+        > where 
+            (
+                <Self::ConcreteVectorLike as HasOutput>::OutputBool,
+                <Self::UsedVector as HasOutput>::OutputBool,
+            ): FilterPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::FstHandleBool,
+                <Self::UsedVector as HasReuseBuf>::FstHandleBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::SndHandleBool,
+                <Self::UsedVector as HasReuseBuf>::SndHandleBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::BoundHandlesBool,
+                <Self::UsedVector as HasReuseBuf>::BoundHandlesBool,
+            ): FilterPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::FstOwnedBufferBool,
+                <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
+            ): SelectPair,
+            (
+                <Self::ConcreteVectorLike as HasReuseBuf>::SndOwnedBufferBool,
+                <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
+            ): SelectPair,
+            (
+                <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+                <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            ): TyBoolPair,
+            <(
+                <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+                <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            ) as TyBoolPair>::Or: IsTrue,
+            
+            Self: Sized, 
+    {
+        let builder = self.get_builder();
+        let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
+        unsafe {
+            vec_iter.no_output_consume();
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
         }
     }
 }
