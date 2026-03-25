@@ -1012,6 +1012,88 @@ impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where
 {
 }
 
+macro_rules! is_present {
+    () => {
+        N
+    };
+    ($($tt:tt)+) => {
+        Y
+    }
+}
+
+macro_rules! vec_op{
+    ( // vec x vec ops
+        $(
+            $comment:literal
+            fn $op_name:ident<
+                $(
+                    $lifetime:lifetime,
+                )* 
+                {$v:ident $(: $($v_lifetime:lifetime|)? $($v_bound:path)|+)?} 
+                $(
+                    ,$generic:ident $(: $($generic_lifetime:lifetime|)? $generic_bound_head:path $(| $generic_bound:path)*)?
+                )*
+            >($self:ident $(, $val:ident: $ty:ty)*) -> $unwrapped_output:ty $(, output: $output:ty)?
+            $(where $(
+                $where_bounded:ty: $($where_bound_lifetime:lifetime |)? $where_bound_head:path $(| $where_bound:path)*
+            ),+ $(,)?)?
+            {$($expr:tt)*}
+        )*
+    ) => {
+        $(
+            #[doc=$comment]
+            #[inline]
+            fn $op_name<
+                $($lifetime,)* 
+                $v : $($($v_lifetime +)?)? VectorOps $($(+ $v_bound)+)?
+                $(,$generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?)*
+            >($self $(, $val: $ty)*) -> <<
+                <Self as VectorOps>::Builder as VectorBuilderUnion<<$v as VectorOps>::Builder>
+            >::Union as VectorBuilder>::Wrapped<$unwrapped_output> 
+            where 
+                Self: Sized,
+                <Self as VectorOps>::Builder: VectorBuilderUnion<<V as VectorOps>::Builder>,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                    <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                ): FilterPair,
+                (
+                    <(
+                        <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                        <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                    ) as TyBoolPair>::Or,
+                    is_present!($($output)?),
+                ): FilterPair,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                    <<V as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                ): FilterPair,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
+                    <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
+                ): SelectPair,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
+                    <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
+                ): SelectPair,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                    <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                ): SelectPair,
+                (
+                    <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                    <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                ): SelectPair,
+                $($(
+                    $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
+                )+)?
+            {
+                $($expr)*
+            }
+        )*
+    };
+}
+
 /// a trait with various vector operations
 #[allow(clippy::type_complexity)] // triggers on the output types of the fn's even though they can't be shortened
 pub unsafe trait VectorOps {
@@ -1955,711 +2037,173 @@ pub unsafe trait VectorOps {
         }
     }
 
-    /// adds 2 vectors
-    #[inline]
-    fn add<V: VectorOps>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecAdd<Self::Unwrapped, V::Unwrapped>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Add<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecAdd {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+    vec_op!(
+        "adds 2 vectors"
+        fn add<{V}>(self, other: V) -> VecAdd<Self::Unwrapped, V::Unwrapped> where <Self::Unwrapped as Get>::Item: Add<<V::Unwrapped as Get>::Item> {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecAdd {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
 
-    /// substracts the other vector from self
-    #[inline]
-    fn sub<V: VectorOps>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecSub<Self::Unwrapped, V::Unwrapped>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Sub<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecSub {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+        "substracts the other vector from self"
+        fn sub<{V}>(self, other: V) -> VecSub<Self::Unwrapped, V::Unwrapped> where <Self::Unwrapped as Get>::Item: Sub<<V::Unwrapped as Get>::Item> {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecSub {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
 
-    /// component-wise multiplies 2 vectors
-    #[inline]
-    fn comp_mul<V: VectorOps>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompMul<Self::Unwrapped, V::Unwrapped>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompMul {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+        "component-wise multiplies 2 vectors"
+        fn comp_mul<{V}>(self, other: V) -> VecCompMul<Self::Unwrapped, V::Unwrapped> where <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item> {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompMul {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
 
-    /// component-wise divides self by other
-    #[inline]
-    fn comp_div<V: VectorOps>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompDiv<Self::Unwrapped, V::Unwrapped>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Div<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompDiv {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+        "component-wise divides self by other"
+        fn comp_div<{V}>(self, other: V) -> VecCompDiv<Self::Unwrapped, V::Unwrapped> where <Self::Unwrapped as Get>::Item: Div<<V::Unwrapped as Get>::Item> {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompDiv {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
 
-    /// component-wise get remainder (%) of self by other
-    #[inline]
-    fn comp_rem<V: VectorOps>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompRem<Self::Unwrapped, V::Unwrapped>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Rem<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompRem {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+        "component-wise get remainder (%) of self by other"
+        fn comp_rem<{V}>(self, other: V) -> VecCompRem<Self::Unwrapped, V::Unwrapped> where <Self::Unwrapped as Get>::Item: Rem<<V::Unwrapped as Get>::Item> {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompRem {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// add assigns (+=) the self's items (&mut T) with other
-    #[inline]
-    fn add_assign<'a, V: VectorOps, I: 'a + AddAssign<<V::Unwrapped as Get>::Item>>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecAddAssign<'a, Self::Unwrapped, V::Unwrapped, I>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        Self::Unwrapped: Get<Item = &'a mut I>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecAddAssign {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+        
+        "add assigns (+=) the self's items (&mut T) with other"
+        fn add_assign<'a, {V}, I: 'a | AddAssign<<V::Unwrapped as Get>::Item>>(self, other: V) -> VecAddAssign<'a, Self::Unwrapped, V::Unwrapped, I>
+        where Self::Unwrapped: Get<Item = &'a mut I>,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecAddAssign {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// sub assigns (-=) the self's items (&mut T) with other
-    #[inline]
-    fn sub_assign<'a, V: VectorOps, I: 'a + SubAssign<<V::Unwrapped as Get>::Item>>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecSubAssign<'a, Self::Unwrapped, V::Unwrapped, I>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        Self::Unwrapped: Get<Item = &'a mut I>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecSubAssign {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+    
+        "sub assigns (-=) the self's items (&mut T) with other"
+        fn sub_assign<'a, {V}, I: 'a | SubAssign<<V::Unwrapped as Get>::Item>>(self, other: V) -> VecSubAssign<'a, Self::Unwrapped, V::Unwrapped, I>
+        where Self::Unwrapped: Get<Item = &'a mut I>,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecSubAssign {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// mul assigns (*=) the self's items (&mut T) with other
-    #[inline]
-    fn comp_mul_assign<'a, V: VectorOps, I: 'a + MulAssign<<V::Unwrapped as Get>::Item>>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompMulAssign<'a, Self::Unwrapped, V::Unwrapped, I>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        Self::Unwrapped: Get<Item = &'a mut I>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompMulAssign {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+    
+        "mul assigns (*=) the self's items (&mut T) with other"
+        fn comp_mul_assign<'a, {V}, I: 'a | MulAssign<<V::Unwrapped as Get>::Item>>(self, other: V) -> VecCompMulAssign<'a, Self::Unwrapped, V::Unwrapped, I>
+        where Self::Unwrapped: Get<Item = &'a mut I>,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompMulAssign {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// div assigns (/=) the self's items (&mut T) with other
-    #[inline]
-    fn comp_div_assign<'a, V: VectorOps, I: 'a + DivAssign<<V::Unwrapped as Get>::Item>>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompDivAssign<'a, Self::Unwrapped, V::Unwrapped, I>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        Self::Unwrapped: Get<Item = &'a mut I>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompDivAssign {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+    
+        "div assigns (/=) the self's items (&mut T) with other"
+        fn comp_div_assign<'a, {V}, I: 'a | DivAssign<<V::Unwrapped as Get>::Item>>(self, other: V) -> VecCompDivAssign<'a, Self::Unwrapped, V::Unwrapped, I>
+        where Self::Unwrapped: Get<Item = &'a mut I>,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompDivAssign {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// rem assigns (%=) the self's items (&mut T) with other
-    #[inline]
-    fn comp_rem_assign<'a, V: VectorOps, I: 'a + RemAssign<<V::Unwrapped as Get>::Item>>(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCompRemAssign<'a, Self::Unwrapped, V::Unwrapped, I>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        Self::Unwrapped: Get<Item = &'a mut I>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            N,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCompRemAssign {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-            })
+    
+        "rem assigns (%=) the self's items (&mut T) with other"
+        fn comp_rem_assign<'a, {V}, I: 'a | RemAssign<<V::Unwrapped as Get>::Item>>(self, other: V) -> VecCompRemAssign<'a, Self::Unwrapped, V::Unwrapped, I>
+        where Self::Unwrapped: Get<Item = &'a mut I>,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCompRemAssign {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                })
+            }
         }
-    }
-
-    /// calculates the dot product of 2 vectors and adds it to the output
-    #[inline]
-    fn dot<
-        V: VectorOps,
-        S: num_traits::Zero
-            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
-    >(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecDot<Self::Unwrapped, V::Unwrapped, S>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            Y,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecDot {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-                scalar: ManuallyDrop::new(S::zero()),
-            })
+        "calculates the dot product of 2 vectors and adds it to the output"
+        fn dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecDot<Self::Unwrapped, V::Unwrapped, S>, output: S
+        where <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item> 
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecDot {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                    scalar: ManuallyDrop::new(S::zero()),
+                })
+            }
         }
-    }
-
-    #[inline]
-    fn euclidean_inner_prod<
-        V: VectorOps,
-        S: num_traits::Zero
-            + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
-    >(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecEuclidInnerProd<Self::Unwrapped, V::Unwrapped, S>,
-    >
-    where
-        <Self::Unwrapped as Get>::Item: ComplexField,
-        <V::Unwrapped as Get>::Item: ComplexField,
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            Y,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecEuclidInnerProd {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-                scalar: ManuallyDrop::new(S::zero()),
-            })
+        
+        "calculates the euclidean inner product of 2 vectors and adds it to the output"
+        fn euclidean_inner_prod<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecEuclidInnerProd<Self::Unwrapped, V::Unwrapped, S>, output: S
+        where
+            <Self::Unwrapped as Get>::Item: ComplexField | Mul<<V::Unwrapped as Get>::Item>,
+            <V::Unwrapped as Get>::Item: ComplexField,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecEuclidInnerProd {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                    scalar: ManuallyDrop::new(S::zero()),
+                })
+            }
         }
-    }
-
-    /// calculates the dot product of 2 vectors and adds it to the output
-    #[inline]
-    fn copied_dot<
-        V: VectorOps,
-        S: num_traits::Zero + AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>,
-    >(
-        self,
-        other: V,
-    ) -> <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<
-        VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>,
-    >
-    where
-        Self::Builder: VectorBuilderUnion<V::Builder>,
-        <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item>,
-        <Self::Unwrapped as Get>::Item: Copy,
-        <V::Unwrapped as Get>::Item: Copy,
-        (
-            <Self::Unwrapped as HasOutput>::OutputBool,
-            <V::Unwrapped as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <(
-                <Self::Unwrapped as HasOutput>::OutputBool,
-                <V::Unwrapped as HasOutput>::OutputBool,
-            ) as TyBoolPair>::Or,
-            Y,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-            <V::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <V::Unwrapped as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-            <V::Unwrapped as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-            <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        Self: Sized,
-    {
-        let builder = self.get_builder().union(other.get_builder());
-        unsafe {
-            builder.wrap(VecCopiedDot {
-                l_vec: self.unwrap(),
-                r_vec: other.unwrap(),
-                scalar: ManuallyDrop::new(S::zero()),
-            })
+    
+    
+        "calculates the dot product of 2 vectors and adds it to the output"
+        fn copied_dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>, output: S
+        where
+            <Self::Unwrapped as Get>::Item: Copy | Mul<<V::Unwrapped as Get>::Item>,
+            <V::Unwrapped as Get>::Item: Copy,
+        {
+            let builder = self.get_builder().union(other.get_builder());
+            unsafe {
+                builder.wrap(VecCopiedDot {
+                    l_vec: self.unwrap(),
+                    r_vec: other.unwrap(),
+                    scalar: ManuallyDrop::new(S::zero()),
+                })
+            }
         }
-    }
+    );
 
     /// attaches a &mut RSMathVector to the first buffer
     /// note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
