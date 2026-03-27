@@ -365,5 +365,11 @@ pub(crate) mod util_structs {
 pub mod matrix;
 pub mod vector;
 
+/// just a handy dandy collection of the basic gotos, nothing too complicated in here
+pub mod prelude {
+    pub use crate::matrix::{matrix_gen, MathMatrix, MatrixEvalOps, MatrixOps};
+    pub use crate::vector::{vector_gen, MathVector, RSMathVector, VectorEvalOps, VectorOps};
+}
+
 #[cfg(test)]
 mod tests;

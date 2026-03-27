@@ -1,6 +1,6 @@
+use crate::prelude::*;
 use crate::{
-    matrix::{matrix_gen, MathMatrix, MatrixEvalOps, MatrixOps},
-    vector::{vector_gen, MathVector, RSMathVector, RepeatableVectorOps, VectorEvalOps, VectorInPlaceEvalOps, VectorOps},
+    vector::{RepeatableVectorOps, VectorInPlaceEvalOps},
 };
 use rand::Rng;
 use std::{hint::black_box, time::*};
