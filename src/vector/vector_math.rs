@@ -1,11 +1,7 @@
 use crate::{
-    trait_specialization_utils::*, 
-    vector::{
-        VectorOps, 
-        vec_util_traits::*,
-        vector_structs::*,
-    },
-    util_traits::HasOutput,
+    trait_specialization_utils::*, util_traits::HasOutput, vector::{
+        vec_util_traits::*, vector_structs::*, VectorOps
+    }
 };
 use std::ops::{Index, IndexMut};
 use alga::general::{ComplexField, RealField};
@@ -244,3 +240,74 @@ impl<V: VectorOps, F: ComplexField> Norm<V, F> for EuclideanInnerProduct where
     }
 }
 
+/*
+//very unsure of this definition rn
+pub trait VectorInnerProdOps: VectorOps where <Self::Unwrapped as Get>::Item: ComplexField {
+    type InnerProduct<V1: VectorOps, V2: VectorOps, F: ComplexField>: InnerProduct<V1, V2, F> where 
+        V1::Unwrapped: Get<Item = F>,
+        V2::Unwrapped: Get<Item = F>,
+    ;
+
+    // TODO when I add lazy InnerProduct stuf
+    //fn inner_prod<V: VectorOps>(self, other: V) -> 
+
+    fn proj<V: VectorOps>(self, onto: V) -> () where 
+        Self: VectorInPlaceEvalOps,
+        V: VectorInPlaceEvalOps,
+        Self: Sized,
+
+        <<V::Builder as VectorBuilder>::Wrapped<
+            VecAttachUsedVec<V::ConcreteVectorLike, V::UsedVector>,
+        > as VectorOps>::Unwrapped: Get<Item = 
+            <
+                <V::Builder as VectorBuilder>::Wrapped<
+                    VecAttachUsedVec<V::ConcreteVectorLike, V::UsedVector>,
+                > as Index<usize>
+            >::Output
+        >,
+
+        <
+            <V::Builder as VectorBuilder>::Wrapped<
+                VecAttachUsedVec<V::ConcreteVectorLike, V::UsedVector>,
+            > as Index<usize>
+        >::Output: Sized,
+
+        (
+            <V::ConcreteVectorLike as HasOutput>::OutputBool,
+            <V::UsedVector as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <V::ConcreteVectorLike as HasReuseBuf>::FstHandleBool,
+            <V::UsedVector as HasReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <V::ConcreteVectorLike as HasReuseBuf>::SndHandleBool,
+            <V::UsedVector as HasReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <V::ConcreteVectorLike as HasReuseBuf>::BoundHandlesBool,
+            <V::UsedVector as HasReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <V::ConcreteVectorLike as HasReuseBuf>::FstOwnedBufferBool,
+            <V::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <V::ConcreteVectorLike as HasReuseBuf>::SndOwnedBufferBool,
+            <V::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <<V::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<V::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+    {
+        let evaled_onto = onto.eval_in_place();
+        let proj_mag = Self::InnerProduct::inner_prod(self.borrow(), evaled_onto.borrow()) / Self::InnerProduct::inner_prod(evaled_onto.borrow(), evaled_onto.borrow());
+        evaled_onto * proj_mag
+    }
+}
+*/

@@ -44,6 +44,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - document repeated 
         - splitup and reorganize vector.rs
         - merge ReusableVectorOps into VectorInPlaceEvalOps (& maybe VectorEvalOps)
         X fix RS Vec's trait bound infinite recursion when evaluating sometimes (ex: &RSMathVector * 3 with unspecified num type)
