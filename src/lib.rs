@@ -365,6 +365,30 @@ pub(crate) mod util_structs {
 pub mod matrix;
 pub mod vector;
 
+pub struct Scalar<T>(pub T);
+
+impl<T> From<T> for Scalar<T> {
+    fn from(value: T) -> Self {Self(value)}
+}
+
+impl<T> std::ops::Deref for Scalar<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {&self.0}
+}
+
+impl<T> std::ops::DerefMut for Scalar<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {&mut self.0}
+}
+
+impl<T> AsRef<T> for Scalar<T> {
+    fn as_ref(&self) -> &T {&self.0}
+}
+
+impl<T> AsMut<T> for Scalar<T> {
+    fn as_mut(&mut self) -> &mut T {&mut self.0}
+}
+
 /// just a handy dandy collection of the basic gotos, nothing too complicated in here
 pub mod prelude {
     pub use crate::matrix::{matrix_gen, MathMatrix, MatrixEvalOps, MatrixOps};

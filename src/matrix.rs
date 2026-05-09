@@ -321,36 +321,36 @@ where
 
 /// a simple type alias for MatrixExpr created from an array of type [[T; D1]; D2]
 pub type MathMatrix<T, const D1: usize, const D2: usize> =
-    MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>;
+    MatrixExpr<MatrixArray<T, D1, D2>, D1, D2>;
 
 impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
     /// Marks this MathMatrix to have its buffer reused
     /// buffer placed in fst slot
     #[inline]
-    pub fn reuse(self) -> MatrixExpr<Replace2DArray<T, D1, D2>, D1, D2> {
-        MatrixExpr(Replace2DArray(self.unwrap().0))
+    pub fn reuse(self) -> MatrixExpr<ReplaceMatrixArray<T, D1, D2>, D1, D2> {
+        MatrixExpr(ReplaceMatrixArray(self.unwrap().0))
     }
     /// Marks this MathMatrix to have its buffer reused while keeping it on the heap
     /// buffer placed in fst slot
     #[inline]
-    pub fn heap_reuse(self: Box<Self>) -> MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2> {
+    pub fn heap_reuse(self: Box<Self>) -> MatrixExpr<Box<ReplaceMatrixArray<T, D1, D2>>, D1, D2> {
         // Safety, series of equivilent types:
         // Box<MathMatrix<T, D1, D2>>
-        // Box<MatrixExpr<Owned2DArray<T, D1, D2>, D1, D2>>, de-alias MathMatrix
-        // Box<ManuallyDrop<[[T; D1]; D2]>>, MatrixExpr and Owned2DArray are transparent
-        // MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>, MatrixExpr and Replace2DArray are transparent
+        // Box<MatrixExpr<MatrixArray<T, D1, D2>, D1, D2>>, de-alias MathMatrix
+        // Box<ManuallyDrop<[[T; D1]; D2]>>, MatrixExpr and MatrixArray are transparent
+        // MatrixExpr<Box<ReplaceMatrixArray<T, D1, D2>>, D1, D2>, MatrixExpr and ReplaceMatrixArray are transparent
         unsafe {
-            mem::transmute::<Box<Self>, MatrixExpr<Box<Replace2DArray<T, D1, D2>>, D1, D2>>(self)
+            mem::transmute::<Box<Self>, MatrixExpr<Box<ReplaceMatrixArray<T, D1, D2>>, D1, D2>>(self)
         }
     }
 
     /// converts this MathMatrix to a repeatable MatrixExpr w/ Item = &'a T
     #[inline]
-    pub fn referred<'a>(self) -> MatrixExpr<Referring2DArray<'a, T, D1, D2>, D1, D2>
+    pub fn referred<'a>(self) -> MatrixExpr<ReferringMatrixArray<'a, T, D1, D2>, D1, D2>
     where
         T: 'a,
     {
-        MatrixExpr(Referring2DArray(
+        MatrixExpr(ReferringMatrixArray(
             unsafe {
                 mem::transmute_copy::<ManuallyDrop<[[T; D1]; D2]>, [[T; D1]; D2]>(&self.unwrap().0)
             },
@@ -520,7 +520,7 @@ impl<T, const D1: usize, const D2: usize> DerefMut for MathMatrix<T, D1, D2> {
 impl<T, const D1: usize, const D2: usize> From<[[T; D1]; D2]> for MathMatrix<T, D1, D2> {
     #[inline]
     fn from(value: [[T; D1]; D2]) -> Self {
-        MatrixExpr(Owned2DArray(ManuallyDrop::new(value)))
+        MatrixExpr(MatrixArray(ManuallyDrop::new(value)))
     }
 }
 
@@ -590,7 +590,7 @@ impl<T, const D1: usize, const D2: usize> From<MathVectoredMatrix<T, D1, D2>>
         //      MathVectoredMatrix<T, D1, D2> == VectorExpr<VectorArray<VectorExpr<VectorArray<T, D1>, D1>, D2>, D2>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[ManuallyDrop<[T; D1]>; D2]>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[[T; D1]; D2]>
-        //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<Owned2DArray<T, D1, D2>>
+        //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<MatrixArray<T, D1, D2>>
         //      MathVectoredMatrix<T, D1, D2> == MathMatrix<T, D1, D2>
         //
         //  FIXME: transmute_copy copies (:O), this shouldn't need to be done but gets the compiler to not complain about it
@@ -611,7 +611,7 @@ impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>>
         //      MathVectoredMatrix<T, D1, D2> == VectorExpr<VectorArray<VectorExpr<VectorArray<T, D1>, D1>, D2>, D2>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[ManuallyDrop<[T; D1]>; D2]>
         //      MathVectoredMatrix<T, D1, D2> == ManuallyDrop<[[T; D1]; D2]>
-        //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<Owned2DArray<T, D1, D2>>
+        //      MathVectoredMatrix<T, D1, D2> == MatrixExpr<MatrixArray<T, D1, D2>>
         //      MathVectoredMatrix<T, D1, D2> == MathMatrix<T, D1, D2>
         //
         //  FIXME: transmute_copy copies (:O), this shouldn't need to be done but gets the compiler to not complain about it
@@ -2270,7 +2270,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
     MatHalfBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
 {
-    type RepeatableMatrix<'a> = Referring2DArray<'a, M::Item, D1, D2> where Self: 'a;
+    type RepeatableMatrix<'a> = ReferringMatrixArray<'a, M::Item, D1, D2> where Self: 'a;
     type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
@@ -2368,7 +2368,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
     (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
     MatHalfBind<MatMaybeCreate2DBuf<Box<M>, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
 {
-    type RepeatableMatrix<'a> = Referring2DArray<'a, M::Item, D1, D2> where Self: 'a;
+    type RepeatableMatrix<'a> = ReferringMatrixArray<'a, M::Item, D1, D2> where Self: 'a;
     type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<Box<M>, M::Item, D1, D2>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where

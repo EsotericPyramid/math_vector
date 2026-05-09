@@ -1,4 +1,4 @@
-use super::Owned2DArray;
+use super::MatrixArray;
 use crate::{
     matrix::mat_util_traits::*,
     matrix::{MathMatrix, MatrixExpr},
@@ -11,11 +11,11 @@ use std::{
 };
 
 /// an owned 2d array which acts as a buffer for Has2dReuseBuf (in first slot)
-pub struct Replace2DArray<T, const D1: usize, const D2: usize>(
+pub struct ReplaceMatrixArray<T, const D1: usize, const D2: usize>(
     pub(crate) ManuallyDrop<[[T; D1]; D2]>,
 );
 
-unsafe impl<T, const D1: usize, const D2: usize> Get2D for Replace2DArray<T, D1, D2> {
+unsafe impl<T, const D1: usize, const D2: usize> Get2D for ReplaceMatrixArray<T, D1, D2> {
     type GetBool = Y;
     type AreInputsTransposed = N;
     type Inputs = T;
@@ -49,7 +49,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Get2D for Replace2DArray<T, D1,
     }
 }
 
-impl<T: Sized, const D1: usize, const D2: usize> HasOutput for Replace2DArray<T, D1, D2> {
+impl<T: Sized, const D1: usize, const D2: usize> HasOutput for ReplaceMatrixArray<T, D1, D2> {
     type OutputBool = N;
     type Output = ();
 
@@ -60,7 +60,7 @@ impl<T: Sized, const D1: usize, const D2: usize> HasOutput for Replace2DArray<T,
     unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
 }
 
-impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DArray<T, D1, D2> {
+impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for ReplaceMatrixArray<T, D1, D2> {
     type FstHandleBool = Y;
     type SndHandleBool = N;
     type BoundHandlesBool = N;
@@ -92,7 +92,7 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for Replace2DArray<T, D1
     unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
-        unsafe { MatrixExpr(Owned2DArray(ptr::read(&self.0))) }
+        unsafe { MatrixExpr(MatrixArray(ptr::read(&self.0))) }
     }
     #[inline]
     unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
@@ -339,7 +339,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
-            MatrixExpr(Owned2DArray(mem::transmute_copy::<
+            MatrixExpr(MatrixArray(mem::transmute_copy::<
                 [[MaybeUninit<T>; D1]; D2],
                 ManuallyDrop<[[T; D1]; D2]>,
             >(&self.buf)))
@@ -467,7 +467,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
-            MatrixExpr(Owned2DArray(mem::transmute_copy::<
+            MatrixExpr(MatrixArray(mem::transmute_copy::<
                 [[MaybeUninit<T>; D1]; D2],
                 ManuallyDrop<[[T; D1]; D2]>,
             >(&self.buf)))
@@ -625,7 +625,7 @@ where
         unsafe {
             <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.mat.get_1st_buffer(),
-                MatrixExpr(Owned2DArray(mem::transmute_copy::<
+                MatrixExpr(MatrixArray(mem::transmute_copy::<
                     [[MaybeUninit<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D1];
                         D2],
                     ManuallyDrop<
