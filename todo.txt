@@ -8,6 +8,7 @@ Key:
 
 
 To Do's:
+- establish if vectors / matrices need to have at least 1 dimension
 - document each file
 - clean up documentation
 - define when to use operation traits vs. broader num/field traits
@@ -32,6 +33,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        X generalize RSMathVector indexing (Dope Matrix col indexing)
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable
         - add runtime sized wrappers
@@ -45,6 +47,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? remove RefRSMathVector *type alias* (just the alias, nothing else)
         - document repeated 
         - splitup and reorganize vector.rs
         - merge ReusableVectorOps into VectorInPlaceEvalOps (& maybe VectorEvalOps)

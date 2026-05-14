@@ -11,7 +11,7 @@ use crate::{
 };
 use std::{
     marker::PhantomData,
-    mem::{self, ManuallyDrop, MaybeUninit},
+    mem::{self, transmute, ManuallyDrop, MaybeUninit},
     ops::*,
     ptr,
 };
@@ -112,7 +112,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     /// newer values to the right
     /// binary operators merge the output of the 2 matrixes
     #[inline]
-    pub fn heap_eval(self) -> <MatBind<MatMaybeCreate2DHeapBuf<M, M::Item, D1, D2>> as HasOutput>::Output
+    pub fn heap_eval(self) -> <MatBind<MatMaybeCreate2DHeapArray<M, M::Item, D1, D2>> as HasOutput>::Output
     where
         (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair,
         (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
@@ -120,7 +120,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
         <M::FstHandleBool as TyBool>::Neg: Filter,
         (M::BoundHandlesBool, Y): FilterPair,
         (M::IsFstBufferTransposed, M::AreBoundBuffersTransposed): TyBoolPair,
-        MatBind<MatMaybeCreate2DHeapBuf<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DHeapBuf<M, M::Item, D1, D2>> as Get2D>::BoundItems>
+        MatBind<MatMaybeCreate2DHeapArray<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DHeapArray<M, M::Item, D1, D2>> as Get2D>::BoundItems>
     {
         self.maybe_create_2d_heap_buf().bind().consume()
     }
@@ -153,168 +153,6 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> Drop for MatrixExpr<M, D1,
             self.0.drop_output();
             self.0.drop_1st_buffer();
             self.0.drop_2nd_buffer();
-        }
-    }
-}
-
-/// A column majored iterator over a matrix's elements
-pub struct MatrixEntryIter<M: MatrixLike> {
-    mat: M,
-    current_col: usize,
-    live_input_row_start: usize,
-    dead_output_row_start: usize,
-    num_rows: usize,
-    num_cols: usize,
-}
-
-impl<M: MatrixLike> MatrixEntryIter<M> {
-    #[inline]
-    pub unsafe fn new_from_parts<B: MatrixBuilder>(mat: M, builder: B) -> Self {
-        let (num_rows, num_cols) = builder.dimensions();
-        Self {
-            mat,
-            current_col: 0,
-            live_input_row_start: 0,
-            dead_output_row_start: 0,
-            num_rows,
-            num_cols,
-        }
-    }
-
-    /// retrieve the output of this matrix without checking consumption
-    /// Safety: the matrix must have been fully consumed
-    #[inline]
-    pub unsafe fn unchecked_output(self) -> M::Output {
-        let mut man_drop_self = ManuallyDrop::new(self);
-        let output;
-        unsafe {
-            output = man_drop_self.mat.output();
-            ptr::drop_in_place(&mut man_drop_self.mat);
-        }
-        output
-    }
-
-    /// retrieve the output of this matrix
-    #[inline]
-    pub fn output(self) -> M::Output {
-        assert!(
-            (self.current_col == self.num_cols - 1) & (self.live_input_row_start == self.num_rows),
-            "math_vector error: A VectorIter must be fully used before outputting"
-        );
-        debug_assert!(
-            self.dead_output_row_start == self.num_rows,
-            "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue"
-        );
-        unsafe { self.unchecked_output() }
-    }
-
-    /// fully consumes the matrix and returns its output
-    #[inline]
-    pub fn consume(mut self) -> M::Output
-    where
-        M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
-    {
-        self.no_output_consume();
-        unsafe { self.unchecked_output() }
-    }
-
-    /// fully consumes the matrix without returning its output
-    #[inline]
-    pub fn no_output_consume(&mut self)
-    where
-        M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
-    {
-        if (self.num_cols == 0) | (self.num_rows == 0) {
-            return;
-        }
-        let mat = &mut self.mat;
-        let current_col = &mut self.current_col;
-        let live_input_row_start = &mut self.live_input_row_start;
-        let dead_output_row_start = &mut self.dead_output_row_start;
-        unsafe {
-            while *current_col < self.num_cols - 1 {
-                while *live_input_row_start < self.num_rows {
-                    let row_index = *live_input_row_start;
-                    *live_input_row_start += 1;
-                    let inputs = mat.get_inputs(*current_col, row_index);
-                    let (_, bound_items) = mat.process(*current_col, row_index, inputs);
-                    mat.assign_bound_bufs(*current_col, row_index, bound_items);
-                    *dead_output_row_start += 1;
-                }
-                *live_input_row_start = 0;
-                *dead_output_row_start = 0;
-                *current_col += 1;
-            }
-            while *live_input_row_start < self.num_rows {
-                let row_index = *live_input_row_start;
-                *live_input_row_start += 1;
-                let inputs = mat.get_inputs(*current_col, row_index);
-                let (_, bound_items) = mat.process(*current_col, row_index, inputs);
-                mat.assign_bound_bufs(*current_col, row_index, bound_items);
-                *dead_output_row_start += 1;
-            }
-        }
-    }
-}
-
-impl<M: MatrixLike> Drop for MatrixEntryIter<M> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            for col_index in 0..self.current_col {
-                for row_index in 0..self.num_rows {
-                    self.mat.drop_bound_bufs_index(col_index, row_index);
-                }
-            }
-            for row_index in 0..self.dead_output_row_start {
-                self.mat.drop_bound_bufs_index(self.current_col, row_index);
-            }
-            for row_index in self.live_input_row_start..self.num_rows {
-                self.mat.drop_inputs(self.current_col, row_index);
-            }
-            for col_index in self.current_col + 1..self.num_cols {
-                for row_index in 0..self.num_rows {
-                    self.mat.drop_inputs(col_index, row_index);
-                }
-            }
-            self.mat.drop_output();
-            self.mat.drop_1st_buffer();
-            self.mat.drop_2nd_buffer();
-        }
-    }
-}
-
-impl<M: MatrixLike> Iterator for MatrixEntryIter<M>
-where
-    M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
-{
-    type Item = M::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            if self.live_input_row_start < self.num_rows {
-                //current vector isn't done
-                let row_index = self.live_input_row_start;
-                self.live_input_row_start += 1;
-                let inputs = self.mat.get_inputs(self.current_col, row_index);
-                let (item, bound_items) = self.mat.process(self.current_col, row_index, inputs);
-                self.mat
-                    .assign_bound_bufs(self.current_col, row_index, bound_items);
-                self.dead_output_row_start += 1;
-                Some(item)
-            } else if self.current_col < self.num_cols - 1 {
-                self.current_col += 1;
-                self.live_input_row_start = 1; //we immediately and infallibly get the first one
-                self.dead_output_row_start = 0;
-                let inputs = self.mat.get_inputs(self.current_col, 0);
-                let (item, bound_items) = self.mat.process(self.current_col, 0, inputs);
-                self.mat.assign_bound_bufs(self.current_col, 0, bound_items);
-                self.dead_output_row_start += 1;
-                Some(item)
-            } else {
-                None
-            }
         }
     }
 }
@@ -721,6 +559,393 @@ pub fn matrix_identity_gen<T: Copy + num_traits::One + num_traits::Zero, const D
         one: T::one(),
     })
 }
+
+#[derive(Clone)]
+pub struct RSMatrixExpr<M: MatrixLike> {
+    pub(crate) mat: M,
+    pub(crate) num_rows: usize,
+    pub(crate) num_cols: usize,
+}
+
+impl<M: MatrixLike> RSMatrixExpr<M> {
+    #[inline]
+    pub fn const_sized<const D1: usize, const D2: usize>(self) -> MatrixExpr<M, D1, D2> {
+        todo!()
+    }
+}
+
+impl<M: MatrixLike + Is2DRepeatable> RSMatrixExpr<M> {
+    /// Retrieves the value at an arbitrary index of a repeatable matrix
+    /// Note:   This method does NOT fill any buffers bound to the matrix
+    pub fn get(&mut self, col_index: usize, row_index: usize) -> M::Item {
+        if (col_index >= self.num_cols) | (row_index >= self.num_rows) {
+            panic!("math_vector Error: index access out of bound")
+        }
+        unsafe {
+            let inputs = self.mat.get_inputs(col_index, row_index);
+            let (item, _) = self.mat.process(col_index, row_index, inputs);
+            item
+        }
+    }
+}
+
+impl<M: MatrixLike> Drop for RSMatrixExpr<M> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            for col_index in 0..self.num_cols {
+                for row_index in 0..self.num_rows {
+                    self.mat.drop_inputs(col_index, row_index);
+                }
+            }
+            self.mat.drop_output();
+            self.mat.drop_1st_buffer();
+            self.mat.drop_2nd_buffer();
+        }
+    }
+}
+
+pub type RSMathDopeMatrix<T> = RSMatrixExpr<MatrixDopeSlice<T>>;
+
+impl<T> RSMathDopeMatrix<T> {
+    //TODO: add missing fns
+
+    #[inline]
+    pub fn borrow(&self) -> RefRSMathDopeMatrix<'_, T> {
+        let num_rows = self.num_rows;
+        let num_cols = self.num_cols;
+        RSMatrixExpr{ 
+            mat: RefMatrixDopeSlice { 
+                mat: unsafe { transmute::<&[ManuallyDrop<T>], &[T]>(&*self.mat.mat) }, 
+                height: num_rows 
+            },
+            num_rows,
+            num_cols,
+        }
+    }
+
+    #[inline]
+    pub fn borrow_mut(&mut self) -> RefMutRSMathDopeMatrix<'_, T> {
+        let num_rows = self.num_rows;
+        let num_cols = self.num_cols;
+        RSMatrixExpr{ 
+            mat: RefMutMatrixDopeSlice { 
+                mat: unsafe { transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *self.mat.mat) }, 
+                height: num_rows 
+            },
+            num_rows,
+            num_cols,
+        }
+    }
+}
+
+// TODO: `From` impl's
+
+impl<T> Index<usize> for RSMathDopeMatrix<T> {
+    type Output = [T];
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        let slice_start = index * self.mat.height;
+        let raw = &self.mat.mat[slice_start..slice_start + self.mat.height];
+        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }
+    }
+}
+
+impl<T> IndexMut<usize> for RSMathDopeMatrix<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let slice_start = index * self.mat.height;
+        let raw = &mut self.mat.mat[slice_start..slice_start + self.mat.height];
+        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }
+    }
+}
+
+pub type RefRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMatrixDopeSlice<'a, T>>;
+
+// TODO: `From` impl's
+
+impl<'a, T> Index<usize> for RefRSMathDopeMatrix<'a, T> {
+    type Output = [T];
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        let slice_start = index * self.mat.height;
+        &self.mat.mat[slice_start..slice_start + self.mat.height]
+    }
+} 
+
+pub type RefMutRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMutMatrixDopeSlice<'a, T>>;
+
+// TODO: `From` impl's
+
+impl<'a, T> Index<usize> for RefMutRSMathDopeMatrix<'a, T> {
+    type Output = [T];
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        let slice_start = index * self.mat.height;
+        &self.mat.mat[slice_start..slice_start + self.mat.height]
+    }
+}
+
+impl<'a, T> IndexMut<usize> for RefMutRSMathDopeMatrix<'a, T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let slice_start = index * self.mat.height;
+        &mut self.mat.mat[slice_start..slice_start + self.mat.height]
+    }
+}
+
+pub type RSMathIliffeMatrix<T> = RSMatrixExpr<MatrixIliffeSlice<T>>;
+pub type RefRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a [&'a [T]]>;
+pub type RefBoxRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a [Box<[T]>]>;
+pub type RefMutRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a mut [&'a mut [T]]>;
+pub type RefMutBoxRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a mut [Box<[T]>]>;
+
+impl<T> RSMathIliffeMatrix<T> {
+    //TODO: add missing fns
+
+    #[inline]
+    pub fn borrow(&self) -> RefBoxRSMathIliffeMatrix<'_, T> {
+        let num_rows = self.num_rows;
+        let num_cols = self.num_cols;
+        RSMatrixExpr{ 
+            mat: unsafe {transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&*self.mat.0)},
+            num_rows,
+            num_cols,
+        }
+    }
+
+    #[inline]
+    pub fn borrow_mut(&mut self) -> RefMutBoxRSMathIliffeMatrix<'_, T> {
+        let num_rows = self.num_rows;
+        let num_cols = self.num_cols;
+        RSMatrixExpr{ 
+            mat: unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *self.mat.0) }, 
+            num_rows,
+            num_cols,
+        }
+    }
+}
+
+// TODO: `From` impl's
+
+impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I> {
+    type Output = <[Box<[T]>] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
+        &(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.0) })[index]
+    }
+}
+
+impl<T> IndexMut<usize> for RSMathIliffeMatrix<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
+        &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.0) })[index]
+    }
+}
+
+
+// TODO: `From` impl's
+
+impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I> {
+    type Output = <[S] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.mat[index]
+    }
+}
+
+
+
+
+// TODO: `From` impl's
+
+impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I> {
+    type Output = <[S] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.mat[index]
+    }
+}
+
+impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> IndexMut<I> for RSMatrixExpr<&'a mut [S]> where [S]: IndexMut<I> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.mat[index]
+    }
+}
+
+
+
+/// A column majored iterator over a matrix's elements
+pub struct MatrixEntryIter<M: MatrixLike> {
+    mat: M,
+    current_col: usize,
+    live_input_row_start: usize,
+    dead_output_row_start: usize,
+    num_rows: usize,
+    num_cols: usize,
+}
+
+impl<M: MatrixLike> MatrixEntryIter<M> {
+    #[inline]
+    pub unsafe fn new_from_parts<B: MatrixBuilder>(mat: M, builder: B) -> Self {
+        let (num_rows, num_cols) = builder.dimensions();
+        Self {
+            mat,
+            current_col: 0,
+            live_input_row_start: 0,
+            dead_output_row_start: 0,
+            num_rows,
+            num_cols,
+        }
+    }
+
+    /// retrieve the output of this matrix without checking consumption
+    /// Safety: the matrix must have been fully consumed
+    #[inline]
+    pub unsafe fn unchecked_output(self) -> M::Output {
+        let mut man_drop_self = ManuallyDrop::new(self);
+        let output;
+        unsafe {
+            output = man_drop_self.mat.output();
+            ptr::drop_in_place(&mut man_drop_self.mat);
+        }
+        output
+    }
+
+    /// retrieve the output of this matrix
+    #[inline]
+    pub fn output(self) -> M::Output {
+        assert!(
+            (self.current_col == self.num_cols - 1) & (self.live_input_row_start == self.num_rows),
+            "math_vector error: A VectorIter must be fully used before outputting"
+        );
+        debug_assert!(
+            self.dead_output_row_start == self.num_rows,
+            "math_vector internal error: A VectorIter's output buffers (somehow) weren't fully filled despite the inputs being fully used, likely an internal issue"
+        );
+        unsafe { self.unchecked_output() }
+    }
+
+    /// fully consumes the matrix and returns its output
+    #[inline]
+    pub fn consume(mut self) -> M::Output
+    where
+        M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
+    {
+        self.no_output_consume();
+        unsafe { self.unchecked_output() }
+    }
+
+    /// fully consumes the matrix without returning its output
+    #[inline]
+    pub fn no_output_consume(&mut self)
+    where
+        M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
+    {
+        if (self.num_cols == 0) | (self.num_rows == 0) {
+            return;
+        }
+        let mat = &mut self.mat;
+        let current_col = &mut self.current_col;
+        let live_input_row_start = &mut self.live_input_row_start;
+        let dead_output_row_start = &mut self.dead_output_row_start;
+        unsafe {
+            while *current_col < self.num_cols - 1 {
+                while *live_input_row_start < self.num_rows {
+                    let row_index = *live_input_row_start;
+                    *live_input_row_start += 1;
+                    let inputs = mat.get_inputs(*current_col, row_index);
+                    let (_, bound_items) = mat.process(*current_col, row_index, inputs);
+                    mat.assign_bound_bufs(*current_col, row_index, bound_items);
+                    *dead_output_row_start += 1;
+                }
+                *live_input_row_start = 0;
+                *dead_output_row_start = 0;
+                *current_col += 1;
+            }
+            while *live_input_row_start < self.num_rows {
+                let row_index = *live_input_row_start;
+                *live_input_row_start += 1;
+                let inputs = mat.get_inputs(*current_col, row_index);
+                let (_, bound_items) = mat.process(*current_col, row_index, inputs);
+                mat.assign_bound_bufs(*current_col, row_index, bound_items);
+                *dead_output_row_start += 1;
+            }
+        }
+    }
+}
+
+impl<M: MatrixLike> Drop for MatrixEntryIter<M> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            for col_index in 0..self.current_col {
+                for row_index in 0..self.num_rows {
+                    self.mat.drop_bound_bufs_index(col_index, row_index);
+                }
+            }
+            for row_index in 0..self.dead_output_row_start {
+                self.mat.drop_bound_bufs_index(self.current_col, row_index);
+            }
+            for row_index in self.live_input_row_start..self.num_rows {
+                self.mat.drop_inputs(self.current_col, row_index);
+            }
+            for col_index in self.current_col + 1..self.num_cols {
+                for row_index in 0..self.num_rows {
+                    self.mat.drop_inputs(col_index, row_index);
+                }
+            }
+            self.mat.drop_output();
+            self.mat.drop_1st_buffer();
+            self.mat.drop_2nd_buffer();
+        }
+    }
+}
+
+impl<M: MatrixLike> Iterator for MatrixEntryIter<M>
+where
+    M: Has2DReuseBuf<BoundTypes = M::BoundItems>,
+{
+    type Item = M::Item;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if self.live_input_row_start < self.num_rows {
+                //current vector isn't done
+                let row_index = self.live_input_row_start;
+                self.live_input_row_start += 1;
+                let inputs = self.mat.get_inputs(self.current_col, row_index);
+                let (item, bound_items) = self.mat.process(self.current_col, row_index, inputs);
+                self.mat
+                    .assign_bound_bufs(self.current_col, row_index, bound_items);
+                self.dead_output_row_start += 1;
+                Some(item)
+            } else if self.current_col < self.num_cols - 1 {
+                self.current_col += 1;
+                self.live_input_row_start = 1; //we immediately and infallibly get the first one
+                self.dead_output_row_start = 0;
+                let inputs = self.mat.get_inputs(self.current_col, 0);
+                let (item, bound_items) = self.mat.process(self.current_col, 0, inputs);
+                self.mat.assign_bound_bufs(self.current_col, 0, bound_items);
+                self.dead_output_row_start += 1;
+                Some(item)
+            } else {
+                None
+            }
+        }
+    }
+}
+
 
 /// a trait with various matrix operations
 #[allow(clippy::type_complexity)] // triggers on the output types of the fn's even though they can't be shortened
@@ -1938,7 +2163,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
         self,
         buf: &'a mut MathMatrix<T, D1, D2>,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
-        MatAttach2DBuf<'a, Self::Unwrapped, T, D1, D2>,
+        MatAttach2DArray<'a, Self::Unwrapped, T, D1, D2>,
     >
     where
         Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
@@ -1946,7 +2171,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     {
         let builder = self.get_builder();
         unsafe {
-            builder.wrap_mat(MatAttach2DBuf {
+            builder.wrap_mat(MatAttach2DArray {
                 mat: self.unwrap(),
                 buf,
             })
@@ -1957,14 +2182,14 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     #[inline]
     fn create_2d_buf<T>(
         self,
-    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DBuf<Self::Unwrapped, T, D1, D2>>
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DArray<Self::Unwrapped, T, D1, D2>>
     where
         Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
         Self: Sized,
     {
         let builder = self.get_builder();
         unsafe {
-            builder.wrap_mat(MatCreate2DBuf {
+            builder.wrap_mat(MatCreate2DArray {
                 mat: self.unwrap(),
                 buf: MaybeUninit::uninit().assume_init(),
             })
@@ -1976,7 +2201,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     fn create_2d_heap_buf<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
-        MatCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>,
+        MatCreate2DHeapArray<Self::Unwrapped, T, D1, D2>,
     >
     where
         Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
@@ -1984,7 +2209,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     {
         let builder = self.get_builder();
         unsafe {
-            builder.wrap_mat(MatCreate2DHeapBuf {
+            builder.wrap_mat(MatCreate2DHeapArray {
                 mat: self.unwrap(),
                 buf: ManuallyDrop::new(Box::new(MaybeUninit::uninit().assume_init())),
             })
@@ -1996,7 +2221,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     fn maybe_create_2d_buf<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
-        MatMaybeCreate2DBuf<Self::Unwrapped, T, D1, D2>,
+        MatMaybeCreate2DArray<Self::Unwrapped, T, D1, D2>,
     >
     where
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
@@ -2012,7 +2237,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     {
         let builder = self.get_builder();
         unsafe {
-            builder.wrap_mat(MatMaybeCreate2DBuf {
+            builder.wrap_mat(MatMaybeCreate2DArray {
                 mat: self.unwrap(),
                 buf: MaybeUninit::uninit().assume_init(),
             })
@@ -2025,7 +2250,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     fn maybe_create_2d_heap_buf<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
-        MatMaybeCreate2DHeapBuf<Self::Unwrapped, T, D1, D2>,
+        MatMaybeCreate2DHeapArray<Self::Unwrapped, T, D1, D2>,
     >
     where
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
@@ -2041,7 +2266,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     {
         let builder = self.get_builder();
         unsafe {
-            builder.wrap_mat(MatMaybeCreate2DHeapBuf {
+            builder.wrap_mat(MatMaybeCreate2DHeapArray {
                 mat: self.unwrap(),
                 buf: ManuallyDrop::new(Box::new(MaybeUninit::uninit().assume_init())),
             })
@@ -2268,10 +2493,10 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
     (<M::FstHandleBool as TyBool>::Neg, M::FstOwnedBufferBool): TyBoolPair,
     (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    MatHalfBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
+    MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
 {
     type RepeatableMatrix<'a> = ReferringMatrixArray<'a, M::Item, D1, D2> where Self: 'a;
-    type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<M, M::Item, D1, D2>>;
+    type UsedMatrix = MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
         Self: 'a,
@@ -2298,7 +2523,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for MatrixExpr<M, D1, D2> {
     type MaybeCreateBuffer<T: MatrixLike>
-        = MatMaybeCreate2DBuf<T, T::Item, D1, D2>
+        = MatMaybeCreate2DArray<T, T::Item, D1, D2>
     where
         <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
@@ -2366,10 +2591,10 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
     (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
     (<M::FstHandleBool as TyBool>::Neg, M::FstOwnedBufferBool): TyBoolPair,
     (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    MatHalfBind<MatMaybeCreate2DBuf<Box<M>, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
+    MatHalfBind<MatMaybeCreate2DArray<Box<M>, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>
 {
     type RepeatableMatrix<'a> = ReferringMatrixArray<'a, M::Item, D1, D2> where Self: 'a;
-    type UsedMatrix = MatHalfBind<MatMaybeCreate2DBuf<Box<M>, M::Item, D1, D2>>;
+    type UsedMatrix = MatHalfBind<MatMaybeCreate2DArray<Box<M>, M::Item, D1, D2>>;
 
     fn make_repeatable<'a>(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::RepeatableMatrix<'a>, Self::UsedMatrix>> where
         Self: 'a,
@@ -2396,7 +2621,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
 
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for Box<MatrixExpr<M, D1, D2>> {
     type MaybeCreateBuffer<T: MatrixLike>
-        = MatMaybeCreate2DBuf<T, T::Item, D1, D2>
+        = MatMaybeCreate2DArray<T, T::Item, D1, D2>
     where
         <<T as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
@@ -2446,7 +2671,7 @@ impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2> for &MathMatrix
 
 impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &MathMatrix<T, D1, D2> {
     type MaybeCreateBuffer<M: MatrixLike>
-        = MatMaybeCreate2DBuf<M, T, D1, D2>
+        = MatMaybeCreate2DArray<M, T, D1, D2>
     where
         <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
@@ -2499,7 +2724,7 @@ impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
 
 impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut MathMatrix<T, D1, D2> {
     type MaybeCreateBuffer<M: MatrixLike>
-        = MatMaybeCreate2DBuf<M, T, D1, D2>
+        = MatMaybeCreate2DArray<M, T, D1, D2>
     where
         <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
@@ -2552,7 +2777,7 @@ impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
 
 impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &Box<MathMatrix<T, D1, D2>> {
     type MaybeCreateBuffer<M: MatrixLike>
-        = MatMaybeCreate2DBuf<M, T, D1, D2>
+        = MatMaybeCreate2DArray<M, T, D1, D2>
     where
         <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
@@ -2605,7 +2830,7 @@ impl<T, const D1: usize, const D2: usize> ArrayMatrixOps<D1, D2>
 
 impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut Box<MathMatrix<T, D1, D2>> {
     type MaybeCreateBuffer<M: MatrixLike>
-        = MatMaybeCreate2DBuf<M, T, D1, D2>
+        = MatMaybeCreate2DArray<M, T, D1, D2>
     where
         <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
         (
