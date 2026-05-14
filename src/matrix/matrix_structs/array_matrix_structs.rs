@@ -117,14 +117,14 @@ impl<T, const D1: usize, const D2: usize> Has2DReuseBuf for ReplaceMatrixArray<T
 }
 
 /// struct attaching a &mut 2d array / &mut MathMatrix as a buffer (in first slot)
-pub struct MatAttach2DBuf<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
+pub struct MatAttach2DArray<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
 {
     pub(crate) mat: M,
     pub(crate) buf: &'a mut [[T; D1]; D2],
 }
 
 unsafe impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D
-    for MatAttach2DBuf<'a, M, T, D1, D2>
+    for MatAttach2DArray<'a, M, T, D1, D2>
 {
     type GetBool = M::GetBool;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -157,12 +157,12 @@ unsafe impl<
     T,
     const D1: usize,
     const D2: usize,
-> Is2DRepeatable for MatAttach2DBuf<'a, M, T, D1, D2>
+> Is2DRepeatable for MatAttach2DArray<'a, M, T, D1, D2>
 {
 }
 
 impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput
-    for MatAttach2DBuf<'a, M, T, D1, D2>
+    for MatAttach2DArray<'a, M, T, D1, D2>
 {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
@@ -178,7 +178,7 @@ impl<'a, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> 
 }
 
 impl<'b, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2DReuseBuf
-    for MatAttach2DBuf<'b, M, T, D1, D2>
+    for MatAttach2DArray<'b, M, T, D1, D2>
 {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
@@ -241,13 +241,13 @@ impl<'b, M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> 
 }
 
 /// struct creating a buffer in the first slot
-pub struct MatCreate2DBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> {
+pub struct MatCreate2DArray<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> {
     pub(crate) mat: M,
     pub(crate) buf: [[MaybeUninit<T>; D1]; D2],
 }
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D
-    for MatCreate2DBuf<M, T, D1, D2>
+    for MatCreate2DArray<M, T, D1, D2>
 {
     type GetBool = M::GetBool;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -275,12 +275,12 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
-    Is2DRepeatable for MatCreate2DBuf<M, T, D1, D2>
+    Is2DRepeatable for MatCreate2DArray<M, T, D1, D2>
 {
 }
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput
-    for MatCreate2DBuf<M, T, D1, D2>
+    for MatCreate2DArray<M, T, D1, D2>
 {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
@@ -296,7 +296,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasO
 }
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2DReuseBuf
-    for MatCreate2DBuf<M, T, D1, D2>
+    for MatCreate2DArray<M, T, D1, D2>
 {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
@@ -368,14 +368,14 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
 }
 
 /// struct creating a buffer on the heap in the first slot
-pub struct MatCreate2DHeapBuf<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
+pub struct MatCreate2DHeapArray<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
 {
     pub(crate) mat: M,
     pub(crate) buf: ManuallyDrop<Box<[[MaybeUninit<T>; D1]; D2]>>,
 }
 
 unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Get2D
-    for MatCreate2DHeapBuf<M, T, D1, D2>
+    for MatCreate2DHeapArray<M, T, D1, D2>
 {
     type GetBool = M::GetBool;
     type AreInputsTransposed = M::AreInputsTransposed;
@@ -403,12 +403,12 @@ unsafe impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usiz
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize>
-    Is2DRepeatable for MatCreate2DHeapBuf<M, T, D1, D2>
+    Is2DRepeatable for MatCreate2DHeapArray<M, T, D1, D2>
 {
 }
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasOutput
-    for MatCreate2DHeapBuf<M, T, D1, D2>
+    for MatCreate2DHeapArray<M, T, D1, D2>
 {
     type OutputBool = M::OutputBool;
     type Output = M::Output;
@@ -424,7 +424,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> HasO
 }
 
 impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2DReuseBuf
-    for MatCreate2DHeapBuf<M, T, D1, D2>
+    for MatCreate2DHeapArray<M, T, D1, D2>
 {
     type FstHandleBool = Y;
     type SndHandleBool = M::SndHandleBool;
@@ -498,7 +498,7 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
 }
 
 /// struct creating a buffer in the first slot if there isn't already one there
-pub struct MatMaybeCreate2DBuf<M: MatrixLike, T, const D1: usize, const D2: usize>
+pub struct MatMaybeCreate2DArray<M: MatrixLike, T, const D1: usize, const D2: usize>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -508,7 +508,7 @@ where
 }
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D
-    for MatMaybeCreate2DBuf<M, T, D1, D2>
+    for MatMaybeCreate2DArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -538,14 +538,14 @@ where
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable
-    for MatMaybeCreate2DBuf<M, T, D1, D2>
+    for MatMaybeCreate2DArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
 }
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> HasOutput
-    for MatMaybeCreate2DBuf<M, T, D1, D2>
+    for MatMaybeCreate2DArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -563,7 +563,7 @@ where
 }
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> Has2DReuseBuf
-    for MatMaybeCreate2DBuf<M, T, D1, D2>
+    for MatMaybeCreate2DArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
     (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair,
@@ -660,7 +660,7 @@ where
 }
 
 /// struct creating a buffer on the heap in the first slot if there isn't already one there
-pub struct MatMaybeCreate2DHeapBuf<M: MatrixLike, T, const D1: usize, const D2: usize>
+pub struct MatMaybeCreate2DHeapArray<M: MatrixLike, T, const D1: usize, const D2: usize>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -671,7 +671,7 @@ where
 }
 
 unsafe impl<M: MatrixLike, T, const D1: usize, const D2: usize> Get2D
-    for MatMaybeCreate2DHeapBuf<M, T, D1, D2>
+    for MatMaybeCreate2DHeapArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -701,14 +701,14 @@ where
 }
 
 unsafe impl<M: Is2DRepeatable + MatrixLike, T, const D1: usize, const D2: usize> Is2DRepeatable
-    for MatMaybeCreate2DHeapBuf<M, T, D1, D2>
+    for MatMaybeCreate2DHeapArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
 }
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> HasOutput
-    for MatMaybeCreate2DHeapBuf<M, T, D1, D2>
+    for MatMaybeCreate2DHeapArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
 {
@@ -726,7 +726,7 @@ where
 }
 
 impl<M: MatrixLike, T, const D1: usize, const D2: usize> Has2DReuseBuf
-    for MatMaybeCreate2DHeapBuf<M, T, D1, D2>
+    for MatMaybeCreate2DHeapArray<M, T, D1, D2>
 where
     <M::FstHandleBool as TyBool>::Neg: Filter,
     (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair,
