@@ -5,6 +5,7 @@ use crate::{trait_specialization_utils::*, util_traits::*};
 use std::{mem::ManuallyDrop, ops::*, ptr};
 
 mod array_matrix_structs;
+mod slice_matrix_structs;
 mod binding_matrix_structs;
 mod generator_matrix_structs;
 mod macroed_matrix_structs;
@@ -14,6 +15,7 @@ mod ordering_matrix_structs;
 mod vectorizing_matrix_structs;
 
 pub use array_matrix_structs::*;
+pub use slice_matrix_structs::*;
 pub use binding_matrix_structs::*;
 pub use generator_matrix_structs::*;
 pub use macroed_matrix_structs::*;
@@ -305,7 +307,7 @@ unsafe impl<T: Copy> Is2DRepeatable for MatrixIliffeSlice<T> {}
 HasOutput_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
 Has2DReuseBuf_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
 
-unsafe impl<'a, T> Get2D for &'a [&'a [T]] {
+unsafe impl<'a, T: 'a, S: Deref<Target = [T]>> Get2D for &'a [S] {
     type GetBool = Y;
     type AreInputsTransposed = N;
     type Inputs = &'a T;
@@ -328,12 +330,12 @@ unsafe impl<'a, T> Get2D for &'a [&'a [T]] {
     unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
 }
 
-unsafe impl<'a, T> Is2DRepeatable for &'a [&'a [T]] {}
+unsafe impl<'a, T: 'a, S: Deref<Target = [T]>> Is2DRepeatable for &'a [S] {}
 
 // note: has a HasOutput non_impl from `vector_structs.rs` (as part of `&'a [T]`)
-Has2DReuseBuf_non_impl!(impl<{'a, T}> &'a [&'a [T]]);
+Has2DReuseBuf_non_impl!(impl<{'a, T: 'a, S: Deref<Target = [T]>}> &'a [S]);
 
-unsafe impl<'a, T> Get2D for &'a mut [&'a mut [T]] {
+unsafe impl<'a, T: 'a, S: DerefMut<Target = [T]>> Get2D for &'a mut [S] {
     type GetBool = Y;
     type AreInputsTransposed = N;
     type Inputs = &'a mut T;
@@ -358,7 +360,7 @@ unsafe impl<'a, T> Get2D for &'a mut [&'a mut [T]] {
 }
 
 // note: has a HasOutput non_impl from `vector_structs.rs` (as part of `&'a mut [T]`)
-Has2DReuseBuf_non_impl!(impl<{'a, T}> &'a mut [&'a mut [T]]);
+Has2DReuseBuf_non_impl!(impl<{'a, T: 'a, S: DerefMut<Target = [T]>}> &'a mut [S]);
 
 
 pub struct MatrixDopeSlice<T>{pub(crate) mat: Box<[ManuallyDrop<T>]>, pub(crate) height: usize}
