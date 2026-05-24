@@ -33,6 +33,8 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        X option to use either kind of matrix slice for the generic RSMathExpr impl
+        - generalized AttachBuf struct
         X generalize RSMathVector indexing (Dope Matrix col indexing)
         ? rename ArrayMatrixOps
         ? add heap_make_repeatable

@@ -122,7 +122,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
         (M::IsFstBufferTransposed, M::AreBoundBuffersTransposed): TyBoolPair,
         MatBind<MatMaybeCreate2DHeapArray<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <MatBind<MatMaybeCreate2DHeapArray<M, M::Item, D1, D2>> as Get2D>::BoundItems>
     {
-        self.maybe_create_2d_heap_buf().bind().consume()
+        self.maybe_create_2d_heap_array().bind().consume()
     }
 }
 
@@ -2153,13 +2153,164 @@ pub trait MatrixOps {
             })
         }
     }
+
+    /// attaches a &mut MathMatrix to the first buffer
+    #[inline]
+    fn attach_iliffe_slice<'a, T>(
+        self,
+        buf: &'a mut RSMathIliffeMatrix<T>,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
+        MatAttachIliffeSlice<'a, Self::Unwrapped, T, Box<[T]>>,
+    >
+    where
+        Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap_mat(MatAttachIliffeSlice {
+                mat: self.unwrap(),
+                buf: transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *buf.mat.0),
+            })
+        }
+    }
+
+    /// creates a buffer in the first buffer
+    #[inline]
+    fn create_iliffe_slice<T>(
+        self,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreateIliffeSlice<Self::Unwrapped, T>>
+    where
+        Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
+        Self: Sized,
+    {
+        let (num_rows, num_cols) = self.dimensions();
+        let builder = self.get_builder();
+        let mut buf = Vec::with_capacity(num_cols);
+        for _ in 0..num_cols {
+            buf.push(Box::new_uninit_slice(num_rows))
+        }
+        unsafe {
+            builder.wrap_mat(MatCreateIliffeSlice {
+                mat: self.unwrap(),
+                buf: ManuallyDrop::new(buf.into_boxed_slice()),
+            })
+        }
+    }
+
+    /// creates a buffer in the first buffer if there isn't already one there
+    #[inline]
+    fn maybe_create_iliffe_slice<T>(
+        self,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
+        MatMaybeCreateIliffeSlice<Self::Unwrapped, T>,
+    >
+    where
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair,
+        Self: Sized,
+    {
+        let (num_rows, num_cols) = self.dimensions();
+        let builder = self.get_builder();
+        let mut buf = Vec::with_capacity(num_cols);
+        for _ in 0..num_cols {
+            buf.push(Box::new_uninit_slice(num_rows))
+        }
+        unsafe {
+            builder.wrap_mat(MatMaybeCreateIliffeSlice {
+                mat: self.unwrap(),
+                buf: ManuallyDrop::new(buf.into_boxed_slice()),
+            })
+        }
+    }
+
+    /// attaches a &mut MathMatrix to the first buffer
+    #[inline]
+    fn attach_dope_slice<'a, T>(
+        self,
+        buf: &'a mut RSMathDopeMatrix<T>,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
+        MatAttachDopeSlice<'a, Self::Unwrapped, T>,
+    >
+    where
+        Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap_mat(MatAttachDopeSlice {
+                mat: self.unwrap(),
+                buf: RefMutMatrixDopeSlice { 
+                    mat: transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *buf.mat.mat), 
+                    height: buf.mat.height, 
+                },
+            })
+        }
+    }
+
+    /// creates a buffer in the first buffer
+    #[inline]
+    fn create_dope_slice<T>(
+        self,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreateDopeSlice<Self::Unwrapped, T>>
+    where
+        Self::Unwrapped: Has2DReuseBuf<FstHandleBool = N>,
+        Self: Sized,
+    {
+        let (num_rows, num_cols) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap_mat(MatCreateDopeSlice {
+                mat: self.unwrap(),
+                buf: ManuallyDrop::new(Box::new_uninit_slice(num_rows * num_cols)),
+                height: num_rows,
+            })
+        }
+    }
+
+    /// creates a buffer in the first buffer if there isn't already one there
+    #[inline]
+    fn maybe_create_dope_slice<T>(
+        self,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
+        MatMaybeCreateDopeSlice<Self::Unwrapped, T>,
+    >
+    where
+        <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair,
+        Self: Sized,
+    {
+        let (num_rows, num_cols) = self.dimensions();
+        let builder = self.get_builder();
+        unsafe {
+            builder.wrap_mat(MatMaybeCreateDopeSlice {
+                mat: self.unwrap(),
+                buf: ManuallyDrop::new(Box::new_uninit_slice(num_rows * num_cols)),
+                height: num_rows,
+            })
+        }
+    }
 }
 
 /// a trait various matrix operations for const sized matrix
 pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     /// attaches a &mut MathMatrix to the first buffer
     #[inline]
-    fn attach_2d_buf<'a, T>(
+    fn attach_2d_array<'a, T>(
         self,
         buf: &'a mut MathMatrix<T, D1, D2>,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
@@ -2180,7 +2331,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
 
     /// creates a buffer in the first buffer
     #[inline]
-    fn create_2d_buf<T>(
+    fn create_2d_array<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatCreate2DArray<Self::Unwrapped, T, D1, D2>>
     where
@@ -2198,7 +2349,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
 
     /// creates a buffer on the heap in the first buffer
     #[inline]
-    fn create_2d_heap_buf<T>(
+    fn create_2d_heap_array<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
         MatCreate2DHeapArray<Self::Unwrapped, T, D1, D2>,
@@ -2218,7 +2369,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
 
     /// creates a buffer in the first buffer if there isn't already one there
     #[inline]
-    fn maybe_create_2d_buf<T>(
+    fn maybe_create_2d_array<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
         MatMaybeCreate2DArray<Self::Unwrapped, T, D1, D2>,
@@ -2247,7 +2398,7 @@ pub trait ArrayMatrixOps<const D1: usize, const D2: usize>: MatrixOps {
     /// creates a buffer on the heap in the first buffer if there isn't already one there
     /// note: a pre-existing buffer may or may not be on the heap or owned by the vector
     #[inline]
-    fn maybe_create_2d_heap_buf<T>(
+    fn maybe_create_2d_heap_array<T>(
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
         MatMaybeCreate2DHeapArray<Self::Unwrapped, T, D1, D2>,
@@ -2513,7 +2664,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
         <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
     {
         let builder = self.get_builder();
-        let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
+        let mut mat_iter = self.maybe_create_2d_array().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
             builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols: D2, num_rows: D1})
@@ -2548,7 +2699,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for MatrixEx
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
 }
 
@@ -2611,7 +2762,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Bo
         <(<<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue 
     {
         let builder = self.get_builder();
-        let mut mat_iter = self.maybe_create_2d_buf().half_bind().into_entry_iter();
+        let mut mat_iter = self.maybe_create_2d_array().half_bind().into_entry_iter();
         unsafe {
             mat_iter.no_output_consume();
             builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().referred().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols: D2, num_rows: D1})
@@ -2646,7 +2797,7 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for Box<Matr
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
 }
 
@@ -2696,7 +2847,7 @@ impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &MathMatrix<T, D1, D
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
 }
 
@@ -2749,7 +2900,7 @@ impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut MathMatrix<T, D
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
 }
 
@@ -2802,7 +2953,7 @@ impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &Box<MathMatrix<T, D
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
 }
 
@@ -2855,8 +3006,176 @@ impl<T, const D1: usize, const D2: usize> MatrixEvalOps for &mut Box<MathMatrix<
         ): TyBoolPair,
         Self: Sized,
     {
-        self.maybe_create_2d_buf().unwrap()
+        self.maybe_create_2d_array().unwrap()
     }
+}
+
+
+macro_rules! RSMatrixExpr_get_builder_and_dimensions {
+    () => {
+        #[inline]
+        fn get_builder(&self) -> Self::Builder {
+            RSMatrixExprBuilder{
+                num_rows: self.num_rows,
+                num_cols: self.num_cols
+            }
+        }
+        #[inline]
+        fn dimensions(&self) -> (usize, usize) {
+            (self.num_rows, self.num_cols)
+        }
+    };
+}
+
+macro_rules! RSMatrixExpr_iliffe_eval_ops_inner {
+    () => {
+        type MaybeCreateBuffer<Z: MatrixLike>
+            = MatMaybeCreateIliffeSlice<Z, Z::Item>
+        where
+            <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+            (
+                <Z as Has2DReuseBuf>::FstHandleBool,
+                <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): SelectPair,
+            (
+                <Z as Has2DReuseBuf>::FstOwnedBufferBool,
+                <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): TyBoolPair;
+
+        #[inline]
+        fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
+        where
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+            (
+                <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+                <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): SelectPair,
+            (
+                <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+                <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): TyBoolPair,
+            Self: Sized 
+        {
+            self.maybe_create_iliffe_slice().unwrap()
+        }
+    };
+}
+
+macro_rules! RSMatrixExpr_dope_eval_ops_inner {
+    () => {
+        type MaybeCreateBuffer<Z: MatrixLike>
+            = MatMaybeCreateDopeSlice<Z, Z::Item>
+        where
+            <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+            (
+                <Z as Has2DReuseBuf>::FstHandleBool,
+                <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): SelectPair,
+            (
+                <Z as Has2DReuseBuf>::FstOwnedBufferBool,
+                <<Z as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): TyBoolPair;
+
+        #[inline]
+        fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
+        where
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+            (
+                <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+                <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): SelectPair,
+            (
+                <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+                <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): TyBoolPair,
+            Self: Sized 
+        {
+            self.maybe_create_dope_slice().unwrap()
+        }
+    };
+}
+
+impl<M: MatrixLike> MatrixOps for RSMatrixExpr<M> {
+    type Unwrapped = M;
+    type Builder = RSMatrixExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        // manual move
+        unsafe { ptr::read(&ManuallyDrop::new(self).mat) }
+    }
+    RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+impl<M: MatrixLike> MatrixEvalOps for RSMatrixExpr<M> {
+    RSMatrixExpr_iliffe_eval_ops_inner!();
+}
+
+impl<'a, T> MatrixOps for &'a RSMathIliffeMatrix<T> {
+    type Unwrapped = &'a [Box<[T]>];
+    type Builder = RSMatrixExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&*self.mat.0) }
+    }
+    RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+impl<'a, T> MatrixEvalOps for &'a RSMathIliffeMatrix<T> {
+    RSMatrixExpr_iliffe_eval_ops_inner!();
+}
+
+impl<'a, T> MatrixOps for &'a mut RSMathIliffeMatrix<T> {
+    type Unwrapped = &'a mut [Box<[T]>];
+    type Builder = RSMatrixExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *self.mat.0) }
+    }
+    RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+impl<'a, T> MatrixEvalOps for &'a mut RSMathIliffeMatrix<T> {
+    RSMatrixExpr_iliffe_eval_ops_inner!();
+}
+
+impl<'a, T> MatrixOps for &'a RSMathDopeMatrix<T> {
+    type Unwrapped = RefMatrixDopeSlice<'a, T>;
+    type Builder = RSMatrixExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        RefMatrixDopeSlice{
+            mat: unsafe { transmute::<&[ManuallyDrop<T>], &[T]>(&*self.mat.mat) },
+            height: self.mat.height,
+        }
+    }
+    RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+impl<'a, T> MatrixEvalOps for &'a RSMathDopeMatrix<T> {
+    RSMatrixExpr_dope_eval_ops_inner!();
+}
+
+impl<'a, T> MatrixOps for &'a mut RSMathDopeMatrix<T> {
+    type Unwrapped = RefMutMatrixDopeSlice<'a, T>;
+    type Builder = RSMatrixExprBuilder;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        RefMutMatrixDopeSlice{
+            mat: unsafe { transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *self.mat.mat) },
+            height: self.mat.height,
+        }
+    }
+    RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+
+impl<'a, T> MatrixEvalOps for &'a mut RSMathDopeMatrix<T> {
+    RSMatrixExpr_dope_eval_ops_inner!();
 }
 
 macro_rules! conditional_syntax {
