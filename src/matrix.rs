@@ -640,6 +640,44 @@ impl<T> RSMathDopeMatrix<T> {
 }
 
 // TODO: `From` impl's
+/// *NOT A FREE CONVERSION*
+/*
+impl<T> From<RSMathIliffeMatrix<T>> for RSMathDopeMatrix<T> {
+    fn from(value: RSMathIliffeMatrix<T>) -> Self {
+        let RSMatrixExpr { mat: _, num_rows, num_cols } = value;
+        // some shenaniganery bc you cant move mat out from value since value impl's Drop and mat isn't Copy
+        let iliffe_mat = value.unwrap();
+        let mut dope_mat = Vec::with_capacity(num_rows * num_cols);
+        for column in iliffe_mat.0 {
+            dope_mat.extend(column.into_iter());
+        }
+        RSMatrixExpr { 
+            mat: MatrixDopeSlice { mat: dope_mat.into_boxed_slice(), height: num_rows }, 
+            num_rows, 
+            num_cols 
+        }
+    }
+}
+*/
+
+/// NOTE: this may get removed / modified in the future for cases where this can be impl'd better without going through an Iliffe Matrix
+impl<T, U> From<U> for RSMathDopeMatrix<T> where RSMathIliffeMatrix<T>: From<U> {
+    fn from(value: U) -> Self {
+        let iliffe_mat_expr = value.into();
+        let RSMatrixExpr { mat: _, num_rows, num_cols } = iliffe_mat_expr;
+        // some shenaniganery bc you cant move mat out from iliffe_mat_expr since iliffe_mat_expr impl's Drop and mat isn't Copy
+        let iliffe_mat = iliffe_mat_expr.unwrap();
+        let mut dope_mat = Vec::with_capacity(num_rows * num_cols);
+        for column in iliffe_mat.0 {
+            dope_mat.extend(column.into_iter());
+        }
+        RSMatrixExpr { 
+            mat: MatrixDopeSlice { mat: dope_mat.into_boxed_slice(), height: num_rows }, 
+            num_rows, 
+            num_cols 
+        }
+    }
+}
 
 impl<T> Index<usize> for RSMathDopeMatrix<T> {
     type Output = [T];
@@ -663,7 +701,7 @@ impl<T> IndexMut<usize> for RSMathDopeMatrix<T> {
 
 pub type RefRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMatrixDopeSlice<'a, T>>;
 
-// TODO: `From` impl's
+// TODO if possible: `From` impl's (bc any normal 2d structure like Vec<Vec<T>> just doesn't have such a contiguous slice to use)
 
 impl<'a, T> Index<usize> for RefRSMathDopeMatrix<'a, T> {
     type Output = [T];
@@ -677,7 +715,7 @@ impl<'a, T> Index<usize> for RefRSMathDopeMatrix<'a, T> {
 
 pub type RefMutRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMutMatrixDopeSlice<'a, T>>;
 
-// TODO: `From` impl's
+// TODO if possible: `From` impl's
 
 impl<'a, T> Index<usize> for RefMutRSMathDopeMatrix<'a, T> {
     type Output = [T];
@@ -729,7 +767,58 @@ impl<T> RSMathIliffeMatrix<T> {
     }
 }
 
-// TODO: `From` impl's
+/// not entirely free as this includes a check that the Box<[Box<[T]>]> is rectangular, but that is highly minimal
+impl<T> From<Box<[Box<[T]>]>> for RSMathIliffeMatrix<T> {
+    fn from(value: Box<[Box<[T]>]>) -> Self {
+        let num_cols = value.len();
+        let num_rows = if num_cols > 0 {value[0].len()} else {0};
+        for column in value.iter() {
+            assert_eq!(num_rows, column.len(), "math_vector error: input data type was not rectangular and couldn't be made into a matrix");
+        }
+        RSMatrixExpr { 
+            mat: MatrixIliffeSlice(
+                unsafe { transmute::<Box<[Box<[T]>]>, Box<[Box<[ManuallyDrop<T>]>]>>(value) }
+            ),
+            num_rows, 
+            num_cols 
+        }
+    }
+}
+
+/// not entirely free as this includes a check that the Vec<Box<[T]>> is rectangular, but that is highly minimal
+impl<T> From<Vec<Box<[T]>>> for RSMathIliffeMatrix<T> {
+    fn from(value: Vec<Box<[T]>>) -> Self {
+        Self::from(value.into_boxed_slice())
+    }
+}
+
+/// interpretted as a Box<[]> of columns
+/// *NOT A FREE CONVERSION*
+impl<T> From<Box<[Vec<T>]>> for RSMathIliffeMatrix<T> {
+    fn from(value: Box<[Vec<T>]>) -> Self {
+        let num_cols = value.len();
+        let num_rows = if num_cols > 0 {value[0].len()} else {0};
+        let mut illife_matrix = Vec::with_capacity(num_cols);
+        for column in value {
+            assert_eq!(num_rows, column.len(), "math_vector error: input data type was not rectangular and couldn't be made into a matrix");
+            let column = unsafe { transmute::<Box<[T]>, Box<[ManuallyDrop<T>]>>(column.into_boxed_slice()) };
+            illife_matrix.push(column);
+        }
+        RSMatrixExpr { 
+            mat: MatrixIliffeSlice(illife_matrix.into_boxed_slice()), 
+            num_rows, 
+            num_cols 
+        }
+    }
+}
+
+/// interpretted as a Vec of columns
+/// *NOT A FREE CONVERSION*
+impl<T> From<Vec<Vec<T>>> for RSMathIliffeMatrix<T> {
+    fn from(value: Vec<Vec<T>>) -> Self {
+        Self::from(value.into_boxed_slice())
+    }
+}
 
 impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I> {
     type Output = <[Box<[T]>] as Index<I>>::Output;
@@ -750,7 +839,17 @@ impl<T> IndexMut<usize> for RSMathIliffeMatrix<T> {
 }
 
 
-// TODO: `From` impl's
+/// not entirely free as this includes a check that it is rectangular, but that is highly minimal
+impl<'a, T: 'a, S: Deref<Target = [T]>> From<&'a [S]> for RSMatrixExpr<&'a [S]> {
+    fn from(value: &'a [S]) -> Self {
+        let num_cols = value.len();
+        let num_rows = if num_cols > 0 {value[0].len()} else {0};
+        for column in value {
+            assert_eq!(num_rows, column.len(), "math_vector error: input data type was not rectangular and couldn't be made into a matrix");
+        }
+        RSMatrixExpr { mat: value, num_rows, num_cols }
+    }
+}
 
 impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I> {
     type Output = <[S] as Index<I>>::Output;
@@ -764,7 +863,17 @@ impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> wh
 
 
 
-// TODO: `From` impl's
+/// not entirely free as this includes a check that it is rectangular, but that is highly minimal
+impl<'a, T: 'a, S: DerefMut<Target = [T]>> From<&'a mut [S]> for RSMatrixExpr<&'a mut [S]> {
+    fn from(value: &'a mut [S]) -> Self {
+        let num_cols = value.len();
+        let num_rows = if num_cols > 0 {value[0].len()} else {0};
+        for column in value.iter() {
+            assert_eq!(num_rows, column.len(), "math_vector error: input data type was not rectangular and couldn't be made into a matrix");
+        }
+        RSMatrixExpr { mat: value, num_rows, num_cols }
+    }
+}
 
 impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I> {
     type Output = <[S] as Index<I>>::Output;
