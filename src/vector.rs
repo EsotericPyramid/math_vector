@@ -20,6 +20,7 @@ pub mod vec_util_traits;
 pub mod vector_builders;
 pub mod vector_structs;
 pub mod vector_math;
+pub mod vector_initialization;
 
 use alga::general::ComplexField;
 use vec_util_traits::*;
@@ -2474,6 +2475,7 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for VectorExpr<V, D> {
     }
 }
 impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for VectorExpr<V, D> {}
+
 
 impl<V: VectorLike, const D: usize> RepeatableVectorOps for VectorExpr<V, D> 
 where 

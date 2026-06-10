@@ -364,6 +364,8 @@ pub(crate) mod util_structs {
 
 pub mod matrix;
 pub mod vector;
+#[cfg(feature = "file-conversion")]
+pub mod file_conversion;
 
 pub struct Scalar<T>(pub T);
 
