@@ -27,11 +27,15 @@ pub trait InitializableVectorExpr: VectorOps {
     } 
 }
 
-pub trait UninitVectorExpr: InitializableVectorExpr {
+/// as always: this being 'unsafe' is tbd
+pub unsafe trait UninitVectorExpr: InitializableVectorExpr {
     type Uninitialized: VectorOps;
 
     fn new_uninit(builder: Self::Builder) -> Self::Uninitialized;
     unsafe fn assume_init(uninit: Self::Uninitialized) -> Self;
+    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item);
+    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize);
+    unsafe fn drop_ots(uninit: &mut Self::Uninitialized);
 }
 
 impl<T, const D: usize> InitializableVectorExpr for MathVector<T, D> {
@@ -40,7 +44,7 @@ impl<T, const D: usize> InitializableVectorExpr for MathVector<T, D> {
     }
 }
 
-impl<T, const D: usize> UninitVectorExpr for MathVector<T, D> {
+unsafe impl<T, const D: usize> UninitVectorExpr for MathVector<T, D> {
     type Uninitialized = MathVector<MaybeUninit<T>, D>;
 
     fn new_uninit(_: Self::Builder) -> Self::Uninitialized {
@@ -58,6 +62,19 @@ impl<T, const D: usize> UninitVectorExpr for MathVector<T, D> {
             >(&*ManuallyDrop::new(uninit))    
         }
     }
+
+    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item) {
+        uninit.0.0[index] = MaybeUninit::new(val);
+    }
+
+    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize) {
+        unsafe {
+            MaybeUninit::assume_init_drop(uninit.0.0.get_unchecked_mut(index));
+        }
+    }
+
+    // no actual one-time drops for this
+    unsafe fn drop_ots(_: &mut Self::Uninitialized) {}
 }
 
 impl<T> InitializableVectorExpr for RSMathVector<T> {
@@ -71,7 +88,7 @@ impl<T> InitializableVectorExpr for RSMathVector<T> {
     }
 }
 
-impl<T> UninitVectorExpr for RSMathVector<T> {
+unsafe impl<T> UninitVectorExpr for RSMathVector<T> {
     type Uninitialized = RSMathVector<MaybeUninit<T>>;
 
     fn new_uninit(builder: Self::Builder) -> Self::Uninitialized {
@@ -96,4 +113,17 @@ impl<T> UninitVectorExpr for RSMathVector<T> {
             >(uninit)
         }
     }
+
+    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item) {
+        uninit.vec.0[index] = MaybeUninit::new(val);
+    }
+
+    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize) {
+        unsafe {
+            MaybeUninit::assume_init_drop(uninit.vec.0.get_unchecked_mut(index));
+        }
+    }
+
+    // no actual one-time drops for this
+    unsafe fn drop_ots(_: &mut Self::Uninitialized) {}
 }

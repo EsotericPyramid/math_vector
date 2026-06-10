@@ -596,6 +596,8 @@ impl<V: VectorLike> Drop for RSVectorExpr<V> {
                 self.vec.drop_inputs(i);
             }
             self.vec.drop_output();
+            self.vec.drop_1st_buffer();
+            self.vec.drop_2nd_buffer();
         }
     }
 }
