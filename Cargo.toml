@@ -12,6 +12,9 @@ num-traits = "0.2"
 [dev-dependencies]
 rand = "0.9.0"
 
+[features]
+file-conversion = []
+
 [profile.profiling]
 inherits = "release"
 debug = true

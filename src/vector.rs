@@ -104,12 +104,7 @@ where
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        VectorIter {
-            vec: unsafe { ptr::read(&ManuallyDrop::new(self).0) },
-            live_input_start: 0,
-            dead_output_start: 0,
-            size: D,
-        }
+        self.into_vec_iter()
     }
 }
 
@@ -614,13 +609,7 @@ where
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        let size = self.size;
-        VectorIter {
-            vec: unsafe { ptr::read(&ManuallyDrop::new(self).vec) },
-            live_input_start: 0,
-            dead_output_start: 0,
-            size,
-        }
+        self.into_vec_iter()
     }
 }
 
