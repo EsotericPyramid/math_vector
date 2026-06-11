@@ -1,24 +1,19 @@
 use std::{
-    error::Error, fs::File, io::{self, BufReader, BufWriter, Write, BufRead}
+    error::Error,
+    fs,
+    io,
+    hash::{Hash, Hasher, DefaultHasher},
 };
 
-use crate::{ vector::{
-    vec_util_traits::{Get, HasReuseBuf}, vector_initialization::UninitVectorExpr, vector_math::ConcreteVectorExpr, VectorOps
-}};
+use std::path::{Path, PathBuf};
 
-fn sanitize_csv_entry(entry: &str) -> String {
-    // basically: put it in double quotes and double each double quote within
-    let mut sanitized = String::with_capacity(entry.len() + 2);
-    sanitized.push('"');
-    for char in entry.chars() {
-        sanitized.push(char);
-        if char == '"' {
-            sanitized.push('"');
-        }
-    }
-    sanitized.push('"');
-    sanitized
-}
+
+use crate::vector::{
+    VectorOps,
+    vec_util_traits::Get, 
+    vector_initialization::UninitVectorExpr, 
+    vector_math::ConcreteVectorExpr
+};
 
 pub trait AsText: Sized {
     type Error: Error;
@@ -38,199 +33,178 @@ pub trait AsData<E: Error>: Sized {
 }
 
 #[derive(Debug)]
-pub enum FileReadError<E: Error> {
+#[cfg(feature = "csv")]
+pub enum CSVError<FieldError: Error> {
+    CSVError(csv::Error),
+    CellOutOfBounds,
+    FieldError(FieldError),
     FileError(io::Error),
-    ParseError(E),
-    FormattingError,
 }
 
-impl <E: Error> std::fmt::Display for FileReadError<E> {
+impl<FieldError: Error> std::fmt::Display for CSVError<FieldError> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::CSVError(e) => write!(f, "{}", e),
+            Self::CellOutOfBounds => write!(f, "CellOutOfBounds"),
+            Self::FieldError(e) => write!(f, "{}", e),
             Self::FileError(e) => write!(f, "{}", e),
-            Self::ParseError(e) => write!(f, "{}", e),
-            Self::FormattingError => write!(f, "FormattingError")
         }
     }
 }
 
-impl<E: Error> Error for FileReadError<E> {}
+impl<FieldError: Error> From<csv::Error> for CSVError<FieldError> {
+    fn from(value: csv::Error) -> Self {
+        Self::CSVError(value)
+    }
+}
+
+impl<FieldError: Error> From<io::Error> for CSVError<FieldError> {
+    fn from(value: io::Error) -> Self {
+        Self::FileError(value)
+    }
+}
+
+
+
+impl<FieldError: Error> Error for CSVError<FieldError> {}
+
+
+fn generate_tmp_file_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let mut temp_file = std::env::temp_dir();
+    let mut hasher = DefaultHasher::new();
+    path.as_ref().hash(&mut hasher);
+    temp_file.push(format!("MathVectorTemp{:016X}", hasher.finish()));
+    temp_file
+}
+
+struct IterInsert<I: Iterator> where I::Item: Clone {
+    idx: usize,
+    iter: I,
+    insertion_item: Option<I::Item>,
+    insertion_idx: usize,
+    filler: I::Item,
+}
+
+impl<I: Iterator> IterInsert<I> where I::Item: Clone {
+    fn new(iter: I, item: I::Item, idx: usize, filler: I::Item) -> Self {
+        Self {
+            idx: 0,
+            iter,
+            insertion_item: Some(item),
+            insertion_idx: idx,
+            filler,
+        }
+    }
+}
+
+impl<I: Iterator> Iterator for IterInsert<I> where I::Item: Clone {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let normal_item = self.iter.next();
+        let out = if normal_item.is_none() & (self.idx < self.insertion_idx) {
+            Some(self.filler.clone())
+        } else if self.idx == self.insertion_idx {
+            self.insertion_item.take()
+        } else {
+            normal_item
+        };
+        self.idx += 1;
+        out
+    }
+}
+
 
 pub trait VectorFileConversions: UninitVectorExpr + ConcreteVectorExpr 
 where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
-    
-    /// inserts data corresponding to a CSV file of the vector formatted as a column
-    /// *WARNING* does not intelligently format itself into a prexisting csv file, it just dumps the data whether or not thats correct
-    /// *WARNING* does not sanitize the entries being written (ex: if they contain a comma or double quotes)
-    fn raw_unsanitized_write_csv_column<'a, E>(&'a self, file: &mut File) -> Result<(), io::Error> 
-    where 
-        Self::ReferencedInner<'a>: HasReuseBuf<BoundTypes = <Self::ReferencedInner<'a> as Get>::BoundItems>,
-        &'a Self::Output: AsText,
-    {
-        let mut file = BufWriter::new(file);
-        for item in self.borrow().into_vec_iter() {
-            file.write_all(&item.as_text_utf8_bytes())?;
-            file.write_all(&"\n".as_bytes())?;
-        }
-        Ok(())
-    }
-
-    /// inserts data corresponding to a CSV file of the vector formatted as a column
-    /// *WARNING* does not intelligently format itself into a prexisting csv file, it just dumps the data whether or not thats correct
-    fn raw_write_csv_column<'a, E>(&'a self, file: &mut File) -> Result<(), io::Error> 
-    where 
-        Self::ReferencedInner<'a>: HasReuseBuf<BoundTypes = <Self::ReferencedInner<'a> as Get>::BoundItems>,
-        &'a Self::Output: AsText,
-    {
-        let mut file = BufWriter::new(file);
-        for item in self.borrow().into_vec_iter() {
-            file.write_all(&sanitize_csv_entry(&item.as_text()).as_bytes())?;
-            file.write_all(&"\n".as_bytes())?;
-        }
-        Ok(())
-    }
-
-    /// inserts data corresponding to a CSV file of the vector formatted as a row
-    /// *WARNING* does not intelligently format itself into a prexisting csv file, it just dumps the data whether or not thats correct
-    /// *WARNING* does not sanitize the entries being written (ex: if they contain a comma or double quotes)
-    fn raw_unsanitized_write_csv_row<'a, E>(&'a self, file: &mut File) -> Result<(), io::Error> 
-    where 
-        Self::ReferencedInner<'a>: HasReuseBuf<BoundTypes = <Self::ReferencedInner<'a> as Get>::BoundItems>,
-        &'a Self::Output: AsText,
-    {
-        let mut file = BufWriter::new(file);
-        let mut iter = self.borrow().into_vec_iter();
-        if let Some(item) = iter.next() {
-            file.write_all(&item.as_text_utf8_bytes())?;
-        }
-        for item in iter {
-            file.write_all(&",".as_bytes())?;
-            file.write_all(&item.as_text_utf8_bytes())?;
-        }
-        Ok(())
-    }
-
-    /// inserts data corresponding to a CSV file of the vector formatted as a column
-    /// *WARNING* does not intelligently format itself into a prexisting csv file, it just dumps the data whether or not thats correct
-    fn raw_write_csv_row<'a, E>(&'a self, file: &mut File) -> Result<(), io::Error> 
-    where 
-        Self::ReferencedInner<'a>: HasReuseBuf<BoundTypes = <Self::ReferencedInner<'a> as Get>::BoundItems>,
-        &'a Self::Output: AsText,
-    {
-        let mut file = BufWriter::new(file);
-        let mut iter = self.borrow().into_vec_iter();
-        if let Some(item) = iter.next() {
-            file.write_all(&sanitize_csv_entry(&item.as_text()).as_bytes())?;
-        }
-        for item in iter {
-            file.write_all(&",".as_bytes())?;
-            file.write_all(&sanitize_csv_entry(&item.as_text()).as_bytes())?;
-        }
-        Ok(())
-    }
-
-    fn read_csv_column_with_builder<E: Error>(file: &mut File, column: usize, builder: Self::Builder) -> Result<Self, FileReadError<E>> 
-    where 
-        Self::Output: AsText<Error = E>,
-    {
-        macro_rules! add_entry {
-            ($parser:tt, $uninit:ident, $num_entries_written:ident, $column:ident, $current_column:ident, $started_parsing_entry:ident, $error:ident, $entry:ident) => {
-                if $column == $current_column {
-                    let result = <Self::Output as AsText>::from_text(&$entry);
-                    match result {
-                        Ok(to_write) => {
-                            if $num_entries_written < $uninit.size() {
-                                unsafe { Self::init_index(&mut $uninit, $num_entries_written, to_write) };
-                                $num_entries_written += 1;
-                            }
-                        }
-                        Err(e) => {
-                            $error = Err(FileReadError::ParseError(e));
-                            break $parser;
-                        }
-                    }
-                }
-                #[allow(unused)] { //the one for the end of line naturally doesn't use this
-                    $current_column += 1;
-                }
-                $started_parsing_entry = true;
-            };
-        }
-
-        let file = BufReader::new(file);
+    #[cfg(feature = "csv")]
+    /// top left corner == (row = 0, col = 0), vector is read top down
+    fn read_csv_column<P: AsRef<Path>>(path: P, builder: Self::Builder, row_start: usize, col: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText {
+        let mut csv = csv::Reader::from_path(path)?;
+        let mut records = csv.records();
+        for _ in 0..row_start {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
         let mut uninit = Self::new_uninit(builder);
-        let mut entry = String::new();
-        let mut in_quotes = false;
-        let mut started_parsing_entry = true;
-        let mut num_entries_written = 0;
-        let mut error = Ok(());
+        let mut num_fields_written = 0;
+        let mut error = None;
 
-        'parser: for line in file.lines() {
-            match line {
-                Err(e) => {
-                    error = Err(FileReadError::FileError(e));
-                    break 'parser;
+        // Note: this section *must not return/crash* to avoid leaking
+        for _ in 0..uninit.size() {
+            let record = match records.next() {
+                None => {
+                    error = Some(CSVError::CellOutOfBounds);
+                    break;
                 }
-                Ok(line) => {
-                    let mut current_column = 0;
-                    let mut chars = line.chars();
-                    if started_parsing_entry {
-                        if let Some('"') = chars.next() {
-                            in_quotes = true;
-                        } else {
-                            in_quotes = false;
-                        }
-                        started_parsing_entry = false;
-                    }
-                    while let Some(char) = chars.next() {
-                        match char {
-                            '"' => {
-                                if !in_quotes {
-                                    error = Err(FileReadError::FormattingError);
-                                    break 'parser;
-                                } else {
-                                    let next_char = chars.next();
-                                    match next_char {
-                                        Some('"') => {
-                                            entry.push('"');
-                                        }
-                                        Some(',') | None => {
-                                            add_entry!('parser, uninit, num_entries_written, column, current_column, started_parsing_entry, error, entry);   
-                                        }
-                                        _ => {
-                                            error = Err(FileReadError::FormattingError);
-                                            break 'parser;
-                                        }
-                                    }
-                                }
-                            }
-                            ',' if !in_quotes => {
-                                add_entry!('parser, uninit, num_entries_written, column, current_column, started_parsing_entry, error, entry);
-                            }
-                            char => {
-                                entry.push(char)
-                            }
-                        }
-                    }
-                    if !in_quotes {
-                        add_entry!('parser, uninit, num_entries_written, column, current_column, started_parsing_entry, error, entry);
-                    }
+                Some(Err(e)) => {
+                    error = Some(CSVError::CSVError(e));
+                    break;
                 }
+                Some(Ok(record)) => record
+            };
+            if col >= record.len() {
+                error = Some(CSVError::CellOutOfBounds);
+                break;
             }
+            let field = match Self::Output::from_text(&record[col]) {
+                Err(e) => {
+                    error = Some(CSVError::FieldError(e));
+                    break;
+                }
+                Ok(field) => field
+            };
+            unsafe { Self::init_index(&mut uninit, num_fields_written, field); }
+            num_fields_written += 1;
         }
-        if let Err(e) = error {
+
+        if let Some(error) = error {
             unsafe {
-                for i in 0..num_entries_written {
+                for i in 0..num_fields_written {
                     Self::drop_index(&mut uninit, i);
                 }
                 Self::drop_ots(&mut uninit);
             }
-            return Err(e)
-        } else {
-            return Ok(unsafe { Self::assume_init(uninit) })
+            return Err(error);
         }
+        unsafe { Ok(Self::assume_init(uninit)) }
+    }
+
+    #[cfg(feature = "csv")]
+    fn write_csv_column<P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
+    where 
+        Self::Output: AsText,
+    {
+        let temp_path = generate_tmp_file_path(&path);
+        let mut writer = csv::Writer::from_path(&temp_path)?;
+        let mut base_records = if path.as_ref().exists() {
+            Some(csv::Reader::from_path(&path)?)
+        } else {
+            None
+        };
+
+        let mut record = csv::StringRecord::new();
+        for _ in 0..row_start {
+            if let Some(base_records) = &mut base_records {
+                base_records.read_record(&mut record)?;
+            }
+            writer.write_record(&record)?;
+        }
+
+        for i in 0..self.size() {
+            if let Some(base_records) = &mut base_records {
+                base_records.read_record(&mut record)?;
+            }
+            let field_txt = self[i].as_text();
+            writer.write_record(IterInsert::new(record.iter(), &field_txt, col, ""))?;
+        }
+
+        writer.flush()?;
+        // to make sure the files get closed
+        drop(writer);
+        drop(base_records);
+        
+        fs::rename(&temp_path, path)?;
+        Ok(())
     }
 }
