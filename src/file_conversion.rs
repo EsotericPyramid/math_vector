@@ -1,3 +1,15 @@
+#[cfg(feature = "mtx")]
+use std::ops::Index;
+#[cfg(feature = "mtx")]
+use matrix_merchant::{
+    reader::*, 
+    writer::MatrixWriter,
+    MatrixSize,
+    Position,
+};
+#[cfg(feature = "mtx")]
+use num_complex::Complex;
+
 use std::{
     error::Error,
     fs,
@@ -64,10 +76,28 @@ impl<FieldError: Error> From<io::Error> for CSVError<FieldError> {
     }
 }
 
-
-
 impl<FieldError: Error> Error for CSVError<FieldError> {}
 
+#[derive(Debug)]
+#[cfg(feature = "mtx")]
+pub enum MTXError {
+    NonVector,
+    WrongType,
+    MTXError(matrix_merchant::Error),
+    FileError(io::Error),
+}
+
+impl From<matrix_merchant::Error> for MTXError {
+    fn from(value: matrix_merchant::Error) -> Self {
+        MTXError::MTXError(value)
+    }
+}
+
+impl From<io::Error> for MTXError {
+    fn from(value: io::Error) -> Self {
+        MTXError::FileError(value)
+    }
+}
 
 fn generate_tmp_file_path<P: AsRef<Path>>(path: P) -> PathBuf {
     let mut temp_file = std::env::temp_dir();
@@ -114,6 +144,75 @@ impl<I: Iterator> Iterator for IterInsert<I> where I::Item: Clone {
     }
 }
 
+
+#[cfg(feature = "mtx")]
+macro_rules! mtx_read_fns {
+    ($($read_fn_name:ident $field_name:ident $ty:ty;)*) => {
+        $(
+            fn $read_fn_name<P: AsRef<Path>>(path: P, builder: Self::Builder) -> Result<Self, MTXError> where Self: Index<usize, Output = $ty> {
+                let reader = MtxReader::new_reader(fs::File::open(path)?)?;
+                match reader.matrix().unwrap() {
+                    MatrixReader::MatrixArray(array_reader) => {
+                        let mut uninit = Self::new_uninit(builder);
+                        let mut num_fields_written = 0;
+                        let mut error = None;
+                    
+                        let MatrixSize {num_rows, num_cols} = array_reader.size();
+                        if (num_rows != 1) & (num_cols != 1) {
+                            error = Some(MTXError::NonVector);
+                        } 
+                    
+                        let MatrixArrayReader::$field_name(array_reader) = array_reader else {return Err(MTXError::WrongType)};
+                        for column in array_reader {
+                            let column = match column {
+                                Ok(column) => column,
+                                Err(e) => {error = Some(e.into()); break}
+                            };
+                            for field in column {
+                                unsafe { 
+                                    Self::init_index(&mut uninit, num_fields_written, field);
+                                    num_fields_written += 1;
+                                }
+                            }
+                        }
+                    
+                        if let Some(error) = error {
+                            unsafe {
+                                for i in 0..num_fields_written {
+                                    Self::drop_index(&mut uninit, i);
+                                }
+                                Self::drop_ots(&mut uninit);
+                            }
+                            return Err(error);
+                        }
+                        unsafe { Ok(Self::assume_init(uninit)) }
+                    }
+                    MatrixReader::MatrixCoordinate(coord_reader) => {
+                        use matrix_merchant::Position;
+                    
+                        let MatrixSize {num_rows, num_cols} = coord_reader.size();
+                        if (num_rows != 1) & (num_cols != 1) {
+                            return Err(MTXError::NonVector);
+                        }
+                    
+                        let mut vector = Self::new_zeroed(builder);
+                        let MatrixCoordinateReader::$field_name(coord_reader) = coord_reader else {return Err(MTXError::WrongType)};
+                        for field_data in coord_reader {
+                            let (Position { row, col }, field) = field_data?;
+                            if num_rows == 1 {
+                                vector[col] = field;
+                            } else {
+                                vector[row] = field;
+                            }
+                        }
+                    
+                        Ok(vector)
+                    }
+                }
+            }
+        )*
+    };
+}
 
 pub trait VectorFileConversions: UninitVectorExpr + ConcreteVectorExpr 
 where 
@@ -204,7 +303,33 @@ where
         drop(writer);
         drop(base_records);
         
-        fs::rename(&temp_path, path)?;
+        fs::rename(temp_path, path)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "mtx")]
+    mtx_read_fns!(
+        read_mtx_real Real f64;
+        read_mtx_integer Integer i64;
+        read_mtx_complex Complex Complex<f64>;
+    );
+
+    #[cfg(feature = "mtx")]
+    fn write_mtx<P: AsRef<Path>, C: AsRef<str>>(&self, path: P, comment: Option<C>) -> Result<(), MTXError> where Self::Output: matrix_merchant::Field {
+        let temp_path = generate_tmp_file_path(&path);
+        let mut writer = MatrixWriter::new(fs::File::open(&temp_path)?, self.size(), 1);
+        if let Some(comment) = comment {
+            writer.add_comment(comment)?;
+        }
+        writer.write_array(|Position {row, col: _}| &self[row])?;
+
+        fs::rename(temp_path, path)?;
         Ok(())
     }
 }
+
+impl<V: UninitVectorExpr + ConcreteVectorExpr> VectorFileConversions for V 
+where 
+    Self::Unwrapped: Get<Item = Self::Output>,
+    Self::Output: Sized,
+{}
