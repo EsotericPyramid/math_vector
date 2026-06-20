@@ -270,6 +270,52 @@ where
     }
 
     #[cfg(feature = "csv")]
+    fn read_csv_row<P: AsRef<Path>>(path: P, builder: Self::Builder, row: usize, col_start: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText {
+        let mut csv = csv::Reader::from_path(path)?;
+        let mut records = csv.records();
+        for _ in 0..row {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
+        let mut uninit = Self::new_uninit(builder);
+        let mut num_fields_written = 0;
+        let mut error = None;
+
+        // Note: this section *must not return/crash* to avoid leaking
+        match records.next() {
+            None => {
+                error = Some(CSVError::CellOutOfBounds);
+            }
+            Some(Err(e)) => {
+                error = Some(CSVError::CSVError(e));
+            }
+            Some(Ok(record)) => {
+                for field in record.into_iter().skip(col_start).take(uninit.size()) {
+                    let field = match Self::Output::from_text(field) {
+                        Err(e) => {
+                            error = Some(CSVError::FieldError(e));
+                            break;
+                        }
+                        Ok(field) => field
+                    };
+                    unsafe {
+                        Self::init_index(&mut uninit, num_fields_written, field);
+                        num_fields_written += 1;
+                    }
+                }
+            }
+        };
+
+        if let Some(error) = error {
+            unsafe {
+                for i in 0..num_fields_written {
+                    Self::drop_index(&mut uninit, i);
+                }
+                Self::drop_ots(&mut uninit);
+            }
+            return Err(error);
+        }
+        unsafe { Ok(Self::assume_init(uninit)) }
+    }
+
+    #[cfg(feature = "csv")]
     fn write_csv_column<P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
     where 
         Self::Output: AsText,
@@ -285,17 +331,23 @@ where
         let mut record = csv::StringRecord::new();
         for _ in 0..row_start {
             if let Some(base_records) = &mut base_records {
-                base_records.read_record(&mut record)?;
+                base_records.read_record(&mut record)?; // Note: not sure if I need to clear or not
             }
             writer.write_record(&record)?;
         }
 
         for i in 0..self.size() {
             if let Some(base_records) = &mut base_records {
-                base_records.read_record(&mut record)?;
+                base_records.read_record(&mut record)?;// Note: not sure if I need to clear or not
             }
             let field_txt = self[i].as_text();
             writer.write_record(IterInsert::new(record.iter(), &field_txt, col, ""))?;
+        }
+
+        if let Some(base_records) = &mut base_records {
+            while base_records.read_record(&mut record)? { // Note: not sure if I need to clear or not
+                writer.write_record(&record)?;
+            }
         }
 
         writer.flush()?;
@@ -305,6 +357,55 @@ where
         
         fs::rename(temp_path, path)?;
         Ok(())
+    }
+
+    #[cfg(feature = "csv")]
+    fn write_csv_row<P: AsRef<Path>>(&self, path: P, row: usize, col_start: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
+    where 
+        Self::Output: AsText,
+    {
+        let temp_path = generate_tmp_file_path(&path);
+        let mut writer = csv::Writer::from_path(&temp_path)?;
+        let mut base_records = if path.as_ref().exists() {
+            Some(csv::Reader::from_path(&path)?)
+        } else {
+            None
+        };
+
+        let mut record = csv::StringRecord::new();
+        for _ in 0..row {
+            if let Some(base_records) = &mut base_records {
+                base_records.read_record(&mut record)?; // Note: not sure if I need to clear or not
+            }
+            writer.write_record(&record)?;
+        }
+
+        if let Some(base_records) = &mut base_records {
+            base_records.read_record(&mut record)?; // Note: not sure if I need to clear or not
+        }
+        let mut new_record = csv::StringRecord::new();
+        let mut old_record = record.iter();
+        for _ in 0..col_start {
+            new_record.push_field(old_record.next().or(Some("")).unwrap())
+        }
+        for i in 0..self.size() {
+            new_record.push_field(&self[i].as_text());
+        }
+        new_record.extend(old_record.skip(self.size()));
+
+        if let Some(base_records) = &mut base_records {
+            while base_records.read_record(&mut record)? { // Note: not sure if I need to clear or not
+                writer.write_record(&record)?;
+            }
+        }
+
+        writer.flush()?;
+        // to make sure the files get closed
+        drop(writer);
+        drop(base_records);
+        
+        fs::rename(temp_path, path)?;
+        todo!()
     }
 
     #[cfg(feature = "mtx")]
