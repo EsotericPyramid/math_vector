@@ -10,13 +10,16 @@ use matrix_merchant::{
 #[cfg(feature = "mtx")]
 use num_complex::Complex;
 
+#[cfg(feature = "hdf5")]
+use hdf5::Dataset;
+
 use std::{
     error::Error,
     fs,
     io,
     hash::{Hash, Hasher, DefaultHasher},
 };
-
+use crate::vector::vec_util_traits::VectorBuilder;
 use std::path::{Path, PathBuf};
 
 
@@ -144,6 +147,18 @@ impl<I: Iterator> Iterator for IterInsert<I> where I::Item: Clone {
     }
 }
 
+#[derive(Debug)]
+#[cfg(feature = "hdf5")]
+pub enum HDF5Error {
+    WrongSize,
+    HDF5Error(hdf5::Error)
+}
+
+impl From<hdf5::Error> for HDF5Error {
+    fn from(value: hdf5::Error) -> Self {
+        Self::HDF5Error(value)
+    }
+}
 
 #[cfg(feature = "mtx")]
 macro_rules! mtx_read_fns {
@@ -426,6 +441,31 @@ where
 
         fs::rename(temp_path, path)?;
         Ok(())
+    }
+
+    #[cfg(feature = "hdf5")]
+    fn read_hdf5_dataset(builder: Self::Builder, dataset: &Dataset) -> Result<Self, HDF5Error> where Self::Output: hdf5::H5Type {
+        let data = dataset.read_1d()?;
+        if data.len() != builder.size() {
+            return Err(HDF5Error::WrongSize)
+        }
+        let mut uninit = Self::new_uninit(builder);
+        let mut num_written = 0;
+        for field in data {
+            unsafe {
+                Self::init_index(&mut uninit, num_written, field);
+                num_written += 1;
+            }
+        }
+        // assuming that this ^^^ is infallible
+        
+        Ok(unsafe { Self::assume_init(uninit) })
+    }
+
+    #[cfg(feature = "hdf5")]
+    fn write_hdf5_dataset(&self, dataset: &Dataset) -> Result<(), HDF5Error> where Self::Output: hdf5::H5Type + Clone + ndarray::DataOwned {
+        // note: if rust-analyzer says that this is an error, its lying 
+        Ok(dataset.as_writer().write((0..self.size()).into_iter().map(|x| self[x].clone()).collect::<Vec<_>>())?)
     }
 }
 
