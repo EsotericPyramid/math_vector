@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use crate::{
-    vector::{RepeatableVectorOps, VectorInPlaceEvalOps},
+    vector::{VectorInPlaceEvalOps},
 };
 use rand::Rng;
 use std::{hint::black_box, time::*};
@@ -164,30 +164,6 @@ fn vec_angle_cos() {
     println!("Elapsed: {}", time.as_nanos());
 }
 
-/// component-wise multiplies 2 vectors and gets the sum and product of all the elements
-/// and grabs 200 random values from the multiplication of the 2 vectors
-/// tests the ability to grab arbitrary values from a repeatable vector
-/// prints:
-///     200 random values from the multiplication of 2 vectors
-///     sum and product of all the elemements
-#[test]
-#[ignore]
-fn repeatable_vectors_test() {
-    // although IsRepeatable would likely mostly be only used internally, it has minimal external use
-    let mut rng = rand::rng();
-    let vec1: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
-    let vec2: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
-    let mut vec3 = (vec1.reuse().comp_mul(vec2))
-        .copied_sum::<f64>()
-        .make_repeatable()
-        .copied();
-    for _ in 0..200 {
-        // enabled by IsRepeatable
-        println!("{}", vec3.get(rng.random_range(0..10000)));
-    }
-    let (sum, product) = vec3.product::<f64>().consume();
-    println!("sum: {}, product: {}", sum, product);
-}
 
 #[test]
 #[ignore]
@@ -213,6 +189,30 @@ fn eval_in_place_vectors_test() {
         println!("{}", vec3[i]);
     }
     let (sum, product) = vec3.product::<u64>().consume();
+    println!("sum: {}, product: {}", sum, product);
+}
+
+/// component-wise multiplies 2 vectors and gets the sum and product of all the elements
+/// and grabs 200 random values from the multiplication of the 2 vectors
+/// tests the ability to grab arbitrary values from a repeatable vector (obtained via evaling in place)
+/// prints:
+///     200 random values from the multiplication of 2 vectors
+///     sum and product of all the elemements
+#[test]
+#[ignore]
+fn repeatable_vectors_test() {
+    // although IsRepeatable would likely mostly be only used internally, it has minimal external use
+    let mut rng = rand::rng();
+    let vec1: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
+    let vec2: MathVector<f64, 10000> = vector_gen(|| rng.random()).eval();
+    let mut vec3 = (vec1.reuse().comp_mul(vec2))
+        .copied_sum::<f64>()
+        .eval_in_place();
+    for _ in 0..200 {
+        // enabled by IsRepeatable
+        println!("{}", vec3.get(rng.random_range(0..10000)));
+    }
+    let (sum, product) = vec3.product::<f64>().consume();
     println!("sum: {}, product: {}", sum, product);
 }
 

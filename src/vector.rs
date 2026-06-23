@@ -1337,25 +1337,25 @@ pub unsafe trait VectorOps: Sized {
         ///    }
         ///    let output = vec.eval();
         /// ```
-        fn make_dynamic(self) -> Box<
+        fn make_dynamic(self) -> {manual} Box<
             dyn VectorLike<
-                    GetBool = <Self::Unwrapped as Get>::GetBool,
-                    Inputs = (),
-                    Item = <Self::Unwrapped as Get>::Item,
-                    BoundItems = <Self::Unwrapped as Get>::BoundItems,
-                    OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
-                    Output = <Self::Unwrapped as HasOutput>::Output,
-                    FstHandleBool = <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-                    SndHandleBool = <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
-                    BoundHandlesBool = <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-                    FstOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-                    SndOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-                    FstOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::FstOwnedBuffer,
-                    SndOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::SndOwnedBuffer,
-                    FstType = <Self::Unwrapped as HasReuseBuf>::FstType,
-                    SndType = <Self::Unwrapped as HasReuseBuf>::SndType,
-                    BoundTypes = <Self::Unwrapped as HasReuseBuf>::BoundTypes,
-                >,
+                GetBool = <Self::Unwrapped as Get>::GetBool,
+                Inputs = (),
+                Item = <Self::Unwrapped as Get>::Item,
+                BoundItems = <Self::Unwrapped as Get>::BoundItems,
+                OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
+                Output = <Self::Unwrapped as HasOutput>::Output,
+                FstHandleBool = <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+                SndHandleBool = <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+                BoundHandlesBool = <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                FstOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                SndOwnedBufferBool = <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                FstOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::FstOwnedBuffer,
+                SndOwnedBuffer = <Self::Unwrapped as HasReuseBuf>::SndOwnedBuffer,
+                FstType = <Self::Unwrapped as HasReuseBuf>::FstType,
+                SndType = <Self::Unwrapped as HasReuseBuf>::SndType,
+                BoundTypes = <Self::Unwrapped as HasReuseBuf>::BoundTypes,
+            >,
         >,
         where
             Self::Unwrapped: 'static | std::any::Any, //jank 
@@ -2170,65 +2170,12 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     );
 }
 
-/// a trait enabling a vector to be made repeatable
-pub trait RepeatableVectorOps: VectorOps {
-    /// the underlying repeatable VectorLike to be returned
-    type RepeatableVector<'a>: VectorLike + IsRepeatable
-    where
-        Self: 'a;
-    /// the underlying VectorLike that was used to make the vector repeatable
-    type UsedVector: VectorLike;
-    //type HeapedUsedVector: VectorLike;
-
-    /// turns the vector into a repeatable one
-    /// note:
-    /// this is *non-trivial*,
-    /// in this process, the original vector has to be evaluated and stored, needing computation & memory
-    fn make_repeatable<'a>(
-        self,
-    ) -> <Self::Builder as VectorBuilder>::Wrapped<
-        VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>,
-    >
-    where
-        Self: 'a,
-        (
-            <Self::RepeatableVector<'a> as HasOutput>::OutputBool,
-            <Self::UsedVector as HasOutput>::OutputBool,
-        ): FilterPair,
-        (
-            <Self::RepeatableVector<'a> as HasReuseBuf>::FstHandleBool,
-            <Self::UsedVector as HasReuseBuf>::FstHandleBool,
-        ): SelectPair,
-        (
-            <Self::RepeatableVector<'a> as HasReuseBuf>::SndHandleBool,
-            <Self::UsedVector as HasReuseBuf>::SndHandleBool,
-        ): SelectPair,
-        (
-            <Self::RepeatableVector<'a> as HasReuseBuf>::BoundHandlesBool,
-            <Self::UsedVector as HasReuseBuf>::BoundHandlesBool,
-        ): FilterPair,
-        (
-            <Self::RepeatableVector<'a> as HasReuseBuf>::FstOwnedBufferBool,
-            <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
-        ): SelectPair,
-        (
-            <Self::RepeatableVector<'a> as HasReuseBuf>::SndOwnedBufferBool,
-            <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
-        ): SelectPair,
-        (
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ): TyBoolPair,
-        <(
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-        ) as TyBoolPair>::Or: IsTrue;
-}
-
+/// a trait enabling a vector to be evaluated inplace (without offloading its outputs and buffers)
 pub trait VectorInPlaceEvalOps: VectorOps {
     type ConcreteVectorLike: VectorLike;
     type UsedVector: VectorLike;
 
+    /// turns the vector into a concrete one by evaluating and storing it
     fn eval_in_place(self) -> <Self::Builder as VectorBuilder>::Wrapped<
         VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
     > where 
@@ -2468,41 +2415,6 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for VectorExpr<V, D> {
 impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for VectorExpr<V, D> {}
 
 
-impl<V: VectorLike, const D: usize> RepeatableVectorOps for VectorExpr<V, D> 
-where 
-    <V::FstHandleBool as TyBool>::Neg: Filter,
-    (V::BoundHandlesBool, Y): FilterPair,
-    (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
-    Selected<V::FstOwnedBuffer, MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>> = MathVector<V::Item, D>>,
-    (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
-    (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
-    (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
-{
-    type RepeatableVector<'a> = ReferringVectorArray<'a, V::Item, D> where Self: 'a;
-    type UsedVector = VecHalfBind<VecMaybeCreateArray<V, V::Item, D>>;
-
-    fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 
-    where
-        Self: 'a,
-        (<Self::RepeatableVector<'a> as HasOutput>::OutputBool, <Self::UsedVector as HasOutput>::OutputBool): FilterPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstHandleBool, <Self::UsedVector as HasReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndHandleBool, <Self::UsedVector as HasReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::BoundHandlesBool, <Self::UsedVector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstOwnedBufferBool, <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndOwnedBufferBool, <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): TyBoolPair,
-        <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
-    {
-        let builder = self.get_builder();
-        let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
-        unsafe {
-            vec_iter.no_output_consume();
-            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
-        }
-    }
-}
-
 impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for VectorExpr<V, D> 
 where 
     <V::FstHandleBool as TyBool>::Neg: Filter,
@@ -2625,43 +2537,6 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
     }
 }
 impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for Box<VectorExpr<V, D>> {}
-
-impl<V: VectorLike, const D: usize> RepeatableVectorOps for Box<VectorExpr<V, D>>
-where 
-    <V::FstHandleBool as TyBool>::Neg: Filter,
-    (V::BoundHandlesBool, Y): FilterPair,
-    (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
-    Selected<V::FstOwnedBuffer, MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>> = MathVector<V::Item, D>>,
-    (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
-    (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
-    (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
-    VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>
-{
-    type RepeatableVector<'a> = ReferringVectorArray<'a, V::Item, D> where Self: 'a;
-    type UsedVector = VecHalfBind<VecMaybeCreateArray<Box<V>, V::Item, D>>;
-
-    fn make_repeatable<'a>(self) -> <Self::Builder as VectorBuilder>::Wrapped<VecAttachUsedVec<Self::RepeatableVector<'a>, Self::UsedVector>> 
-    where
-        Self: 'a,
-        (<Self::RepeatableVector<'a> as HasOutput>::OutputBool, <Self::UsedVector as HasOutput>::OutputBool): FilterPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstHandleBool, <Self::UsedVector as HasReuseBuf>::FstHandleBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndHandleBool, <Self::UsedVector as HasReuseBuf>::SndHandleBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::BoundHandlesBool, <Self::UsedVector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::FstOwnedBufferBool, <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-        (<Self::RepeatableVector<'a> as HasReuseBuf>::SndOwnedBufferBool, <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-        (<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): TyBoolPair,
-        <(<<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg, <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool) as TyBoolPair>::Or: IsTrue
-    {
-        let builder = self.get_builder();
-        let mut vec_iter = self.maybe_create_array().half_bind().into_iter();
-        unsafe {
-            vec_iter.no_output_consume();
-            let out = builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().referred().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()});
-            mem::forget(vec_iter);
-            out
-        }
-    }
-}
 
 impl<V: VectorLike, const D: usize> VectorInPlaceEvalOps for Box<VectorExpr<V, D>>
 where 
