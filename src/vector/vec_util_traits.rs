@@ -2,7 +2,7 @@
 
 // Note: traits here aren't meant to be used directly by end users
 
-use crate::{trait_specialization_utils::*, util_traits::HasOutput};
+use crate::{trait_specialization_utils::*, util_traits::HasOutput, vector::VectorOps};
 
 /// A way to get out items from a collection / generator which implicitly invalidates* that index
 /// Can output owned values
@@ -147,7 +147,7 @@ impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
 pub trait VectorBuilder: Clone {
-    type Wrapped<T: VectorLike>;
+    type Wrapped<T: VectorLike>: VectorOps;
 
     ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;

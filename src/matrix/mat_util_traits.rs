@@ -1,9 +1,7 @@
 //! Module containing the traits which define a MatrixLike type (primative lazy matrix)
 
 use crate::{
-    trait_specialization_utils::TyBool,
-    util_traits::HasOutput,
-    vector::vec_util_traits::{VectorBuilder, VectorLike},
+    matrix::MatrixOps, trait_specialization_utils::TyBool, util_traits::HasOutput, vector::{VectorOps, vec_util_traits::{VectorBuilder, VectorLike}},
 };
 
 // Note: traits here aren't meant to be used by end users
@@ -166,13 +164,13 @@ impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
 /// or in other words, implementors carry minimal sizing information which can be applied to MatrixLikes
 pub trait MatrixBuilder: Clone {
     /// wrapper directly indicated by this builder
-    type MatrixWrapped<T: MatrixLike>;
+    type MatrixWrapped<T: MatrixLike>: MatrixOps;
     /// transposition of the wrapper indicated
-    type TransposedMatrixWrapped<T: MatrixLike>;
+    type TransposedMatrixWrapped<T: MatrixLike>: MatrixOps;
     /// wrapper for an indicated column
-    type ColWrapped<T: VectorLike>;
+    type ColWrapped<T: VectorLike>: VectorOps;
     /// wrapper for an indicated row
-    type RowWrapped<T: VectorLike>;
+    type RowWrapped<T: VectorLike>: VectorOps;
 
     //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
     /// a builder wrapping columns like this builder
