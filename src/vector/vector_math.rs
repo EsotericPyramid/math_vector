@@ -49,7 +49,7 @@ pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where
 pub trait InnerProduct<F: ComplexField>
 where 
 {
-    type InnerProduct<V1: VectorOps, V2: VectorOps>: VectorOps where 
+    type InnerProductInner<V1: VectorOps, V2: VectorOps>: VectorLike where 
         V1::Unwrapped: Get<Item = F>,
         V2::Unwrapped: Get<Item = F>,
         V1::Builder: VectorBuilderUnion<V2::Builder>,
@@ -83,8 +83,7 @@ where
         (<V1::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
         (<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
-        Self::InnerProduct<V1, V2>: VectorOps,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasOutput<Output = <
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasOutput<Output = <
             (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
         >::Filtered<
             <
@@ -94,8 +93,8 @@ where
             >, 
             F
         >>,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasReuseBuf<
-            BoundTypes = <<Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped as Get>::BoundItems
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped as Get>::BoundItems
         >,
     ;
 
@@ -115,8 +114,7 @@ where
         (<V1::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
         (<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
-        Self::InnerProduct<V1, V2>: VectorOps,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasOutput<Output = <
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasOutput<Output = <
             (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
         >::Filtered<
             <
@@ -126,8 +124,8 @@ where
             >, 
             F
         >>,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasReuseBuf<
-            BoundTypes = <<Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped as Get>::BoundItems
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped as Get>::BoundItems
         >,
     {
         unsafe {<(<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y)>::defilter(Self::inner_prod(lhs_vector, rhs_vector))}
@@ -137,7 +135,7 @@ where
 pub struct DotProduct;
 
 impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
-    type InnerProduct<V1: VectorOps, V2: VectorOps> = <<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<VecDot<V1::Unwrapped, V2::Unwrapped, F>> where 
+    type InnerProductInner<V1: VectorOps, V2: VectorOps> = VecDot<V1::Unwrapped, V2::Unwrapped, F> where 
         V1::Unwrapped: Get<Item = F>,
         V2::Unwrapped: Get<Item = F>,
         V1::Builder: VectorBuilderUnion<V2::Builder>,
@@ -171,8 +169,7 @@ impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
         (<V1::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
         (<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
-        Self::InnerProduct<V1, V2>: VectorOps,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasOutput<Output = <
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasOutput<Output = <
             (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
         >::Filtered<
             <
@@ -182,8 +179,8 @@ impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
             >, 
             F
         >>,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasReuseBuf<
-            BoundTypes = <<Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped as Get>::BoundItems
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped as Get>::BoundItems
         >,
     {
         lhs_vector.dot(rhs_vector).consume()
@@ -193,7 +190,7 @@ impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
 pub struct EuclideanInnerProduct;
 
 impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
-    type InnerProduct<V1: VectorOps, V2: VectorOps> = <<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<VecEuclidInnerProd<V1::Unwrapped, V2::Unwrapped, F>> where 
+    type InnerProductInner<V1: VectorOps, V2: VectorOps> = VecEuclidInnerProd<V1::Unwrapped, V2::Unwrapped, F> where 
         V1::Unwrapped: Get<Item = F>,
         V2::Unwrapped: Get<Item = F>,
         V1::Builder: VectorBuilderUnion<V2::Builder>,
@@ -227,8 +224,7 @@ impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
         (<V1::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V2::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
         (<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool): FilterPair,
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
-        Self::InnerProduct<V1, V2>: VectorOps,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasOutput<Output = <
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasOutput<Output = <
             (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
         >::Filtered<
             <
@@ -238,8 +234,8 @@ impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
             >, 
             F
         >>,
-        <Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped: HasReuseBuf<
-            BoundTypes = <<Self::InnerProduct<V1, V2> as VectorOps>::Unwrapped as Get>::BoundItems
+        <<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>> as VectorOps>::Unwrapped as Get>::BoundItems
         >,
     {
         lhs_vector.euclidean_inner_prod(rhs_vector).consume()
