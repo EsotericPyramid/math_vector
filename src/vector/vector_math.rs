@@ -1,6 +1,6 @@
 use crate::{
     trait_specialization_utils::*, util_traits::HasOutput, vector::{
-        vec_util_traits::*, vector_structs::*, VectorOps
+        ArrayVectorOps, VectorEvalOps, VectorOps, vec_util_traits::*, vector_builders::VectorInnerProdExprBuilder, vector_structs::*
     }
 };
 use std::ops::{Index, IndexMut};
@@ -46,7 +46,11 @@ pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where
     ;
 }
 
-pub trait InnerProduct<F: ComplexField>
+/// implies that the implementor implements InnerProduct<F> for some F
+pub trait GenericInnerProduct: Copy {}
+
+/// really implementors of this should be ZSTs
+pub trait InnerProduct<F: ComplexField>: GenericInnerProduct
 where 
 {
     type InnerProductInner<V1: VectorOps, V2: VectorOps>: VectorLike where 
@@ -132,7 +136,10 @@ where
     }    
 }
 
+#[derive(Clone, Copy)]
 pub struct DotProduct;
+
+impl GenericInnerProduct for DotProduct {}
 
 impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
     type InnerProductInner<V1: VectorOps, V2: VectorOps> = VecDot<V1::Unwrapped, V2::Unwrapped, F> where 
@@ -187,7 +194,10 @@ impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct EuclideanInnerProduct;
+
+impl GenericInnerProduct for EuclideanInnerProduct {}
 
 impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
     type InnerProductInner<V1: VectorOps, V2: VectorOps> = VecEuclidInnerProd<V1::Unwrapped, V2::Unwrapped, F> where 
@@ -239,5 +249,89 @@ impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
         >,
     {
         lhs_vector.euclidean_inner_prod(rhs_vector).consume()
+    }
+}
+
+// monad lol
+pub struct VectorInnerProdExpr<V: VectorOps, IP: GenericInnerProduct> {
+    pub(crate) vec: V,
+    pub(crate) inner_prod: IP,
+}
+
+impl<V: VectorOps, IP: GenericInnerProduct> std::ops::Deref for VectorInnerProdExpr<V, IP> {
+    type Target = V;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+
+impl<V: VectorOps, IP: GenericInnerProduct> std::ops::DerefMut for VectorInnerProdExpr<V, IP> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.vec
+    }
+}
+
+impl<V: VectorOps, IP: GenericInnerProduct> AsRef<V> for VectorInnerProdExpr<V, IP> {
+    fn as_ref(&self) -> &V {
+        &self.vec
+    }
+}
+
+impl<V: VectorOps, IP: GenericInnerProduct> AsMut<V> for VectorInnerProdExpr<V, IP> {
+    fn as_mut(&mut self) -> &mut V {
+        &mut self.vec
+    }
+}
+
+unsafe impl<V: VectorOps, IP: GenericInnerProduct> VectorOps for VectorInnerProdExpr<V, IP> {
+    type Builder = VectorInnerProdExprBuilder<V::Builder, IP>;
+    type Unwrapped = V::Unwrapped;
+
+    fn size(&self) -> usize {
+        self.vec.size()
+    }
+
+    fn get_builder(&self) -> Self::Builder {
+        VectorInnerProdExprBuilder {
+            builder: self.vec.get_builder(),
+            inner_prod: self.inner_prod,
+        }
+    }
+
+    fn unwrap(self) -> Self::Unwrapped {
+        self.vec.unwrap()
+    }
+}
+
+impl<V: ArrayVectorOps<D>, IP: GenericInnerProduct, const D: usize> ArrayVectorOps<D> for VectorInnerProdExpr<V, IP> {}
+
+impl<V: VectorEvalOps, IP: GenericInnerProduct> VectorEvalOps for VectorInnerProdExpr<V, IP> {
+    type MaybeCreateBuffer<T: VectorLike> = V::MaybeCreateBuffer<T>
+        where
+            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+            (
+                <T as HasReuseBuf>::FstHandleBool,
+                <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): SelectPair,
+            (
+                <T as HasReuseBuf>::FstOwnedBufferBool,
+                <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            ): TyBoolPair;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
+    where
+        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair,
+        Self: Sized
+    {
+        self.vec.maybe_create_buffer()
     }
 }

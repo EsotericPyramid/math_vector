@@ -68,11 +68,12 @@ To Do's:
         ? merge ArrayVectorOps into VectorOps using Builder bounds
 
         + vec_util_traits.rs:
-            ? VectorBuilder: Clone --> VectorBuilder: Copy
             X remove where bounds from `ConcreteVectorExpr`'s `borrow` and `borrow_mut` methods
         + vector_builders.rs:
+            ? impl remaining VectorBuilderUnion's for VectorInnerProdExprBuilder
         + vector_structs.rs:
         + vector_math.rs:
+            - impl VectorInPlaceEval for VectorInnerProdExpr
             X move the InnerProduct's vector generics out of the trait def and into the fn def
             ? move ConcreteVectorExpr into vector.rs
             - add Inner-product-space-relevant operations (so proj (onto_vec), orthogonal_part, into_orthonormal_basis, proj_onto_subspace, adjoint)

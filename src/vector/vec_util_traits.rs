@@ -146,7 +146,7 @@ impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
-pub trait VectorBuilder: Clone {
+pub trait VectorBuilder: Copy {
     type Wrapped<T: VectorLike>: VectorOps;
 
     ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
