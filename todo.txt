@@ -80,7 +80,6 @@ To Do's:
             - add Inner product defined on an orthonomal basis
             - add change-of-basis operation
             - add eigenvalue / eigenvector algorithms (+ diagonalizing)
-            X add lazy equivalents for InnerProd (caused overflow when evaluating types last I tried) & Norm
     + tests.rs:
         - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
 
