@@ -3,7 +3,7 @@ use crate::{
         ArrayVectorOps, VectorEvalOps, VectorOps, vec_util_traits::*, vector_builders::VectorInnerProdExprBuilder, vector_structs::*
     }
 };
-use std::{mem::ManuallyDrop, ops::{Index, IndexMut}};
+use std::ops::{Index, IndexMut};
 use alga::general::{ComplexField, RealField};
 
 pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where 
@@ -520,7 +520,6 @@ pub trait VectorInnerProdOps: VectorOps {
             <(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or,
         >
     >
-    
     where 
         Self::InnerProd: InnerProduct<F>,
         Self::Unwrapped: Get<Item = F>,
@@ -549,21 +548,12 @@ pub trait VectorInnerProdOps: VectorOps {
             BoundTypes = <<<<Self::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<Self::InnerProd as InnerProduct<F>>::InnerProductInner<Self, V::Copied<'a>>> as VectorOps>::Unwrapped as Get>::BoundItems
         >,
         (
-            <VecMulR<VecCopy<'a, V::ReferencedInner<'a>, F>, F> as HasOutput>::OutputBool,
+            <V::ReferencedInner<'a> as HasOutput>::OutputBool,
             <(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or
         ): FilterPair
     {
         let (output, proj_mag) = self.raw_eager_inner_prod(onto.copy());
-        let onto_copy = onto.copy();
-        let onto_builder = onto_copy.get_builder();
-        unsafe { onto_builder.wrap(VecAttachOutput {
-            vec: VecMulR {
-                vec: onto_copy.unwrap(),
-                scalar: proj_mag
-            },
-            output: ManuallyDrop::new(output),
-            marker: std::marker::PhantomData,
-        }) }
+        onto.copy().mul_r(proj_mag).maybe_attach_output(output)
     }
     
 }
