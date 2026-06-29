@@ -18,6 +18,7 @@ To Do's:
 ~ clean up types to make them more readable
 ? rename things to make more sense
 + lib.rs:
+    ~? revamp the output system to use futures (?)
     X get heaped things to work outside of `--release`
     ? rename Fst & Snd buffer to Active and Reserve buffer (or similar)
     X change gen functions to assoc fns of the wrapper they make
@@ -64,7 +65,6 @@ To Do's:
         X improve VectorEvalOps to allow differentiation of attempted buffer types
         X Add addassign and subassign for generic V2: VectorOps
         ? Add heap_make_repeatable
-        ? add wrap shortcut macro to VectorOps 
         ? merge ArrayVectorOps into VectorOps using Builder bounds
 
         + vec_util_traits.rs:
@@ -73,6 +73,7 @@ To Do's:
             ? impl remaining VectorBuilderUnion's for VectorInnerProdExprBuilder
         + vector_structs.rs:
         + vector_math.rs:
+            X let InnerProduct take in Item = &F or &mut F
             - impl VectorInPlaceEval for VectorInnerProdExpr
             X move the InnerProduct's vector generics out of the trait def and into the fn def
             ? move ConcreteVectorExpr into vector.rs

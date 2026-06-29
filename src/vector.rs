@@ -1004,15 +1004,6 @@ impl<V: VectorLike> std::iter::FusedIterator for VectorIter<V> where
 {
 }
 
-macro_rules! is_present {
-    () => {
-        N
-    };
-    ($($tt:tt)+) => {
-        Y
-    }
-}
-
 macro_rules! select {
     ($bool:tt {$($true:tt)*} {$($false:tt)*}) => {
         $($true)*
@@ -1033,7 +1024,7 @@ macro_rules! vec_op {
                 $(
                     $generic:ident $(: $($generic_lifetime:lifetime|)? $generic_bound_head:path $(| $generic_bound:path)*)? $(,)?
                 ),*
-            >)?($self:ident $(: $self_ty:ty)? $(, $val:ident: $ty:ty)* $(,)?) -> $({$is_handwritten:tt})? $unwrapped_output:ty $(, output: $output:ty)? $(,)?
+            >)?($self:ident $(: $self_ty:ty)? $(, $val:ident: $ty:ty)* $(,)?) -> $({$has_output:tt})? $unwrapped_output:ty $(, output: $output:ty)? $(,)?
             $(where $(
                 $where_bounded:ty: $($where_bound_lifetime:lifetime $(|)?)? $where_bound_head:path $(| $where_bound:path)*
             ),+ $(,)?)?
@@ -1042,7 +1033,7 @@ macro_rules! vec_op {
     ) => {
         $(
             // note: there might be a cleaner way to write this...
-            select!($($is_handwritten)? {
+            select!($($has_output)? {
                 $(#[doc=$doc])+
                 #[inline]
                 fn $op_name$(<
@@ -1050,6 +1041,7 @@ macro_rules! vec_op {
                     $($generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?),*
                 >)?($self $(: $self_ty)? $(, $val: $ty)*) -> <Self::Builder as VectorBuilder>::Wrapped<$unwrapped_output>
                 where
+                    (<<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
                     $($(
                         $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
                     )+)?
@@ -1064,7 +1056,6 @@ macro_rules! vec_op {
                     $($generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?),*
                 >)?($self $(: $self_ty)? $(, $val: $ty)*) -> <Self::Builder as VectorBuilder>::Wrapped<$unwrapped_output>
                 where
-                    (<<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool, is_present!($($output)?)): FilterPair,
                     $($(
                         $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
                     )+)?
@@ -1085,7 +1076,7 @@ macro_rules! vec_op {
                 $(
                     ,$generic:ident $(: $($generic_lifetime:lifetime|)? $generic_bound_head:path $(| $generic_bound:path)*)?
                 )*
-            >($self:ident $(: $self_ty:ty)? $(, $val:ident: $ty:ty)* $(,)?) -> $({$is_handwritten:tt})? $unwrapped_output:ty $(, output: $output:ty)?
+            >($self:ident $(: $self_ty:ty)? $(, $val:ident: $ty:ty)* $(,)?) -> $({$has_output:tt})? $unwrapped_output:ty $(, output: $output:ty)?
             $(where $(
                 $where_bounded:ty: $($where_bound_lifetime:lifetime |)? $where_bound_head:path $(| $where_bound:path)*
             ),+ $(,)?)?
@@ -1093,7 +1084,7 @@ macro_rules! vec_op {
         )*
     ) => {
         $(
-            select!($($is_handwritten)? {
+            select!($($has_output)? {
                 $(#[doc=$doc])+
                 #[inline]
                 fn $op_name<
@@ -1108,6 +1099,13 @@ macro_rules! vec_op {
                     (
                         <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
                         <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                    ): FilterPair,
+                    (
+                        <(
+                            <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                            <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                        ) as TyBoolPair>::Or,
+                        Y,
                     ): FilterPair,
                     (
                         <<Self as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
@@ -1148,13 +1146,6 @@ macro_rules! vec_op {
                     (
                         <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
                         <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                    ): FilterPair,
-                    (
-                        <(
-                            <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                            <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                        ) as TyBoolPair>::Or,
-                        is_present!($($output)?),
                     ): FilterPair,
                     (
                         <<Self as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
@@ -1236,7 +1227,7 @@ pub unsafe trait VectorOps: Sized {
     // single vector ops
     vec_op!(
         /// binds the vector's item to its fst buffer, adding the buffer to Output if owned by the vector
-        fn bind(self) -> {manual} VecBind<Self::Unwrapped>
+        fn bind(self) -> VecBind<Self::Unwrapped>
         where
             Self::Unwrapped: VectorLike<FstHandleBool = Y>,
             (
@@ -1252,7 +1243,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// binds the vector's item to its fst buffer, adding the buffer to Output if owned by the vector without cleanly filtering the output
-        fn raw_bind(self) -> {manual} VecRawBind<Self::Unwrapped>
+        fn raw_bind(self) -> VecRawBind<Self::Unwrapped>
         where
             Self::Unwrapped: VectorLike<FstHandleBool = Y>,
             (
@@ -1269,7 +1260,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// maps the vector w/ the provided closure taking the vector's item and outputing the new item and a value to bind
         /// binds that value to the fst buffer, adding the buffer to Output if owned by the vector
-        fn map_bind<F: FnMut(<Self::Unwrapped as Get>::Item) -> (I, B), I, B>(self, f: F) -> {manual} VecMapBind<Self::Unwrapped, F, I, B>
+        fn map_bind<F: FnMut(<Self::Unwrapped as Get>::Item) -> (I, B), I, B>(self, f: F) -> VecMapBind<Self::Unwrapped, F, I, B>
         where
             Self::Unwrapped: VectorLike<FstHandleBool = Y>,
             (
@@ -1294,7 +1285,7 @@ pub unsafe trait VectorOps: Sized {
         /// Note:
         /// this internal output is not readily accessible and doesn't add much over bind
         /// As such, end users should generally just use bind
-        fn half_bind(self) -> {manual} VecHalfBind<Self::Unwrapped>
+        fn half_bind(self) -> VecHalfBind<Self::Unwrapped>
         where
             Self::Unwrapped: VectorLike<FstHandleBool = Y>,
             (
@@ -1310,13 +1301,13 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// swaps the vector's first and second buffers
-        fn buf_swap(self) -> {manual} VecBufSwap<Self::Unwrapped> {
+        fn buf_swap(self) -> VecBufSwap<Self::Unwrapped> {
             let builder = self.get_builder();
             unsafe { builder.wrap(VecBufSwap { vec: self.unwrap() }) }
         }
         
         /// returns a vector identical to a Repeatable Vector (DEV NOTE: honestly not sure when this is necessary since it uses a &mut)
-        fn repeated(self: &mut Self) -> {manual} RepeatedVec<'_, Self::Unwrapped>
+        fn repeated(self: &mut Self) -> RepeatedVec<'_, Self::Unwrapped>
         where
             Self::Unwrapped: IsRepeatable,
             Self: AsMut<Self::Unwrapped>,
@@ -1337,7 +1328,7 @@ pub unsafe trait VectorOps: Sized {
         ///    }
         ///    let output = vec.eval();
         /// ```
-        fn make_dynamic(self) -> {manual} Box<
+        fn make_dynamic(self) -> Box<
             dyn VectorLike<
                 GetBool = <Self::Unwrapped as Get>::GetBool,
                 Inputs = (),
@@ -1386,7 +1377,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// offsets (with rolling over) each element of the vector up by the given offset
-        fn offset_up(self, offset: usize) -> {manual} VecOffset<Self::Unwrapped> {
+        fn offset_up(self, offset: usize) -> VecOffset<Self::Unwrapped> {
             let size = self.size();
             let builder = self.get_builder();
             unsafe {
@@ -1399,7 +1390,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// offsets (with rolling over) each element of the vector down by the given offset
-        fn offset_down(self, offset: usize) -> {manual} VecOffset<Self::Unwrapped> {
+        fn offset_down(self, offset: usize) ->  VecOffset<Self::Unwrapped> {
             let size = self.size();
             let builder = self.get_builder();
             unsafe {
@@ -1412,7 +1403,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// reverses the vector
-        fn reverse(self) -> {manual} VecReverse<Self::Unwrapped> {
+        fn reverse(self) -> {has_output} VecReverse<Self::Unwrapped> {
             let max_index = self.size() - 1;
             let builder = self.get_builder();
             unsafe {
@@ -1436,7 +1427,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// folds the vector's items into a single value using the provided closure
         /// note: fold_ref should be used whenever possible due to implementation
-        fn fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> VecFold<Self::Unwrapped, F, O>, output: O {
+        fn fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> {has_output} VecFold<Self::Unwrapped, F, O>, output: O {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecFold {
@@ -1450,7 +1441,7 @@ pub unsafe trait VectorOps: Sized {
         /// folds the vector's items into a single value using the provided closure while preserving the items
         ///
         /// note: fold_ref should be used whenever possible due to implementation
-        fn copied_fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> VecCopiedFold<Self::Unwrapped, F, O>, output: O
+        fn copied_fold<F: FnMut(O, <Self::Unwrapped as Get>::Item) -> O, O>(self, f: F, init: O) -> {has_output} VecCopiedFold<Self::Unwrapped, F, O>, output: O
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1465,7 +1456,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// folds the vector's items into a single value using the provided closure
-        fn fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> VecFoldRef<Self::Unwrapped, F, O>, output: O {
+        fn fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> {has_output} VecFoldRef<Self::Unwrapped, F, O>, output: O {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecFoldRef {
@@ -1477,7 +1468,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// folds the vector's items into a single value using the provided closure while preserving the items
-        fn copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> VecCopiedFoldRef<Self::Unwrapped, F, O>, output: O
+        fn copied_fold_ref<F: FnMut(&mut O, <Self::Unwrapped as Get>::Item), O>(self, f: F, init: O) -> {has_output} VecCopiedFoldRef<Self::Unwrapped, F, O>, output: O
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1636,7 +1627,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the sum of the vector's elements and adds it to the output
-        fn sum<S: num_traits::Zero | AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> VecSum<Self::Unwrapped, S>, output: S {
+        fn sum<S: num_traits::Zero | AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> {has_output} VecSum<Self::Unwrapped, S>, output: S {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecSum {
@@ -1647,7 +1638,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the sum of the vector's elements, initialized at given value (not necessarily 0), and adds it to the output
-        fn initialized_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> VecSum<Self::Unwrapped, S>, output: S {
+        fn initialized_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> {has_output} VecSum<Self::Unwrapped, S>, output: S {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecSum {
@@ -1658,7 +1649,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the sum of the vector's elements, adding it to the output, while maintaining the vector's items
-        fn copied_sum<S: num_traits::Zero | AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> VecCopiedSum<Self::Unwrapped, S>, output: S
+        fn copied_sum<S: num_traits::Zero | AddAssign<<Self::Unwrapped as Get>::Item>>(self) -> {has_output} VecCopiedSum<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1672,7 +1663,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the sum of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
-        fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> VecCopiedSum<Self::Unwrapped, S>, output: S
+        fn initialized_copied_sum<S: AddAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> {has_output} VecCopiedSum<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1686,7 +1677,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the product of the vector's elements and adds it to the output
-        fn product<S: num_traits::One | MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> VecProduct<Self::Unwrapped, S>, output: S {
+        fn product<S: num_traits::One | MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> {has_output} VecProduct<Self::Unwrapped, S>, output: S {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecProduct {
@@ -1697,7 +1688,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the product of the vector's elements, initialized at given value (not necessarily 1), and adds it to the output
-        fn initialized_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> VecProduct<Self::Unwrapped, S>, output: S {
+        fn initialized_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> {has_output} VecProduct<Self::Unwrapped, S>, output: S {
             let builder = self.get_builder();
             unsafe {
                 builder.wrap(VecProduct {
@@ -1708,7 +1699,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the product of the vector's elements, adding it to the output, while maintaining the vector's items
-        fn copied_product<S: num_traits::One | MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> VecCopiedProduct<Self::Unwrapped, S>, output: S
+        fn copied_product<S: num_traits::One | MulAssign<<Self::Unwrapped as Get>::Item>>(self) -> {has_output} VecCopiedProduct<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1722,7 +1713,7 @@ pub unsafe trait VectorOps: Sized {
         }
     
         /// calculates the products of the vector's elements, initialized at given value (not necessarily 0), adding it to the output while maintaing the vector's items
-        fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> VecCopiedProduct<Self::Unwrapped, S>, output: S
+        fn initialized_copied_product<S: MulAssign<<Self::Unwrapped as Get>::Item>>(self, init: S) -> {has_output} VecCopiedProduct<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy,
         {
@@ -1737,7 +1728,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
         /// note: this isn't actually correct if working with complex numbers. In that case, use `sqr_euclid_mag`
-        fn sqr_mag<S: num_traits::One | AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> VecSqrMag<Self::Unwrapped, S>, output: S
+        fn sqr_mag<S: num_traits::One | AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> {has_output} VecSqrMag<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy | Mul,
         {
@@ -1752,7 +1743,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
         /// note: unless actually working with complex numbers, this is the same as `sqr_mag`
-        fn sqr_euclid_mag<F: Copy | ComplexField>(self) -> VecSqrEuclidMag<Self::Unwrapped, F>, output: F
+        fn sqr_euclid_mag<F: Copy | ComplexField>(self) -> {has_output} VecSqrEuclidMag<Self::Unwrapped, F>, output: F
         where
             Self::Unwrapped: Get<Item = F>,
         {
@@ -1767,7 +1758,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// calculates the square of the vector's magnitude (ie. sum of each element's square), adding it to the output, while maintaining the vector's items
         /// note: this isn't actually correct if working with complex numbers. In that case, use copied_sqr_euclid_mag or copied_euclid_mag
-        fn copied_sqr_mag<S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> VecCopiedSqrMag<Self::Unwrapped, S>, output: S
+        fn copied_sqr_mag<S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> {has_output} VecCopiedSqrMag<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy | Mul,
         {
@@ -1782,7 +1773,7 @@ pub unsafe trait VectorOps: Sized {
     
         /// calculates the square of the vector's magnitude based on the dot product (ie. sum of each element's square) and adds it to the output
         /// note: unless actually working with complex numbers, this is the same as `sqr_mag`
-        fn copied_sqr_euclid_mag<F: Copy | ComplexField>(self) -> VecSqrEuclidMag<Self::Unwrapped, F>, output: F
+        fn copied_sqr_euclid_mag<F: Copy | ComplexField>(self) -> {has_output} VecSqrEuclidMag<Self::Unwrapped, F>, output: F
         where
             Self::Unwrapped: Get<Item = F>,
         {
@@ -1804,7 +1795,7 @@ pub unsafe trait VectorOps: Sized {
 
         /// attaches a &mut RSMathVector to the first buffer
         /// note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
-        fn attach_slice<'a, T>(self, buf: &'a mut RSMathVector<T>) -> {manual} VecAttachSlice<'a, Self::Unwrapped, T>
+        fn attach_slice<'a, T>(self, buf: &'a mut RSMathVector<T>) -> VecAttachSlice<'a, Self::Unwrapped, T>
         where 
             Self::Unwrapped: HasReuseBuf<FstHandleBool = N>,
         {
@@ -1818,7 +1809,7 @@ pub unsafe trait VectorOps: Sized {
         }
 
         /// creates a slice in the first buffer
-        fn create_slice<T>(self) -> {manual} VecCreateSlice<Self::Unwrapped, T>
+        fn create_slice<T>(self) -> VecCreateSlice<Self::Unwrapped, T>
         where
             Self::Unwrapped: HasReuseBuf<FstHandleBool = N>,
         {
@@ -1832,7 +1823,7 @@ pub unsafe trait VectorOps: Sized {
         }
 
         /// creates a array in the first buffer if there isn't already one there
-        fn maybe_create_slice<T>(self) -> {manual} VecMaybeCreateSlice<Self::Unwrapped, T>
+        fn maybe_create_slice<T>(self) -> VecMaybeCreateSlice<Self::Unwrapped, T>
         where
             <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
             (
@@ -1987,7 +1978,7 @@ pub unsafe trait VectorOps: Sized {
             }
         }
         /// calculates the dot product of 2 vectors and adds it to the output
-        fn dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecDot<Self::Unwrapped, V::Unwrapped, S>, output: S
+        fn dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> {has_output} VecDot<Self::Unwrapped, V::Unwrapped, S>, output: S
         where <Self::Unwrapped as Get>::Item: Mul<<V::Unwrapped as Get>::Item> 
         {
             let builder = self.get_builder().union(other.get_builder());
@@ -2001,7 +1992,7 @@ pub unsafe trait VectorOps: Sized {
         }
         
         /// calculates the euclidean inner product of 2 vectors and adds it to the output
-        fn euclidean_inner_prod<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecEuclidInnerProd<Self::Unwrapped, V::Unwrapped, S>, output: S
+        fn euclidean_inner_prod<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> {has_output} VecEuclidInnerProd<Self::Unwrapped, V::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: ComplexField | Mul<<V::Unwrapped as Get>::Item>,
             <V::Unwrapped as Get>::Item: ComplexField,
@@ -2018,7 +2009,7 @@ pub unsafe trait VectorOps: Sized {
     
     
         /// calculates the dot product of 2 vectors and adds it to the output
-        fn copied_dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>, output: S
+        fn copied_dot<{V}, S: num_traits::Zero | AddAssign<<<Self::Unwrapped as Get>::Item as Mul<<V::Unwrapped as Get>::Item>>::Output>>(self, other: V) -> {has_output} VecCopiedDot<Self::Unwrapped, V::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy | Mul<<V::Unwrapped as Get>::Item>,
             <V::Unwrapped as Get>::Item: Copy,
@@ -2081,7 +2072,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     vec_op!(
         /// attaches a &mut MathVector to the first buffer
         /// note: due to current borrow checker limitations surrounding for<'a>, this isn't very useful in reality
-        fn attach_array<'a, T>(self, buf: &'a mut MathVector<T, D>) -> {manual} VecAttachArray<'a, Self::Unwrapped, T, D>
+        fn attach_array<'a, T>(self, buf: &'a mut MathVector<T, D>) -> VecAttachArray<'a, Self::Unwrapped, T, D>
         where
             Self::Unwrapped: HasReuseBuf<FstHandleBool = N>,
         {
@@ -2095,7 +2086,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         }
     
         /// creates a array in the first buffer
-        fn create_array<T>(self) -> {manual} VecCreateArray<Self::Unwrapped, T, D>
+        fn create_array<T>(self) -> VecCreateArray<Self::Unwrapped, T, D>
         where
             Self::Unwrapped: HasReuseBuf<FstHandleBool = N>,
         {
@@ -2110,7 +2101,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     
         /// creates a array on the heap in the first buffer
         /// note: a pre-existing buffer may or may not be owned by the vector
-        fn create_heap_array<T>(self) -> {manual} VecCreateHeapArray<Self::Unwrapped, T, D>
+        fn create_heap_array<T>(self) -> VecCreateHeapArray<Self::Unwrapped, T, D>
         where
             Self::Unwrapped: HasReuseBuf<FstHandleBool = N>,
         {
@@ -2124,7 +2115,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
         }
     
         /// creates a array in the first buffer if there isn't already one there
-        fn maybe_create_array<T>(self) -> {manual} VecMaybeCreateArray<Self::Unwrapped, T, D>
+        fn maybe_create_array<T>(self) -> VecMaybeCreateArray<Self::Unwrapped, T, D>
         where
             <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
             (
@@ -2147,7 +2138,7 @@ pub trait ArrayVectorOps<const D: usize>: VectorOps {
     
         /// creates a array on the heap in the first buffer if there isn't already one there
         /// note: a pre-existing buffer may or may not be on the heap or owned by the vector
-        fn maybe_create_heap_array<T>(self) -> {manual} VecMaybeCreateHeapArray<Self::Unwrapped, T, D>
+        fn maybe_create_heap_array<T>(self) -> VecMaybeCreateHeapArray<Self::Unwrapped, T, D>
         where
             <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
             (
