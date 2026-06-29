@@ -1,3 +1,5 @@
+use std::mem::ManuallyDrop;
+
 use crate::{trait_specialization_utils::*, util_traits::*, vector::vec_util_traits::*};
 
 /// Struct swapping the buffers (or lack there of) in the 2 slots
@@ -270,6 +272,116 @@ where
         }
     }
 }
+
+/// Struct attaching arbitrary data as output to a vector
+pub struct VecAttachOutput<V: VectorLike, O, OB> {
+    pub(crate) vec: V, 
+    pub(crate) output: ManuallyDrop<O>, 
+    pub(crate) marker: std::marker::PhantomData<OB>
+}
+
+unsafe impl<V: VectorLike, O, OB> Get for VecAttachOutput<V, O, OB>{
+    type GetBool = V::GetBool;
+    type Inputs = V::Inputs;
+    type Item = V::Item;
+    type BoundItems = V::BoundItems;
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+        unsafe { self.vec.get_inputs(index) }
+    }
+    #[inline]
+    unsafe fn drop_inputs(&mut self, index: usize) {
+        unsafe { self.vec.drop_inputs(index) }
+    }
+    #[inline]
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        self.vec.process(index, inputs)
+    }
+}
+
+unsafe impl<V: VectorLike, O, OB> IsRepeatable for VecAttachOutput<V, O, OB> {}
+
+impl<V: VectorLike, O, OB> HasOutput for VecAttachOutput<V, O, OB> 
+where 
+    (V::OutputBool, OB): FilterPair,
+{
+    type OutputBool = <(V::OutputBool, OB) as TyBoolPair>::Or;
+    type Output = <(V::OutputBool, OB) as FilterPair>::Filtered<V::Output, O>;
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {
+        unsafe {
+            <(V::OutputBool, OB) as FilterPair>::filter(
+                self.vec.output(),
+                std::ptr::read(&*self.output),
+            )
+        }
+    }
+
+    #[inline]
+    unsafe fn drop_output(&mut self) {
+        unsafe {
+            self.vec.drop_output();
+            ManuallyDrop::drop(&mut self.output);
+        }
+    }
+}
+
+impl<V: VectorLike, O, OB> HasReuseBuf for VecAttachOutput<V, O, OB> {
+        type FstHandleBool = V::FstHandleBool;
+    type SndHandleBool = V::SndHandleBool;
+    type BoundHandlesBool = V::BoundHandlesBool;
+    type FstOwnedBufferBool = V::FstOwnedBufferBool;
+    type SndOwnedBufferBool = V::SndOwnedBufferBool;
+    type FstOwnedBuffer = V::FstOwnedBuffer;
+    type SndOwnedBuffer = V::SndOwnedBuffer;
+    type FstType = V::FstType;
+    type SndType = V::SndType;
+    type BoundTypes = V::BoundTypes;
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
+        unsafe { self.vec.assign_1st_buf(index, val) }
+    }
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {
+        unsafe { self.vec.assign_2nd_buf(index, val) }
+    }
+    #[inline]
+    unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
+        unsafe { self.vec.assign_bound_bufs(index, val) }
+    }
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
+        unsafe { self.vec.get_1st_buffer() }
+    }
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
+        unsafe { self.vec.get_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {
+        unsafe { self.vec.drop_1st_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {
+        unsafe { self.vec.drop_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, index: usize) {
+        unsafe { self.vec.drop_1st_buf_index(index) }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, index: usize) {
+        unsafe { self.vec.drop_2nd_buf_index(index) }
+    }
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, index: usize) {
+        unsafe { self.vec.drop_bound_bufs_index(index) }
+    }
+}
+
 
 /// Struct stabilizing a vector so that it can be made dynamic
 /// specifically, stores retrieved inputs internally so that externally input is always ()

@@ -3,12 +3,11 @@ use crate::{
         ArrayVectorOps, VectorEvalOps, VectorOps, vec_util_traits::*, vector_builders::VectorInnerProdExprBuilder, vector_structs::*
     }
 };
-use std::ops::{Index, IndexMut};
+use std::{mem::ManuallyDrop, ops::{Index, IndexMut}};
 use alga::general::{ComplexField, RealField};
 
-pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where 
+pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where 
     <Self as VectorOps>::Unwrapped: Get<Item = <Self as Index<usize>>::Output>,
-
     <Self as Index<usize>>::Output: Sized,
 {
     type ReferencedInner<'a>: VectorLike<Item = &'a <Self as Index<usize>>::Output> 
@@ -18,6 +17,12 @@ pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where
     ;
     type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = <Self as Index<usize>>::Output> 
     where
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a,
+    ;
+    type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>>
+    where
+        Self::Output: Copy,
         <Self as Index<usize>>::Output: 'a,
         Self: 'a,
     ;
@@ -43,6 +48,12 @@ pub trait ConcreteVectorExpr: VectorOps + Index<usize> + IndexMut<usize> where
         <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
         <Self as Index<usize>>::Output: 'a,
         Self: 'a,
+    ;
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
     ;
 }
 
@@ -260,6 +271,20 @@ impl<V: VectorOps, IP: GenericInnerProduct> AsMut<V> for VectorInnerProdExpr<V, 
     }
 }
 
+impl<V: VectorOps + Index<Idx>, IP: GenericInnerProduct, Idx> Index<Idx> for VectorInnerProdExpr<V, IP> {
+    type Output = V::Output;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        &self.vec[index]
+    }
+}
+
+impl<V: VectorOps + IndexMut<Idx>, IP: GenericInnerProduct, Idx> IndexMut<Idx> for VectorInnerProdExpr<V, IP> {
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+        &mut self.vec[index]
+    }
+}
+
 unsafe impl<V: VectorOps, IP: GenericInnerProduct> VectorOps for VectorInnerProdExpr<V, IP> {
     type Builder = VectorInnerProdExprBuilder<V::Builder, IP>;
     type Unwrapped = V::Unwrapped;
@@ -312,10 +337,70 @@ impl<V: VectorEvalOps, IP: GenericInnerProduct> VectorEvalOps for VectorInnerPro
     }
 }
 
-impl<V: VectorEvalOps, IP: GenericInnerProduct> VectorInnerProdOps for VectorInnerProdExpr<V, IP> {
-    type InnerProd = IP;
+impl<V: ConcreteVectorExpr, IP: GenericInnerProduct> ConcreteVectorExpr for VectorInnerProdExpr<V, IP> 
+where 
+    <V as VectorOps>::Unwrapped: Get<Item = <V as Index<usize>>::Output>,
+    <V as Index<usize>>::Output: Sized,
+{
+    type ReferencedInner<'a> = V::ReferencedInner<'a>
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type Referenced<'a> = VectorInnerProdExpr<V::Referenced<'a>, IP>
+        where
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type Copied<'a> = VectorInnerProdExpr<V::Copied<'a>, IP>
+        where
+            Self::Output: Copy,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type ReferencedMutInner<'a> = V::ReferencedMutInner<'a> 
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+    type ReferencedMut<'a> = VectorInnerProdExpr<V::ReferencedMut<'a>, IP>
+        where 
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
+    {
+        VectorInnerProdExpr {
+            vec: self.vec.borrow(),
+            inner_prod: self.inner_prod
+        }
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
+    {
+        VectorInnerProdExpr {
+            vec: self.vec.borrow_mut(),
+            inner_prod: self.inner_prod
+        }
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
+    {
+        VectorInnerProdExpr {
+            vec: self.vec.copy(),
+            inner_prod: self.inner_prod
+        }
+    }
 }
 
+impl<V: VectorOps, IP: GenericInnerProduct> VectorInnerProdOps for VectorInnerProdExpr<V, IP> {
+    type InnerProd = IP;
+}
 
 pub trait VectorInnerProdOps: VectorOps {
     type InnerProd: GenericInnerProduct;
@@ -413,4 +498,72 @@ pub trait VectorInnerProdOps: VectorOps {
     {
         <Self::InnerProd as InnerProduct<F>>::raw_eager_inner_prod(self, other)
     }
+     
+    #[inline]
+    fn proj<'a, V: VectorInnerProdOps<InnerProd = Self::InnerProd> + ConcreteVectorExpr + 'a, F: ComplexField + 'a>(self, onto: &'a V) -> <
+        <V::Copied<'a> as VectorOps>::Builder as VectorBuilder
+    >::Wrapped<
+        VecAttachOutput<
+            VecMulR<
+                VecCopy<
+                    'a, 
+                    V::ReferencedInner<'a>, 
+                    F
+                >, 
+                F
+            >, 
+            <
+                (<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as FilterPair
+            >::Filtered<
+                <Self::Unwrapped as HasOutput>::Output, <V::ReferencedInner<'a> as HasOutput>::Output
+            >,
+            <(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or,
+        >
+    >
+    
+    where 
+        Self::InnerProd: InnerProduct<F>,
+        Self::Unwrapped: Get<Item = F>,
+        V::Unwrapped: Get<Item = V::Output>,
+        V: Index<usize, Output = F>,
+        V::Copied<'a>: VectorInnerProdOps<InnerProd = Self::InnerProd>,
+        Self::Builder: VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>,
+        (<Self::Unwrapped as HasReuseBuf>::BoundHandlesBool, <V::ReferencedInner<'a> as HasReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::Unwrapped as HasReuseBuf>::FstHandleBool, <V::ReferencedInner<'a> as HasReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::SndHandleBool, <V::ReferencedInner<'a> as HasReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool, <V::ReferencedInner<'a> as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool, <V::ReferencedInner<'a> as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
+        <<<Self::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<Self::InnerProd as InnerProduct<F>>::InnerProductInner<Self, V::Copied<'a>>> as VectorOps>::Unwrapped: HasOutput<Output = <
+            (<(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
+        >::Filtered<
+            <
+                (<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as FilterPair
+            >::Filtered<
+                <Self::Unwrapped as HasOutput>::Output, <V::ReferencedInner<'a> as HasOutput>::Output
+            >, 
+            F
+        >>,
+        <<<Self::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<Self::InnerProd as InnerProduct<F>>::InnerProductInner<Self, V::Copied<'a>>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<Self::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<Self::InnerProd as InnerProduct<F>>::InnerProductInner<Self, V::Copied<'a>>> as VectorOps>::Unwrapped as Get>::BoundItems
+        >,
+        (
+            <VecMulR<VecCopy<'a, V::ReferencedInner<'a>, F>, F> as HasOutput>::OutputBool,
+            <(<Self::Unwrapped as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or
+        ): FilterPair
+    {
+        let (output, proj_mag) = self.raw_eager_inner_prod(onto.copy());
+        let onto_copy = onto.copy();
+        let onto_builder = onto_copy.get_builder();
+        unsafe { onto_builder.wrap(VecAttachOutput {
+            vec: VecMulR {
+                vec: onto_copy.unwrap(),
+                scalar: proj_mag
+            },
+            output: ManuallyDrop::new(output),
+            marker: std::marker::PhantomData,
+        }) }
+    }
+    
 }

@@ -335,6 +335,11 @@ impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
         T: 'a,
         Self: 'a,
     ;
+    type Copied<'a> = VectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
+        where
+            Self::Output: Copy,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
     type ReferencedMutInner<'a> = &'a mut [T; D] 
     where 
         T: 'a,
@@ -347,17 +352,27 @@ impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
     ;
 
     fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-            <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-            <Self as Index<usize>>::Output: 'a,
-            Self: 'a {
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a 
+    {
         self
     }
 
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-            <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-            <Self as Index<usize>>::Output: 'a,
-            Self: 'a, {
+        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a, 
+    {
         self
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
+    {
+        VectorExpr(VecCopy{ vec: self.unwrap() })
     }
 }
 
@@ -445,6 +460,11 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<Vec
         where
             <Self as Index<usize>>::Output: 'a,
             Self: 'a,;
+    type Copied<'a> = VectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
+        where
+            Self::Output: Copy,
+            <Self as Index<usize>>::Output: 'a,
+            Self: 'a,;
     type ReferencedMutInner<'a> =  &'a mut [T; D]
         where 
             <Self as Index<usize>>::Output: 'a,
@@ -467,6 +487,14 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<Vec
             <Self as Index<usize>>::Output: 'a,
             Self: 'a, {
         VectorExpr(&mut *self.0.vec.0)
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        <Self as Index<usize>>::Output: 'a,
+        Self: 'a
+    {
+        self.borrow().copied()
     }
 }
 
@@ -1376,6 +1404,28 @@ pub unsafe trait VectorOps: Sized {
             }
         }
     
+        /// attaches arbitrary to a vector's output
+        fn attach_output<O>(self, output: O) -> {has_output} VecAttachOutput<Self::Unwrapped, O, Y> {
+            let builder = self.get_builder();
+            unsafe { builder.wrap(VecAttachOutput { 
+                vec: self.unwrap(),
+                output: ManuallyDrop::new(output),
+                marker: PhantomData,
+            }) }
+        }
+
+        /// maybe attaches arbitrary to a vector's output
+        fn maybe_attach_output<O, OB>(self, output: O) -> VecAttachOutput<Self::Unwrapped, O, OB> where
+            (<Self::Unwrapped as HasOutput>::OutputBool, OB): FilterPair
+        {
+            let builder = self.get_builder();
+            unsafe { builder.wrap(VecAttachOutput { 
+                vec: self.unwrap(),
+                output: ManuallyDrop::new(output),
+                marker: PhantomData,
+            }) }
+        }
+
         /// offsets (with rolling over) each element of the vector up by the given offset
         fn offset_up(self, offset: usize) -> VecOffset<Self::Unwrapped> {
             let size = self.size();
