@@ -40,6 +40,40 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
     ) -> MatrixExpr<
         Box<
             dyn MatrixLike<
+                GetBool = M::GetBool,
+                AreInputsTransposed = N,
+                Inputs = (),
+                Item = M::Item,
+                BoundItems = M::BoundItems,
+                OutputBool = M::OutputBool,
+                Output = M::Output,
+                FstHandleBool = M::FstHandleBool,
+                SndHandleBool = M::SndHandleBool,
+                BoundHandlesBool = M::BoundHandlesBool,
+                FstOwnedBufferBool = M::FstOwnedBufferBool,
+                SndOwnedBufferBool = M::SndOwnedBufferBool,
+                IsFstBufferTransposed = M::IsFstBufferTransposed,
+                IsSndBufferTransposed = M::IsSndBufferTransposed,
+                AreBoundBuffersTransposed = M::AreBoundBuffersTransposed,
+                FstOwnedBuffer = M::FstOwnedBuffer,
+                SndOwnedBuffer = M::SndOwnedBuffer,
+                FstType = M::FstType,
+                SndType = M::SndType,
+                BoundTypes = M::BoundTypes,
+            >,
+        >,
+        D1,
+        D2,
+    >
+    where
+        M: 'static,
+    {
+        MatrixExpr(Box::new(DynamicMatrixLike {
+            mat: self.unwrap(),
+            inputs: None,
+        })
+            as Box<
+                dyn MatrixLike<
                     GetBool = M::GetBool,
                     AreInputsTransposed = N,
                     Inputs = (),
@@ -61,41 +95,8 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixExpr<M, D1, D2> {
                     SndType = M::SndType,
                     BoundTypes = M::BoundTypes,
                 >,
-        >,
-        D1,
-        D2,
-    >
-    where
-        M: 'static,
-    {
-        MatrixExpr(Box::new(DynamicMatrixLike {
-            mat: self.unwrap(),
-            inputs: None,
-        })
-            as Box<
-                dyn MatrixLike<
-                        GetBool = M::GetBool,
-                        AreInputsTransposed = N,
-                        Inputs = (),
-                        Item = M::Item,
-                        BoundItems = M::BoundItems,
-                        OutputBool = M::OutputBool,
-                        Output = M::Output,
-                        FstHandleBool = M::FstHandleBool,
-                        SndHandleBool = M::SndHandleBool,
-                        BoundHandlesBool = M::BoundHandlesBool,
-                        FstOwnedBufferBool = M::FstOwnedBufferBool,
-                        SndOwnedBufferBool = M::SndOwnedBufferBool,
-                        IsFstBufferTransposed = M::IsFstBufferTransposed,
-                        IsSndBufferTransposed = M::IsSndBufferTransposed,
-                        AreBoundBuffersTransposed = M::AreBoundBuffersTransposed,
-                        FstOwnedBuffer = M::FstOwnedBuffer,
-                        SndOwnedBuffer = M::SndOwnedBuffer,
-                        FstType = M::FstType,
-                        SndType = M::SndType,
-                        BoundTypes = M::BoundTypes,
-                    >,
-            >)
+            >
+        )
     }
 
     /// evaluates the MatrixExpr and returns the resulting matrix alongside its output (if present)
@@ -1187,6 +1188,74 @@ pub trait MatrixOps {
         unsafe { builder.wrap_mat(MatBufSwap { mat: self.unwrap() }) }
     }
 
+    /// converts the underlying VectorLike to a dynamic object
+    /// stabilizes the overall type to a consitent one
+    #[inline]
+    #[allow(clippy::type_complexity)] // you try writing this type more simply
+    fn make_dynamic(
+        self,
+    ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<
+        Box<
+            dyn MatrixLike<
+                GetBool = <Self::Unwrapped as Get2D>::GetBool,
+                AreInputsTransposed = N,
+                Inputs = (),
+                Item = <Self::Unwrapped as Get2D>::Item,
+                BoundItems = <Self::Unwrapped as Get2D>::BoundItems,
+                OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
+                Output = <Self::Unwrapped as HasOutput>::Output,
+                FstHandleBool = <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+                SndHandleBool = <Self::Unwrapped as Has2DReuseBuf>::SndHandleBool,
+                BoundHandlesBool = <Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool,
+                FstOwnedBufferBool = <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+                SndOwnedBufferBool = <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool,
+                IsFstBufferTransposed = <Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed,
+                IsSndBufferTransposed = <Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed,
+                AreBoundBuffersTransposed = <Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed,
+                FstOwnedBuffer = <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBuffer,
+                SndOwnedBuffer = <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBuffer,
+                FstType = <Self::Unwrapped as Has2DReuseBuf>::FstType,
+                SndType = <Self::Unwrapped as Has2DReuseBuf>::SndType,
+                BoundTypes = <Self::Unwrapped as Has2DReuseBuf>::BoundTypes,
+            >,
+        >,
+    >
+    where
+        Self::Unwrapped: 'static,
+        Self: Sized,
+    {   
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(Box::new(DynamicMatrixLike {
+            mat: self.unwrap(),
+            inputs: None,
+        })
+            as Box<
+                dyn MatrixLike<
+                    GetBool = <Self::Unwrapped as Get2D>::GetBool,
+                    AreInputsTransposed = N,
+                    Inputs = (),
+                    Item = <Self::Unwrapped as Get2D>::Item,
+                    BoundItems = <Self::Unwrapped as Get2D>::BoundItems,
+                    OutputBool = <Self::Unwrapped as HasOutput>::OutputBool,
+                    Output = <Self::Unwrapped as HasOutput>::Output,
+                    FstHandleBool = <Self::Unwrapped as Has2DReuseBuf>::FstHandleBool,
+                    SndHandleBool = <Self::Unwrapped as Has2DReuseBuf>::SndHandleBool,
+                    BoundHandlesBool = <Self::Unwrapped as Has2DReuseBuf>::BoundHandlesBool,
+                    FstOwnedBufferBool = <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+                    SndOwnedBufferBool = <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool,
+                    IsFstBufferTransposed = <Self::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed,
+                    IsSndBufferTransposed = <Self::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed,
+                    AreBoundBuffersTransposed = <Self::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed,
+                    FstOwnedBuffer = <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBuffer,
+                    SndOwnedBuffer = <Self::Unwrapped as Has2DReuseBuf>::SndOwnedBuffer,
+                    FstType = <Self::Unwrapped as Has2DReuseBuf>::FstType,
+                    SndType = <Self::Unwrapped as Has2DReuseBuf>::SndType,
+                    BoundTypes = <Self::Unwrapped as Has2DReuseBuf>::BoundTypes,
+                >,
+            >,
+        )}
+    }
+
     /// offsets (with rolling over) each element of the vector left by the given offset
     #[inline]
     fn offset_left(
@@ -1935,7 +2004,7 @@ pub trait MatrixOps {
 
     /// multiplies this matrix with a vector (M * V)
     #[inline]
-    fn mat_vec_mul<V: VectorOps, O: AddAssign<<<Self::Unwrapped as Get2D>::Item as std::ops::Mul<<V::Unwrapped as Get>::Item>>::Output> + num_traits::Zero>(self, vec: V) -> <<<Self as MatrixOps>::Builder as MatrixBuilder>::ColBuilder as VectorBuilder>::Wrapped<MatVecMul<<Self as MatrixOps>::Unwrapped, <V as VectorOps>::Unwrapped, <<<Self as MatrixOps>::Builder as MatrixBuilder>::RowBuilder as VectorBuilderUnion<<V as VectorOps>::Builder>>::Union, O>> where
+    fn mat_vec_mul<V: VectorOps, O: AddAssign<<<Self::Unwrapped as Get2D>::Item as std::ops::Mul<<V::Unwrapped as Get>::Item>>::Output> + num_traits::Zero>(self, vec: V) -> <<Self::Builder as MatrixBuilder>::ColBuilder as VectorBuilder>::Wrapped<MatVecMul<Self::Unwrapped, <V as VectorOps>::Unwrapped, <<Self::Builder as MatrixBuilder>::RowBuilder as VectorBuilderUnion<<V as VectorOps>::Builder>>::Union, O>> where
         <Self::Builder as MatrixBuilder>::RowBuilder: VectorBuilderUnion<V::Builder>,
         V::Unwrapped: IsRepeatable,
         <Self::Unwrapped as Get2D>::Item: std::ops::Mul<<V::Unwrapped as Get>::Item>,

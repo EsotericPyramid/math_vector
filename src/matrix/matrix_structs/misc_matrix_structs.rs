@@ -1,4 +1,9 @@
-use crate::{matrix::mat_util_traits::*, trait_specialization_utils::*, util_traits::*};
+use crate::{
+    matrix::mat_util_traits::*, 
+    trait_specialization_utils::*, 
+    util_traits::*, 
+    vector::vec_util_traits::*,
+};
 
 /// struct swapping the buffers (or lack thereof) in the first and second slots
 pub struct MatBufSwap<M: MatrixLike> {
@@ -144,10 +149,7 @@ unsafe impl<M: MatrixLike, USEDM: MatrixLike> Get2D for MatAttachUsedMat<M, USED
     }
 }
 
-unsafe impl<M: Is2DRepeatable + MatrixLike, USEDM: MatrixLike> Is2DRepeatable
-    for MatAttachUsedMat<M, USEDM>
-{
-}
+unsafe impl<M: Is2DRepeatable + MatrixLike, USEDM: MatrixLike> Is2DRepeatable for MatAttachUsedMat<M, USEDM> {}
 
 impl<M: MatrixLike, USEDM: MatrixLike> HasOutput for MatAttachUsedMat<M, USEDM>
 where
@@ -430,4 +432,119 @@ impl<M: MatrixLike> Has2DReuseBuf for DynamicMatrixLike<M> {
     unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {
         unsafe { self.mat.drop_bound_bufs_index(col_index, row_index) }
     }
+}
+
+/// FIXME: unused, see readme
+pub struct VectorizedMatrix<M: MatrixLike>{
+    mat: M,
+    height: usize,
+}
+
+impl<M: MatrixLike> VectorizedMatrix<M> {
+    #[inline]
+    fn index_1d_to_2d(&self, index: usize) -> (usize, usize) {
+        (index / self.height, index % self.height)
+    }
+}
+
+unsafe impl<M: MatrixLike> Get for VectorizedMatrix<M> {
+    type Inputs = M::Inputs;
+    type Item = M::Item;
+    type BoundItems = M::BoundItems;
+    type GetBool = M::GetBool;
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.get_inputs(col_index, row_index) }
+    }
+    
+    unsafe fn drop_inputs(&mut self, index: usize) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.drop_inputs(col_index, row_index);}
+    }
+    
+    fn process(&mut self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        self.mat.process(col_index, row_index, inputs)
+    }
+}
+
+impl<M: MatrixLike> HasOutput for VectorizedMatrix<M> {
+    type OutputBool = M::OutputBool;
+    type Output = M::Output;
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {
+        unsafe { self.mat.output() }
+    }
+    #[inline]
+    unsafe fn drop_output(&mut self) {
+        unsafe { self.mat.drop_output() }
+    }
+}
+
+impl<M: MatrixLike> HasReuseBuf for VectorizedMatrix<M> {
+    type FstHandleBool = M::FstHandleBool;
+    type SndHandleBool = M::SndHandleBool;
+    type BoundHandlesBool = M::BoundHandlesBool;
+    type FstOwnedBufferBool = M::FstOwnedBufferBool;
+    type SndOwnedBufferBool = M::SndOwnedBufferBool;
+    type FstOwnedBuffer = M::FstOwnedBuffer;
+    type SndOwnedBuffer = M::SndOwnedBuffer;
+    type FstType = M::FstType;
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.assign_1st_buf(col_index, row_index, val) }
+    }
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.assign_2nd_buf(col_index, row_index, val) }
+    }
+    #[inline]
+    unsafe fn assign_bound_bufs(
+        &mut self,
+        index: usize,
+        val: Self::BoundTypes,
+    ) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.assign_bound_bufs(col_index, row_index, val) }
+    }
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
+        unsafe { self.mat.get_1st_buffer() }
+    }
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
+        unsafe { self.mat.get_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {
+        unsafe { self.mat.drop_1st_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {
+        unsafe { self.mat.drop_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, index: usize) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.drop_1st_buf_index(col_index, row_index) }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, index: usize) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.drop_2nd_buf_index(col_index, row_index) }
+    }
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, index: usize) {
+        let (col_index, row_index) = self.index_1d_to_2d(index);
+        unsafe { self.mat.drop_bound_bufs_index(col_index, row_index) }
+    }
+
 }

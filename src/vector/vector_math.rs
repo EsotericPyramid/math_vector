@@ -7,52 +7,52 @@ use std::{mem::ManuallyDrop, ops::{Index, IndexMut}};
 use alga::general::{ComplexField, RealField};
 
 pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where 
-    <Self as VectorOps>::Unwrapped: Get<Item = <Self as Index<usize>>::Output>,
-    <Self as Index<usize>>::Output: Sized,
+    Self::Unwrapped: Get<Item = Self::Output>,
+    Self::Output: Sized,
 {
-    type ReferencedInner<'a>: VectorLike<Item = &'a <Self as Index<usize>>::Output> 
+    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> 
     where 
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
-    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = <Self as Index<usize>>::Output> 
+    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output> 
     where
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
     type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>>
     where
         Self::Output: Copy,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
-    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut <Self as Index<usize>>::Output> 
+    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut Self::Output> 
     where 
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
-    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = <Self as Index<usize>>::Output> + IndexMut<usize>
+    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = Self::Output> + IndexMut<usize>
     where 
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
 
     
     fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
         <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a
     ;
 
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
         <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a,
     ;
 
     fn copy<'a>(&'a self) -> Self::Copied<'a> where
         Self::Output: Copy,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a
     ;
 }
@@ -344,29 +344,29 @@ where
 {
     type ReferencedInner<'a> = V::ReferencedInner<'a>
         where 
-            <Self as Index<usize>>::Output: 'a,
+            Self::Output: 'a,
             Self: 'a,;
     type Referenced<'a> = VectorInnerProdExpr<V::Referenced<'a>, IP>
         where
-            <Self as Index<usize>>::Output: 'a,
+            Self::Output: 'a,
             Self: 'a,;
     type Copied<'a> = VectorInnerProdExpr<V::Copied<'a>, IP>
         where
             Self::Output: Copy,
-            <Self as Index<usize>>::Output: 'a,
+            Self::Output: 'a,
             Self: 'a,;
     type ReferencedMutInner<'a> = V::ReferencedMutInner<'a> 
         where 
-            <Self as Index<usize>>::Output: 'a,
+            Self::Output: 'a,
             Self: 'a,;
     type ReferencedMut<'a> = VectorInnerProdExpr<V::ReferencedMut<'a>, IP>
         where 
-            <Self as Index<usize>>::Output: 'a,
+            Self::Output: 'a,
             Self: 'a,;
 
     fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
         <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a
     {
         VectorInnerProdExpr {
@@ -377,7 +377,7 @@ where
 
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
         <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a
     {
         VectorInnerProdExpr {
@@ -388,7 +388,7 @@ where
 
     fn copy<'a>(&'a self) -> Self::Copied<'a> where
         Self::Output: Copy,
-        <Self as Index<usize>>::Output: 'a,
+        Self::Output: 'a,
         Self: 'a
     {
         VectorInnerProdExpr {

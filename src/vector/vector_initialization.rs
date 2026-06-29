@@ -12,17 +12,17 @@ use super::{
 
 
 pub trait InitializableVectorExpr: VectorOps {
-    fn new_filled(builder: Self::Builder, val: <<Self as VectorOps>::Unwrapped as Get>::Item) -> Self where <<Self as VectorOps>::Unwrapped as Get>::Item: Copy;
-    fn new_zeroed(builder: Self::Builder) -> Self where <<Self as VectorOps>::Unwrapped as Get>::Item: num_traits::Zero + Copy { //not sure on the Copy requirement
+    fn new_filled(builder: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy;
+    fn new_zeroed(builder: Self::Builder) -> Self where <Self::Unwrapped as Get>::Item: num_traits::Zero + Copy { //not sure on the Copy requirement
         Self::new_filled(
             builder,
-            <<<Self as VectorOps>::Unwrapped as Get>::Item as num_traits::Zero>::zero()
+            <<Self::Unwrapped as Get>::Item as num_traits::Zero>::zero()
         )
     } 
-    fn new_oned(builder: Self::Builder) -> Self where <<Self as VectorOps>::Unwrapped as Get>::Item: num_traits::One + Copy { // TBD name //not sure on the Copy requirement
+    fn new_oned(builder: Self::Builder) -> Self where <Self::Unwrapped as Get>::Item: num_traits::One + Copy { // TBD name //not sure on the Copy requirement
         Self::new_filled(
             builder,
-            <<<Self as VectorOps>::Unwrapped as Get>::Item as num_traits::One>::one()
+            <<Self::Unwrapped as Get>::Item as num_traits::One>::one()
         )
     } 
 }
@@ -39,7 +39,7 @@ pub unsafe trait UninitVectorExpr: InitializableVectorExpr {
 }
 
 impl<T, const D: usize> InitializableVectorExpr for MathVector<T, D> {
-    fn new_filled(_: Self::Builder, val: <<Self as VectorOps>::Unwrapped as Get>::Item) -> Self where <<Self as VectorOps>::Unwrapped as Get>::Item: Copy {
+    fn new_filled(_: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy {
         VectorExpr(VectorArray(ManuallyDrop::new([val; D])))
     }
 }
@@ -78,7 +78,7 @@ unsafe impl<T, const D: usize> UninitVectorExpr for MathVector<T, D> {
 }
 
 impl<T> InitializableVectorExpr for RSMathVector<T> {
-    fn new_filled(builder: Self::Builder, val: <<Self as VectorOps>::Unwrapped as Get>::Item) -> Self where <<Self as VectorOps>::Unwrapped as Get>::Item: Copy {
+    fn new_filled(builder: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy {
         RSVectorExpr{
             vec: VectorSlice(
                 unsafe {transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(vec![val; builder.size].into_boxed_slice())}
