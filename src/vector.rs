@@ -674,21 +674,6 @@ impl<T> RSMathVector<T> {
     }
 
     #[inline]
-    pub fn borrow<'a>(&'a self) -> RefRSMathVector<'a, T> {
-        let size = self.size;
-        RSVectorExpr { vec: &**self, size }
-    }
-
-    #[inline]
-    pub fn borrow_mut<'a>(&'a mut self) -> RefMutRSMathVector<'a, T> {
-        let size = self.size;
-        RSVectorExpr {
-            vec: &mut **self,
-            size,
-        }
-    }
-
-    #[inline]
     pub unsafe fn get_unchecked<I: SliceIndex<[T]>>(&self, index: I) -> &I::Output {
         unsafe { self.vec.0.get_unchecked(index) }
     }
@@ -768,6 +753,59 @@ where
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.vec.0[index]
+    }
+}
+
+impl<T> ConcreteVectorExpr for RSMathVector<T> {
+    type ReferencedInner<'a> = &'a [T] 
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+    type Referenced<'a> = RefRSMathVector<'a, T> 
+        where
+            Self::Output: 'a,
+            Self: 'a,;
+    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>>
+        where
+            Self::Output: Copy,
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMutInner<'a> = &'a mut [T] 
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+
+    #[inline]
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        let size = self.size;
+        RSVectorExpr { vec: &**self, size }
+    }
+
+    #[inline]
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a,
+    {
+        let size = self.size;
+        RSVectorExpr { vec: &mut **self, size }
+    }
+
+    #[inline]
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        self.borrow().copied()
     }
 }
 
@@ -880,6 +918,91 @@ where
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.vec[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike> Index<I> for RSVectorExpr<VecAttachUsedVec<VectorSlice<T>, USEDV>> where 
+    [T]: Index<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type Output = <[T] as Index<I>>::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.vec.vec[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike> IndexMut<I> for RSVectorExpr<VecAttachUsedVec<VectorSlice<T>, USEDV>> where 
+    [T]: IndexMut<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.vec.vec[index]
+    }
+}
+
+impl<T, USEDV: VectorLike> ConcreteVectorExpr for RSVectorExpr<VecAttachUsedVec<VectorSlice<T>, USEDV>> where 
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type ReferencedInner<'a> = &'a [T] 
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+    type Referenced<'a> = RefRSMathVector<'a, T> 
+        where
+            Self::Output: 'a,
+            Self: 'a,;
+    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>>
+        where
+            Self::Output: Copy,
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMutInner<'a> = &'a mut [T] 
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        let size = self.size;
+        RSVectorExpr{ vec: &**self.vec.vec.0, size }
+    }
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a,
+    {
+        let size = self.size;
+        RSVectorExpr{ vec: &mut **self.vec.vec.0, size }
+    }
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        self.borrow().copied()
     }
 }
 
@@ -2900,6 +3023,73 @@ unsafe impl<V: VectorLike> VectorOps for RSVectorExpr<V> {
     #[inline]
     fn size(&self) -> usize {
         self.size
+    }
+}
+
+
+impl<V: VectorLike> VectorInPlaceEvalOps for RSVectorExpr<V> 
+where
+    <V::FstHandleBool as TyBool>::Neg: Filter,
+    (V::BoundHandlesBool, Y): FilterPair,
+    (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
+        Selected<V::FstOwnedBuffer, RSMathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>>> = RSMathVector<V::Item>>,
+    (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
+    (V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    VecHalfBind<VecMaybeCreateSlice<V, V::Item>>: HasReuseBuf<BoundTypes = <(V::BoundHandlesBool, Y) as FilterPair>::Filtered<V::BoundItems, V::Item>>,
+    (N, <(V::OutputBool, <(V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or) as TyBoolPair>::Or): FilterPair,
+    (N, <VecHalfBind<VecMaybeCreateSlice<V, V::Item>> as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateSlice<V, V::Item>> as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateSlice<V, V::Item>> as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateSlice<V, V::Item>> as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <VecHalfBind<VecMaybeCreateSlice<V, V::Item>> as HasReuseBuf>::BoundHandlesBool): FilterPair,
+{
+    type ConcreteVectorLike = VectorSlice<V::Item>;
+    type UsedVector = VecHalfBind<VecMaybeCreateSlice<V, V::Item>>;
+
+    fn eval_in_place(self) -> <Self::Builder as VectorBuilder>::Wrapped<
+        VecAttachUsedVec<Self::ConcreteVectorLike, Self::UsedVector>,
+    > where 
+        (
+            <Self::ConcreteVectorLike as HasOutput>::OutputBool,
+            <Self::UsedVector as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::FstHandleBool,
+            <Self::UsedVector as HasReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::SndHandleBool,
+            <Self::UsedVector as HasReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::BoundHandlesBool,
+            <Self::UsedVector as HasReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::FstOwnedBufferBool,
+            <Self::UsedVector as HasReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteVectorLike as HasReuseBuf>::SndOwnedBufferBool,
+            <Self::UsedVector as HasReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        let mut vec_iter = self.maybe_create_slice().half_bind().into_iter();
+        unsafe {
+            vec_iter.no_output_consume();
+            builder.wrap(VecAttachUsedVec{vec: vec_iter.vec.get_bound_buf().unwrap(), used_vec: ptr::read(&vec_iter.vec), size: builder.size()})
+        }
     }
 }
 

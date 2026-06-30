@@ -51,6 +51,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? add ConcreteVectorLike trait to help generalize ConcreteVectorExpr impl's
         - generalize the VecAttachUsedVec ConcreteVectorExpr impl
         ? remove RefRSMathVector *type alias* (just the alias, nothing else)
         - document repeated 
@@ -73,7 +74,6 @@ To Do's:
         + vector_builders.rs:
             ? impl remaining VectorBuilderUnion's for VectorInnerProdExprBuilder
         + vector_structs.rs:
-            ~ add constructors to help others use them more easily without hellish bounds
         + vector_math.rs:
             ~X add type defaults to ConcreteVectorExpr::{Referenced, ReferencedMut, Copied}
             X let InnerProduct take in Item = &F or &mut F
