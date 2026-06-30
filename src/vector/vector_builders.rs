@@ -1,13 +1,49 @@
 //! Structs implementing VectorBuilder to wrap VectorLikes with sizing information (and potentially more like inner products)
 
 use crate::vector::vector_math::{GenericInnerProduct, VectorInnerProdExpr};
+use crate::vector::vector_structs::{VecGenerator, VecIndexGenerator};
 
-use super::vec_util_traits::{VectorBuilder, VectorBuilderUnion, VectorLike};
-use super::{RSVectorExpr, VectorExpr};
+use super::vec_util_traits::VectorLike;
+use super::{RSVectorExpr, VectorExpr, VectorOps};
+
+/// A way for a type to "build" wrappers around VectorLikes which encode sizing information
+/// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
+pub trait VectorBuilder: Copy {
+    type Wrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self>;
+
+    ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
+    unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
+
+    fn size(&self) -> usize;
+
+    /// generates a Vector of size D using the given closure (FnMut) with no inputs
+    fn generate<F: FnMut() -> O, O>(&self, f: F) -> Self::Wrapped<VecGenerator<F, O>> {
+        unsafe { self.wrap(VecGenerator(f)) }
+    }
+
+    /// generates a Vector of size D using the given closure (FnMut) with an input of the current index
+    fn index_generate<F: FnMut(usize) -> O, O>(&self, f: F) -> Self::Wrapped<VecIndexGenerator<F, O>> {
+        unsafe { self.wrap(VecIndexGenerator(f)) }
+    }
+}
+
+/// Enables an union operation between 2 VectorBuilders into a single VectorBuilder
+pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
+    /// the resulting type of the Union
+    type Union: VectorBuilder;
+
+    /// union 2 VectorBuilders into a single VectorBuilder
+    /// additionally checks that the sizing information of each VectorBuilder is equal
+    fn union(self, other: T) -> Self::Union;
+}
 
 /// a simple const sized VectorBuilder
 #[derive(Clone, Copy)]
 pub struct VectorExprBuilder<const D: usize>;
+
+impl<const D: usize> VectorExprBuilder<D> {
+    pub fn new() -> Self {VectorExprBuilder}
+}
 
 impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     type Wrapped<T: VectorLike> = VectorExpr<T, D>;
@@ -23,7 +59,13 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
 /// a simple runtime sized VectorBuilder
 #[derive(Clone, Copy)]
 pub struct RSVectorExprBuilder {
-    pub(crate) size: usize,
+    pub size: usize,
+}
+
+impl RSVectorExprBuilder {
+    pub fn new(size: usize) -> Self {
+        RSVectorExprBuilder { size }
+    }
 }
 
 impl VectorBuilder for RSVectorExprBuilder {

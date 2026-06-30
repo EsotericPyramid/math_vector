@@ -1,5 +1,4 @@
 use std::mem::ManuallyDrop;
-
 use crate::{trait_specialization_utils::*, util_traits::*, vector::vec_util_traits::*};
 
 /// Struct swapping the buffers (or lack there of) in the 2 slots

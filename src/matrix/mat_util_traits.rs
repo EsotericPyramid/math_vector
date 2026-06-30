@@ -1,7 +1,14 @@
 //! Module containing the traits which define a MatrixLike type (primative lazy matrix)
 
 use crate::{
-    matrix::MatrixOps, trait_specialization_utils::TyBool, util_traits::HasOutput, vector::{VectorOps, vec_util_traits::{VectorBuilder, VectorLike}},
+    matrix::MatrixOps, 
+    trait_specialization_utils::TyBool, 
+    util_traits::HasOutput, 
+    vector::{   
+        VectorOps, 
+        vec_util_traits::VectorLike,
+        vector_builders::VectorBuilder,
+    },
 };
 
 // Note: traits here aren't meant to be used by end users

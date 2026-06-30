@@ -10,7 +10,11 @@ use crate::{
     },
     trait_specialization_utils::*,
     util_traits::HasOutput,
-    vector::{VectorIter, vec_util_traits::*},
+    vector::{
+        VectorIter, 
+        vec_util_traits::*,
+        vector_builders::VectorBuilder,
+    },
 };
 
 pub struct MatVecMul<M: MatrixLike, V: VectorLike + IsRepeatable, B: VectorBuilder, O> {

@@ -2,7 +2,7 @@
 
 // Note: traits here aren't meant to be used directly by end users
 
-use crate::{trait_specialization_utils::*, util_traits::HasOutput, vector::VectorOps};
+use crate::{trait_specialization_utils::*, util_traits::HasOutput};
 
 /// A way to get out items from a collection / generator which implicitly invalidates* that index
 /// Can output owned values
@@ -143,27 +143,6 @@ pub trait HasReuseBuf {
 pub trait VectorLike: Get + HasOutput + HasReuseBuf {}
 
 impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
-
-/// A way for a type to "build" wrappers around VectorLikes which encode sizing information
-/// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
-pub trait VectorBuilder: Copy {
-    type Wrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self>;
-
-    ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
-    unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
-
-    fn size(&self) -> usize;
-}
-
-/// Enables an union operation between 2 VectorBuilders into a single VectorBuilder
-pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
-    /// the resulting type of the Union
-    type Union: VectorBuilder;
-
-    /// union 2 VectorBuilders into a single VectorBuilder
-    /// additionally checks that the sizing information of each VectorBuilder is equal
-    fn union(self, other: T) -> Self::Union;
-}
 
 /// Implies that the struct's impl of Get is repeatable and can be called multiple times at a given idx
 ///

@@ -19,15 +19,15 @@ use std::{
     io,
     hash::{Hash, Hasher, DefaultHasher},
 };
-use crate::vector::vec_util_traits::VectorBuilder;
+use crate::vector::vector_builders::VectorBuilder;
 use std::path::{Path, PathBuf};
 
 
 use crate::vector::{
     VectorOps,
     vec_util_traits::Get, 
-    vector_initialization::UninitVectorExpr, 
-    vector_math::ConcreteVectorExpr
+    vector_exprs::UninitVectorExpr, 
+    vector_exprs::ConcreteVectorExpr
 };
 
 pub trait AsText: Sized {

@@ -1,61 +1,22 @@
 use crate::{
-    trait_specialization_utils::*, util_traits::HasOutput, vector::{
-        ArrayVectorOps, VectorEvalOps, VectorOps, vec_util_traits::*, vector_builders::VectorInnerProdExprBuilder, vector_structs::*
+    trait_specialization_utils::*, 
+    util_traits::HasOutput, 
+    vector::{
+        ArrayVectorOps, 
+        VectorEvalOps, 
+        VectorOps, 
+        vec_util_traits::*, 
+        vector_builders::{
+            VectorInnerProdExprBuilder, 
+            VectorBuilder,
+            VectorBuilderUnion,
+        }, 
+        vector_structs::*,
+        vector_exprs::*,
     }
 };
 use std::ops::{Index, IndexMut};
 use alga::general::{ComplexField, RealField};
-
-pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where 
-    Self::Unwrapped: Get<Item = Self::Output>,
-    Self::Output: Sized,
-{
-    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> 
-    where 
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output> 
-    where
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-    type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>>
-    where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut Self::Output> 
-    where 
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = Self::Output> + IndexMut<usize>
-    where 
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-
-    
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    ;
-
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a,
-    ;
-
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    ;
-}
 
 /// implies that the implementor implements InnerProduct<F> for some F
 pub trait GenericInnerProduct: Copy {}

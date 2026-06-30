@@ -4,9 +4,11 @@ use crate::{
     trait_specialization_utils::*,
     util_traits::HasOutput,
     vector::{
-        MathVector, VectorOps,
-        vec_util_traits::{Get, HasReuseBuf, IsRepeatable, VectorBuilder, VectorBuilderUnion},
+        vector_exprs::MathVector, 
+        VectorOps,
+        vec_util_traits::{Get, HasReuseBuf, IsRepeatable},
         vector_structs::MatVecMul,
+        vector_builders::{VectorBuilder, VectorBuilderUnion},
     },
 };
 use std::{

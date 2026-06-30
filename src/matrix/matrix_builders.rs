@@ -6,7 +6,14 @@ use crate::{
         RSMatrixExpr,
         mat_util_traits::{MatrixBuilder, MatrixBuilderCompose, MatrixBuilderUnion, MatrixLike},
     },
-    vector::{VectorExpr, RSVectorExpr, vec_util_traits::VectorLike, vector_builders::*},
+    vector::{
+        vector_exprs::{
+            VectorExpr, 
+            RSVectorExpr, 
+        },
+        vec_util_traits::VectorLike, 
+        vector_builders::*
+    },
 };
 
 /// a simple const sized MatrixBuilder

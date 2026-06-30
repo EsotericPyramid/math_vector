@@ -21,7 +21,6 @@ To Do's:
     ~? revamp the output system to use futures (?)
     X get heaped things to work outside of `--release`
     ? rename Fst & Snd buffer to Active and Reserve buffer (or similar)
-    X change gen functions to assoc fns of the wrapper they make
     X deal with transmute_copy when copies aren't actually needed (used in that case to dodge compiler errors)
     - adapt more complex num bounds to use premade ones from a crate
     - check inlining
@@ -34,6 +33,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        X change gen functions to assoc fns of the wrapper they make
         ~X finish implementing VectorizedMatrix (reqs more advanced wrap sizing)
         - unchecked RSMathMatrix conversions
         X option to use either kind of matrix slice for the generic RSMathExpr impl
@@ -55,7 +55,6 @@ To Do's:
         - generalize the VecAttachUsedVec ConcreteVectorExpr impl
         ? remove RefRSMathVector *type alias* (just the alias, nothing else)
         - document repeated 
-        - splitup and reorganize vector.rs
         X fix RS Vec's trait bound infinite recursion when evaluating sometimes (ex: &RSMathVector * 3 with unspecified num type)
         X convert assign impls to use the builder system instead of conditionals (non-trivial because of HRTBs I think)
         X add a VectorBuffer trait: declares if a buffer can be created on a vector expr
