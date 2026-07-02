@@ -1,5 +1,7 @@
 use std::mem::ManuallyDrop;
-use crate::{trait_specialization_utils::*, util_traits::*, vector::vec_util_traits::*};
+use crate::{
+    trait_specialization_utils::*, util_traits::*, vector::vec_util_traits::*
+};
 
 /// Struct swapping the buffers (or lack there of) in the 2 slots
 pub struct VecBufSwap<V: VectorLike> {
@@ -126,8 +128,7 @@ unsafe impl<V: VectorLike, USEDV: VectorLike> Get for VecAttachUsedVec<V, USEDV>
 
 unsafe impl<V: IsRepeatable + VectorLike, USEDV: VectorLike> IsRepeatable
     for VecAttachUsedVec<V, USEDV>
-{
-}
+{}
 
 impl<V: VectorLike, USEDV: VectorLike> HasOutput for VecAttachUsedVec<V, USEDV>
 where
@@ -271,6 +272,59 @@ where
         }
     }
 }
+
+// VecAttachUsedVec ConcreteVectorExpr prototype
+/*
+impl<VE: VectorOps<Unwrapped = VecAttachUsedVec<V, USEDV>> + Index<usize>, V: VectorLike, USEDV: VectorLike> ConcreteVectorExpr for VE 
+where 
+    <VE::Builder as VectorBuilder>::Wrapped<V>: ConcreteVectorExpr,
+{
+    type ReferencedInner<'a> = <<VE::Builder as VectorBuilder>::Wrapped<V> as ConcreteVectorExpr>::ReferencedInner<'a>
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+    type Referenced<'a> = <<VE::Builder as VectorBuilder>::Wrapped<V> as ConcreteVectorExpr>::Referenced<'a>
+        where
+            Self::Output: 'a,
+            Self: 'a,;
+    type Copied<'a> = <<VE::Builder as VectorBuilder>::Wrapped<V> as ConcreteVectorExpr>::Copied<'a>
+        where
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMutInner<'a> = <<VE::Builder as VectorBuilder>::Wrapped<V> as ConcreteVectorExpr>::ReferencedMutInner<'a>
+        where
+            Self::Output: 'a,
+            Self: 'a,;
+    type ReferencedMut<'a> = <<VE::Builder as VectorBuilder>::Wrapped<V> as ConcreteVectorExpr>::ReferencedMut<'a>
+        where 
+            Self::Output: 'a,
+            Self: 'a,;
+
+    // everything works but implementing these functions
+    // there just isn't a way to obtain a <VE::Builder as VectorBuilder>::Wrapped<V>
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        todo!()
+    }
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
+        Self::Output: 'a,
+        Self: 'a,
+    {
+        todo!()
+    }
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where
+        Self::Output: Copy,
+        Self::Output: 'a,
+        Self: 'a
+    {
+        todo!()
+    }
+}
+*/
 
 /// Struct attaching arbitrary data as output to a vector
 pub struct VecAttachOutput<V: VectorLike, O, OB> {
@@ -481,6 +535,10 @@ impl<V: VectorLike> HasReuseBuf for DynamicVectorLike<V> {
     }
 }
 
+/// An instance of a repeatable vector which can be consumed separate from reference vector
+/// 
+/// to make that stable, HasOutput and HasReuseBuf are reduced into non-impls
+/// (ie. no output and no bindable buffers)
 pub struct RepeatedVec<'a, V: VectorLike + IsRepeatable> {
     pub(crate) vec: &'a mut V,
 }
@@ -508,69 +566,45 @@ unsafe impl<'a, V: VectorLike + IsRepeatable> Get for RepeatedVec<'a, V> {
 unsafe impl<'a, V: VectorLike + IsRepeatable> IsRepeatable for RepeatedVec<'a, V> {}
 
 impl<'a, V: VectorLike + IsRepeatable> HasOutput for RepeatedVec<'a, V> {
-    type OutputBool = V::OutputBool;
-    type Output = V::Output;
+    type OutputBool = N;
+    type Output = ();
 
     #[inline]
-    unsafe fn output(&mut self) -> Self::Output {
-        unsafe { self.vec.output() }
-    }
+    unsafe fn output(&mut self) -> Self::Output {}
     #[inline]
-    unsafe fn drop_output(&mut self) {
-        unsafe { self.vec.drop_output() }
-    }
+    unsafe fn drop_output(&mut self) {}
 }
 
 impl<'a, V: VectorLike + IsRepeatable> HasReuseBuf for RepeatedVec<'a, V> {
-    type FstHandleBool = V::FstHandleBool;
-    type SndHandleBool = V::SndHandleBool;
-    type BoundHandlesBool = V::BoundHandlesBool;
-    type FstOwnedBufferBool = V::FstOwnedBufferBool;
-    type SndOwnedBufferBool = V::SndOwnedBufferBool;
-    type FstOwnedBuffer = V::FstOwnedBuffer;
-    type SndOwnedBuffer = V::SndOwnedBuffer;
-    type FstType = V::FstType;
-    type SndType = V::SndType;
-    type BoundTypes = V::BoundTypes;
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
 
     #[inline]
-    unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
-        unsafe { self.vec.assign_1st_buf(index, val) }
-    }
+    unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
     #[inline]
-    unsafe fn assign_2nd_buf(&mut self, index: usize, val: Self::SndType) {
-        unsafe { self.vec.assign_2nd_buf(index, val) }
-    }
+    unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
     #[inline]
-    unsafe fn assign_bound_bufs(&mut self, index: usize, val: Self::BoundTypes) {
-        unsafe { self.vec.assign_bound_bufs(index, val) }
-    }
+    unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
     #[inline]
-    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
-        unsafe { self.vec.get_1st_buffer() }
-    }
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
     #[inline]
-    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
-        unsafe { self.vec.get_2nd_buffer() }
-    }
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
     #[inline]
-    unsafe fn drop_1st_buffer(&mut self) {
-        unsafe { self.vec.drop_1st_buffer() }
-    }
+    unsafe fn drop_1st_buffer(&mut self) {}
     #[inline]
-    unsafe fn drop_2nd_buffer(&mut self) {
-        unsafe { self.vec.drop_2nd_buffer() }
-    }
+    unsafe fn drop_2nd_buffer(&mut self) {}
     #[inline]
-    unsafe fn drop_1st_buf_index(&mut self, index: usize) {
-        unsafe { self.vec.drop_1st_buf_index(index) }
-    }
+    unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
     #[inline]
-    unsafe fn drop_2nd_buf_index(&mut self, index: usize) {
-        unsafe { self.vec.drop_2nd_buf_index(index) }
-    }
+    unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
     #[inline]
-    unsafe fn drop_bound_bufs_index(&mut self, index: usize) {
-        unsafe { self.vec.drop_bound_bufs_index(index) }
-    }
+    unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }

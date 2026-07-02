@@ -227,6 +227,8 @@ pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
 }
 
 /// Implies that the struct's impl of Get2D is repeatable & can be called multiple times at a given idx
-/// ///
-/// also implies that no exposed part of the API will change behaviour if repeated
+///
+/// also implies that no exposed part of Get2D will change behaviour if repeated
+/// also requires no *bound* reused bufs (ie. Has2DReuseBuf::BoundHandlesBool == N) (it is allowed to have them available)
+/// note that you *still cannot call methods from other traits multiple times*, their semantics are unchanged
 pub unsafe trait Is2DRepeatable {}

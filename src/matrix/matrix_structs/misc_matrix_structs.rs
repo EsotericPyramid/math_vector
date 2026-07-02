@@ -358,6 +358,8 @@ unsafe impl<M: MatrixLike> Get2D for DynamicMatrixLike<M> {
     }
 }
 
+unsafe impl<M: MatrixLike> Is2DRepeatable for DynamicMatrixLike<M> {}
+
 impl<M: MatrixLike> HasOutput for DynamicMatrixLike<M> {
     type OutputBool = M::OutputBool;
     type Output = M::Output;

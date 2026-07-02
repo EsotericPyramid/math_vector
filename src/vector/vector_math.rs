@@ -351,4 +351,5 @@ pub trait VectorInnerProdOps: VectorOps {
         onto.copy().mul_r(proj_mag).maybe_attach_output(output)
     }
     
+    
 }

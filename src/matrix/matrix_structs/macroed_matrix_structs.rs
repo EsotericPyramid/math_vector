@@ -106,6 +106,8 @@ macro_rules! mat_structs {
                 }}
             }
 
+            if_present!({unsafe impl<$($($lifetime),+, )? $mat_generic: MatrixLike + Is2DRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Is2DRepeatable for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
+
             impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
             $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
                 type FstHandleBool = <$mat_generic as Has2DReuseBuf>::FstHandleBool;

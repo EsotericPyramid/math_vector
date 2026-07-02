@@ -146,5 +146,7 @@ impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
 
 /// Implies that the struct's impl of Get is repeatable and can be called multiple times at a given idx
 ///
-/// also implies that no exposed part of the API will change behaviour if repeated
+/// also implies that no exposed part of Get will change behaviour if repeated 
+/// also requires no *bound* reused bufs (ie. HasReuseBuf::BoundHandlesBool == N) (it is allowed to have them available)
+/// note that you *still cannot call methods from other traits multiple times*, their semantics are unchanged
 pub unsafe trait IsRepeatable {}

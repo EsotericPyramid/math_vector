@@ -41,7 +41,6 @@ To Do's:
         - generalized AttachBuf struct
         X generalize RSMathVector indexing (Dope Matrix col indexing)
         ? rename ArrayMatrixOps
-        ? add heap_make_repeatable
         ? add wrap shortcut macro to MatrixOps
         - convert assign impls to use the builder system instead of conditionals
         - check pivot management of rref & det
@@ -53,7 +52,7 @@ To Do's:
         + matrix_structs.rs:
     + vector.rs:
         ? add ConcreteVectorLike trait to help generalize ConcreteVectorExpr impl's
-        - generalize the VecAttachUsedVec ConcreteVectorExpr impl
+        X generalize the VecAttachUsedVec ConcreteVectorExpr impl (see prototype in misc_vector_structs.rs)
         ? remove RefRSMathVector *type alias* (just the alias, nothing else)
         - document repeated 
         X fix RS Vec's trait bound infinite recursion when evaluating sometimes (ex: &RSMathVector * 3 with unspecified num type)
@@ -66,7 +65,6 @@ To Do's:
         ? generic MaybeCreate wrapper
         X improve VectorEvalOps to allow differentiation of attempted buffer types
         X Add addassign and subassign for generic V2: VectorOps
-        ? Add heap_make_repeatable
         ? merge ArrayVectorOps into VectorOps using Builder bounds
 
         + vec_util_traits.rs:
