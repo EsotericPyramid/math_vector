@@ -1,10 +1,10 @@
 //! Structs implementing VectorBuilder to wrap VectorLikes with sizing information (and potentially more like inner products)
 
-use crate::vector::vector_math::{GenericInnerProduct, VectorInnerProdExpr};
+use crate::vector::vector_math::GenericInnerProduct;
 use crate::vector::vector_structs::{VecGenerator, VecIndexGenerator};
 
 use super::vec_util_traits::VectorLike;
-use super::{RSVectorExpr, VectorExpr, VectorOps};
+use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes

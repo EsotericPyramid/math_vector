@@ -2,12 +2,9 @@ use crate::{
     trait_specialization_utils::*, 
     util_traits::HasOutput, 
     vector::{
-        ArrayVectorOps, 
-        VectorEvalOps, 
         VectorOps, 
         vec_util_traits::*, 
         vector_builders::{
-            VectorInnerProdExprBuilder, 
             VectorBuilder,
             VectorBuilderUnion,
         }, 
@@ -15,7 +12,7 @@ use crate::{
         vector_exprs::*,
     }
 };
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 use alga::general::{ComplexField, RealField};
 
 /// implies that the implementor implements InnerProduct<F> for some F
@@ -198,169 +195,6 @@ impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
     {
         lhs_vector.euclidean_inner_prod(rhs_vector)
     }
-}
-
-// monad lol
-pub struct VectorInnerProdExpr<V: VectorOps, IP: GenericInnerProduct> {
-    pub(crate) vec: V,
-    pub(crate) inner_prod: IP,
-}
-
-impl<V: VectorOps, IP: GenericInnerProduct> std::ops::Deref for VectorInnerProdExpr<V, IP> {
-    type Target = V;
-
-    fn deref(&self) -> &Self::Target {
-        &self.vec
-    }
-}
-
-impl<V: VectorOps, IP: GenericInnerProduct> std::ops::DerefMut for VectorInnerProdExpr<V, IP> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.vec
-    }
-}
-
-impl<V: VectorOps, IP: GenericInnerProduct> AsRef<V> for VectorInnerProdExpr<V, IP> {
-    fn as_ref(&self) -> &V {
-        &self.vec
-    }
-}
-
-impl<V: VectorOps, IP: GenericInnerProduct> AsMut<V> for VectorInnerProdExpr<V, IP> {
-    fn as_mut(&mut self) -> &mut V {
-        &mut self.vec
-    }
-}
-
-impl<V: VectorOps + Index<Idx>, IP: GenericInnerProduct, Idx> Index<Idx> for VectorInnerProdExpr<V, IP> {
-    type Output = V::Output;
-
-    fn index(&self, index: Idx) -> &Self::Output {
-        &self.vec[index]
-    }
-}
-
-impl<V: VectorOps + IndexMut<Idx>, IP: GenericInnerProduct, Idx> IndexMut<Idx> for VectorInnerProdExpr<V, IP> {
-    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
-        &mut self.vec[index]
-    }
-}
-
-unsafe impl<V: VectorOps, IP: GenericInnerProduct> VectorOps for VectorInnerProdExpr<V, IP> {
-    type Builder = VectorInnerProdExprBuilder<V::Builder, IP>;
-    type Unwrapped = V::Unwrapped;
-
-    fn size(&self) -> usize {
-        self.vec.size()
-    }
-
-    fn get_builder(&self) -> Self::Builder {
-        VectorInnerProdExprBuilder {
-            builder: self.vec.get_builder(),
-            inner_prod: self.inner_prod,
-        }
-    }
-
-    fn unwrap(self) -> Self::Unwrapped {
-        self.vec.unwrap()
-    }
-}
-
-impl<V: ArrayVectorOps<D>, IP: GenericInnerProduct, const D: usize> ArrayVectorOps<D> for VectorInnerProdExpr<V, IP> {}
-
-impl<V: VectorEvalOps, IP: GenericInnerProduct> VectorEvalOps for VectorInnerProdExpr<V, IP> {
-    type MaybeCreateBuffer<T: VectorLike> = V::MaybeCreateBuffer<T>
-        where
-            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-            (
-                <T as HasReuseBuf>::FstHandleBool,
-                <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-            ): SelectPair,
-            (
-                <T as HasReuseBuf>::FstOwnedBufferBool,
-                <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-            ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized
-    {
-        self.vec.maybe_create_buffer()
-    }
-}
-
-impl<V: ConcreteVectorExpr, IP: GenericInnerProduct> ConcreteVectorExpr for VectorInnerProdExpr<V, IP> 
-where 
-    <V as VectorOps>::Unwrapped: Get<Item = <V as Index<usize>>::Output>,
-    <V as Index<usize>>::Output: Sized,
-{
-    type ReferencedInner<'a> = V::ReferencedInner<'a>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type Referenced<'a> = VectorInnerProdExpr<V::Referenced<'a>, IP>
-        where
-            Self::Output: 'a,
-            Self: 'a,;
-    type Copied<'a> = VectorInnerProdExpr<V::Copied<'a>, IP>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> = V::ReferencedMutInner<'a> 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMut<'a> = VectorInnerProdExpr<V::ReferencedMut<'a>, IP>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
-        VectorInnerProdExpr {
-            vec: self.vec.borrow(),
-            inner_prod: self.inner_prod
-        }
-    }
-
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
-        VectorInnerProdExpr {
-            vec: self.vec.borrow_mut(),
-            inner_prod: self.inner_prod
-        }
-    }
-
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
-        VectorInnerProdExpr {
-            vec: self.vec.copy(),
-            inner_prod: self.inner_prod
-        }
-    }
-}
-
-impl<V: VectorOps, IP: GenericInnerProduct> VectorInnerProdOps for VectorInnerProdExpr<V, IP> {
-    type InnerProd = IP;
 }
 
 pub trait VectorInnerProdOps: VectorOps {

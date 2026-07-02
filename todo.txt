@@ -18,6 +18,7 @@ To Do's:
 ~ clean up types to make them more readable
 ? rename things to make more sense
 + lib.rs:
+    ~ clean up redundant where bounds
     ~? revamp the output system to use futures (?)
     X get heaped things to work outside of `--release`
     ? rename Fst & Snd buffer to Active and Reserve buffer (or similar)
@@ -76,7 +77,6 @@ To Do's:
         + vector_math.rs:
             ~X add type defaults to ConcreteVectorExpr::{Referenced, ReferencedMut, Copied}
             X let InnerProduct take in Item = &F or &mut F
-            - impl VectorInPlaceEval for VectorInnerProdExpr
             X move the InnerProduct's vector generics out of the trait def and into the fn def
             ? move ConcreteVectorExpr into vector.rs
             - add Inner-product-space-relevant operations (so proj (onto_vec), orthogonal_part, into_orthonormal_basis, proj_onto_subspace, adjoint)
