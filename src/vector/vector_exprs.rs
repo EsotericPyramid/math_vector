@@ -17,12 +17,12 @@ pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
-    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> 
+    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> + IsRepeatable
     where 
         Self::Output: 'a,
         Self: 'a,
     ;
-    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output> 
+    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output>
     where
         Self::Output: 'a,
         Self: 'a,

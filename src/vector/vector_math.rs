@@ -350,6 +350,77 @@ pub trait VectorInnerProdOps: VectorOps {
         let (output, proj_mag) = self.raw_eager_inner_prod(onto.copy());
         onto.copy().mul_r(proj_mag).maybe_attach_output(output)
     }
-    
-    
+
+    #[inline]
+    fn orthogonal_part<'a, V: VectorInnerProdOps<InnerProd = Self::InnerProd> + ConcreteVectorExpr + 'a, F: ComplexField + 'a>(&'a self, with: &'a V) -> <
+        <<Self::Copied<'a> as VectorOps>::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder
+    >::Wrapped<
+        VecAttachOutput<
+            VecSub<
+                <Self::Copied<'a> as VectorOps>::Unwrapped,
+                VecMulR<
+                    VecCopy<
+                        'a, 
+                        V::ReferencedInner<'a>, 
+                        F
+                    >, 
+                    F
+                >, 
+            >,
+            <
+                (<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as FilterPair
+            >::Filtered<
+                <Self::ReferencedInner<'a> as HasOutput>::Output, <V::ReferencedInner<'a> as HasOutput>::Output
+            >,
+            <(<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or,
+        >
+    >
+    where 
+        Self: ConcreteVectorExpr + 'a,
+        Self::InnerProd: InnerProduct<F>,
+        Self::Unwrapped: Get<Item = F> + IsRepeatable,
+        Self: Index<usize, Output = F>,
+        Self::Copied<'a>: VectorInnerProdOps<InnerProd = Self::InnerProd>,
+        V::Unwrapped: Get<Item = V::Output>,
+        V: Index<usize, Output = F>,
+        V::Copied<'a>: VectorInnerProdOps<InnerProd = Self::InnerProd>,
+        <Self::Copied<'a> as VectorOps>::Builder: VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>,
+        (<Self::ReferencedInner<'a> as HasReuseBuf>::BoundHandlesBool, <V::ReferencedInner<'a> as HasReuseBuf>::BoundHandlesBool): FilterPair,
+        (<Self::ReferencedInner<'a> as HasReuseBuf>::FstHandleBool, <V::ReferencedInner<'a> as HasReuseBuf>::FstHandleBool): SelectPair,
+        (<Self::ReferencedInner<'a> as HasReuseBuf>::SndHandleBool, <V::ReferencedInner<'a> as HasReuseBuf>::SndHandleBool): SelectPair,
+        (<Self::ReferencedInner<'a> as HasReuseBuf>::FstOwnedBufferBool, <V::ReferencedInner<'a> as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+        (<Self::ReferencedInner<'a> as HasReuseBuf>::SndOwnedBufferBool, <V::ReferencedInner<'a> as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+        (<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool): FilterPair,
+        (<(<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
+        <<<<Self::Copied<'a> as VectorOps>::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<<Self::Copied<'a> as VectorInnerProdOps>::InnerProd as InnerProduct<F>>::InnerProductInner<Self::Copied<'a>, V::Copied<'a>>> as VectorOps>::Unwrapped: HasOutput<Output = <
+            (<(<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
+        >::Filtered<
+            <
+                (<Self::ReferencedInner<'a> as HasOutput>::OutputBool, <V::ReferencedInner<'a> as HasOutput>::OutputBool) as FilterPair
+            >::Filtered<
+                <Self::ReferencedInner<'a> as HasOutput>::Output, <V::ReferencedInner<'a> as HasOutput>::Output
+            >, 
+            F
+        >>,
+        <<<<Self::Copied<'a> as VectorOps>::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<<Self::Copied<'a> as VectorInnerProdOps>::InnerProd as InnerProduct<F>>::InnerProductInner<Self::Copied<'a>, V::Copied<'a>>> as VectorOps>::Unwrapped: HasReuseBuf<
+            BoundTypes = <<<<<Self::Copied<'a> as VectorOps>::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder>::Wrapped<<<Self::Copied<'a> as VectorInnerProdOps>::InnerProd as InnerProduct<F>>::InnerProductInner<Self::Copied<'a>, V::Copied<'a>>> as VectorOps>::Unwrapped as Get>::BoundItems
+        >,
+        (
+            <Self::Unwrapped as HasOutput>::OutputBool, 
+            <V::ReferencedInner<'a> as HasOutput>::OutputBool
+        ): FilterPair,
+        (
+            <(
+                <Self::ReferencedInner<'a> as HasOutput>::OutputBool, 
+                <V::ReferencedInner<'a> as HasOutput>::OutputBool
+            ) as TyBoolPair>::Or, 
+            <(
+                <Self::ReferencedInner<'a> as HasOutput>::OutputBool, 
+                <V::ReferencedInner<'a> as HasOutput>::OutputBool
+            ) as TyBoolPair>::Or,
+        ): FilterPair
+    {
+        let (output, proj_mag) = self.copy().raw_eager_inner_prod(with.copy());
+        self.copy().sub(with.copy().mul_r(proj_mag)).maybe_attach_output(output)
+    }
 }
