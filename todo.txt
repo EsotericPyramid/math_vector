@@ -34,6 +34,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        ? remove MathVectoredMatrix (for now)
         X change gen functions to assoc fns of the wrapper they make
         ~X finish implementing VectorizedMatrix (reqs more advanced wrap sizing)
         - unchecked RSMathMatrix conversions
@@ -80,7 +81,6 @@ To Do's:
             ? use IsRepeatable instead of ConcreteVectorExpr in proj
             - add Inner-product-space-relevant operations (so proj (onto_vec), orthogonal_part, into_orthonormal_basis, proj_onto_subspace, adjoint)
             - add Inner product defined on an orthonomal basis
-            - add change-of-basis operation
             - add eigenvalue / eigenvector algorithms (+ diagonalizing)
     + tests.rs:
         - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
