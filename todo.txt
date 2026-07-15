@@ -18,6 +18,7 @@ To Do's:
 ~ clean up types to make them more readable
 ? rename things to make more sense
 + lib.rs:
+    - impl ops for scalar
     ~ clean up redundant where bounds
     ~? revamp the output system to use futures (?)
     X get heaped things to work outside of `--release`
@@ -52,6 +53,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? provide default impl for VectorOps::size
         ? add ConcreteVectorLike trait to help generalize ConcreteVectorExpr impl's
         X generalize the VecAttachUsedVec ConcreteVectorExpr impl (see prototype in misc_vector_structs.rs)
         ? remove RefRSMathVector *type alias* (just the alias, nothing else)
@@ -72,6 +74,8 @@ To Do's:
             X remove where bounds from `ConcreteVectorExpr`'s `borrow` and `borrow_mut` methods
         + vector_builders.rs:
             ? impl remaining VectorBuilderUnion's for VectorInnerProdExprBuilder
+        + vector_exprs.rs:
+            ? change the Display impl to a Debug (Pretty Print) impl
         + vector_structs.rs:
         + vector_math.rs:
             ~X add type defaults to ConcreteVectorExpr::{Referenced, ReferencedMut, Copied}

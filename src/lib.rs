@@ -4,7 +4,7 @@
 ///
 /// - Y and N boolean types
 /// - binary boolean operators via TyBoolPair
-/// - Filter & Select to use boolean pairs to trim down types if unused
+/// - Filter & Select to use boolean pairs to trim down types if they contain unused
 pub mod trait_specialization_utils {
     use std::mem::transmute_copy;
 
@@ -367,6 +367,7 @@ pub mod vector;
 #[cfg(feature = "file-conversion")]
 pub mod file_conversion;
 
+/// a Scalar wrapper so that operations can be overwritten on external types
 pub struct Scalar<T>(pub T);
 
 impl<T> From<T> for Scalar<T> {

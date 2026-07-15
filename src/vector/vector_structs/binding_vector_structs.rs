@@ -365,7 +365,7 @@ pub struct VecHalfBind<V: VectorLike<FstHandleBool = Y>> {
 }
 
 impl<V: VectorLike<FstHandleBool = Y>> VecHalfBind<V> {
-    pub(crate) unsafe fn get_bound_buf(&mut self) -> V::FstOwnedBuffer {
+    pub unsafe fn get_bound_buf(&mut self) -> V::FstOwnedBuffer {
         unsafe { self.vec.get_1st_buffer() }
     }
 }
