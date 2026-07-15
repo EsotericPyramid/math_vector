@@ -151,8 +151,8 @@ fn vec_angle_cos() {
     let mut rng = rand::rng();
     let mut time = Duration::new(0, 0);
     for _ in 0..10000 {
-        let vec1: MathVector<f64, 10000> = black_box(VectorExprBuilder::new().generate(|| rng.random()).eval());
-        let vec2: MathVector<f64, 10000> = black_box(VectorExprBuilder::new().generate(|| rng.random()).eval());
+        let vec1: MathVector<f64, 10000> = black_box(VectorExprBuilder.generate(|| rng.random()).eval());
+        let vec2: MathVector<f64, 10000> = black_box(VectorExprBuilder.generate(|| rng.random()).eval());
         let now = Instant::now();
         let ((vec1_sqr_mag, vec2_sqr_mag), dot_product): ((f64, f64), f64) =
             (vec1.copied_sqr_mag()).dot(vec2.copied_sqr_mag()).consume();
@@ -169,8 +169,8 @@ fn vec_angle_cos() {
 #[ignore]
 fn eval_in_place_vectors_test() {
     let mut rng = rand::rng();
-    let vec1: MathVector<u64, 10> = VectorExprBuilder::new().generate(|| rng.random_range(0..10)).eval();
-    let vec2: MathVector<u64, 10> = VectorExprBuilder::new().generate(|| rng.random_range(0..10)).eval();
+    let vec1: MathVector<u64, 10> = VectorExprBuilder.generate(|| rng.random_range(0..10)).eval();
+    let vec2: MathVector<u64, 10> = VectorExprBuilder.generate(|| rng.random_range(0..10)).eval();
     println!("vec1: {}", vec1);
     println!("vec2: {}", vec2);
     let mut vec3 = (vec1.reuse().comp_mul(vec2))
@@ -203,8 +203,8 @@ fn eval_in_place_vectors_test() {
 fn repeatable_vectors_test() {
     // although IsRepeatable would likely mostly be only used internally, it has minimal external use
     let mut rng = rand::rng();
-    let vec1: MathVector<f64, 10000> = VectorExprBuilder::new().generate(|| rng.random()).eval();
-    let vec2: MathVector<f64, 10000> = VectorExprBuilder::new().generate(|| rng.random()).eval();
+    let vec1: MathVector<f64, 10000> = VectorExprBuilder.generate(|| rng.random()).eval();
+    let vec2: MathVector<f64, 10000> = VectorExprBuilder.generate(|| rng.random()).eval();
     let mut vec3 = (vec1.reuse().comp_mul(vec2))
         .copied_sum::<f64>()
         .eval_in_place();
@@ -258,8 +258,8 @@ fn mat_mat_mul_test() {
 #[ignore]
 fn mat_mat_mul_preformance_test() {
     let mut rng = rand::rng();
-    let mat1: Box<MathMatrix<f64, 1000, 1000>> = black_box(matrix_gen(|| rng.random()).heap_eval());
-    let mat2: Box<MathMatrix<f64, 1000, 1000>> = black_box(matrix_gen(|| rng.random()).heap_eval());
+    let mat1: Box<MathMatrix<f64, 1000, 1000>> = black_box(MatrixExprBuilder.generate(|| rng.random()).heap_eval());
+    let mat2: Box<MathMatrix<f64, 1000, 1000>> = black_box(MatrixExprBuilder.generate(|| rng.random()).heap_eval());
     let now = Instant::now();
     let out = (mat1).mat_mul(mat2).heap_eval();
     black_box(out);
@@ -282,33 +282,34 @@ fn vector_variation_test() {
     let mut heap_time = Duration::new(0, 0);
     let mut dynamic_time = Duration::new(0, 0);
     let mut dyn_heap_time = Duration::new(0, 0);
+    let builder = VectorExprBuilder::<10000>;
     for _ in 0..1000 {
-        let vec1 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
-        let vec2 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
+        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
+        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
         let now = Instant::now();
         let res = (vec1.reuse() + vec2).eval();
         black_box(res);
         let elapsed = now.elapsed();
         normal_time += elapsed;
 
-        let vec1 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).heap_eval());
-        let vec2 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).heap_eval());
+        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
+        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
         let res = (vec1.heap_reuse() + vec2).heap_eval();
         black_box(res);
         let elapsed = now.elapsed();
         heap_time += elapsed;
 
-        let vec1 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
-        let vec2 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
+        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
+        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
         let now = Instant::now();
         let res = (vec1.reuse() + vec2).make_dynamic().eval();
         black_box(res);
         let elapsed = now.elapsed();
         dynamic_time += elapsed;
 
-        let vec1 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).heap_eval());
-        let vec2 = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).heap_eval());
+        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
+        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
         let res = (vec1.heap_reuse() + vec2).make_dynamic().heap_eval();
         black_box(res);
@@ -392,8 +393,8 @@ fn det_test() {
 #[ignore]
 fn mat_math_performance_test() {
     let mut rng = rand::rng();
-    let mut rref_mat = black_box(matrix_gen::<_, f64, 1000, 2000>(|| rng.random()).heap_eval());
-    let det_mat = black_box(matrix_gen::<_, f64, 1500, 1500>(|| rng.random()).heap_eval());
+    let mut rref_mat = black_box(MatrixExprBuilder::<1000, 2000>.generate::<_, f64>(|| rng.random()).heap_eval());
+    let det_mat = black_box(MatrixExprBuilder::<1500, 1500>.generate::<_, f64>(|| rng.random()).heap_eval());
 
     let now = Instant::now();
     rref_mat.rref();
@@ -435,8 +436,8 @@ fn mat_vec_mul_test() {
 #[ignore]
 fn mat_vec_mul_performance_test() {
     let mut rng = rand::rng();
-    let mat = black_box(matrix_gen::<_, f64, 10000, 10000>(|| rng.random()).heap_eval());
-    let vec = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
+    let mat = black_box(MatrixExprBuilder::<10000, 10000>.generate::<_, f64>(|| rng.random()).heap_eval());
+    let vec = black_box(VectorExprBuilder::<10000>.generate::<_, f64>(|| rng.random()).eval());
 
     let now = Instant::now();
     black_box(mat.mat_vec_mul::<_, f64>(vec).eval());
@@ -472,8 +473,8 @@ fn vec_mat_mul_test() {
 #[ignore]
 fn vec_mat_mul_performance_test() {
     let mut rng = rand::rng();
-    let vec = black_box(VectorExprBuilder::<10000>::new().generate::<_, f64>(|| rng.random()).eval());
-    let mat = black_box(matrix_gen::<_, f64, 10000, 10000>(|| rng.random()).heap_eval());
+    let vec = black_box(VectorExprBuilder::<10000>.generate::<_, f64>(|| rng.random()).eval());
+    let mat = black_box(MatrixExprBuilder::<10000, 10000>.generate::<_, f64>(|| rng.random()).heap_eval());
 
     let now = Instant::now();
     black_box(vec.vec_mat_mul::<_, f64>(mat).eval());

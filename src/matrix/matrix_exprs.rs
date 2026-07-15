@@ -528,29 +528,6 @@ impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display
     }
 }
 
-/// generates a Matrix of dimensions D1, D2 using the given closure (FnMut) with no inputs
-pub fn matrix_gen<F: FnMut() -> O, O, const D1: usize, const D2: usize>(
-    f: F,
-) -> MatrixExpr<MatGenerator<F, O>, D1, D2> {
-    MatrixExpr(MatGenerator(f))
-}
-
-/// generates a Matrix of dimensions D1, D2 using the given closure (FnMut) given the column and row indices as input
-pub fn matrix_index_gen<F: FnMut(usize, usize) -> O, O, const D1: usize, const D2: usize>(
-    f: F,
-) -> MatrixExpr<MatIndexGenerator<F, O>, D1, D2> {
-    MatrixExpr(MatIndexGenerator(f))
-}
-
-/// generates a Identity matrix of dimensions D, D
-pub fn matrix_identity_gen<T: Copy + num_traits::One + num_traits::Zero, const D: usize>()
--> MatrixExpr<MatIdentityGenerator<T>, D, D> {
-    MatrixExpr(MatIdentityGenerator {
-        zero: T::zero(),
-        one: T::one(),
-    })
-}
-
 #[derive(Clone)]
 pub struct RSMatrixExpr<M: MatrixLike> {
     pub(crate) mat: M,

@@ -2,21 +2,14 @@
 
 use crate::{
     matrix::{
-        matrix_exprs::{
+        MatrixOps, mat_util_traits::MatrixLike, matrix_exprs::{
             MatrixExpr,
             RSMatrixExpr,
+        }, matrix_structs::{MatGenerator, MatIdentityGenerator, MatIndexGenerator},
+    }, vector::{
+        VectorOps, vec_util_traits::VectorLike, vector_builders::*, vector_exprs::{
+            RSVectorExpr, VectorExpr, 
         },
-        mat_util_traits::MatrixLike,
-        MatrixOps,
-    },
-    vector::{
-        vector_exprs::{
-            VectorExpr, 
-            RSVectorExpr, 
-        },
-        vec_util_traits::VectorLike, 
-        vector_builders::*,
-        VectorOps,
     },
 };
 
@@ -54,6 +47,28 @@ pub trait MatrixBuilder: Clone {
 
     /// get the dimensions of this builder in `(num_rows, num_cols)` format
     fn dimensions(&self) -> (usize, usize);
+
+
+    /// generates a Matrix with this builder using the given closure (FnMut) with no inputs
+    fn generate<F: FnMut() -> O, O>(&self, f: F) -> Self::MatrixWrapped<MatGenerator<F, O>> {
+        unsafe { self.wrap_mat(MatGenerator(f)) }
+    }
+
+    /// generates a Matrix with this builder using the given closure (FnMut) given the column and row indices as input
+    fn index_generate<F: FnMut(usize, usize) -> O, O>(&self, f: F) -> Self::MatrixWrapped<MatIndexGenerator<F, O>> {
+        unsafe { self.wrap_mat(MatIndexGenerator(f)) }
+    }
+
+    /// generates a Identity matrix with this builder
+    fn generate_identity<T: Copy + num_traits::One + num_traits::Zero>(&self) -> Self::MatrixWrapped<MatIdentityGenerator<T>> {
+        let (rows, columns) = self.dimensions();
+        assert_eq!(rows, columns, "math_vector error: Cannot make a non-square identity matrix");
+        
+        unsafe { self.wrap_mat(MatIdentityGenerator {
+            zero: T::zero(),
+            one: T::one(),
+        })}
+    }
 }
 
 /// Enables an union operation between 2 MatrixBuilders into a single MatrixBuilder
@@ -84,6 +99,10 @@ pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
 /// a simple const sized MatrixBuilder
 #[derive(Clone)]
 pub struct MatrixExprBuilder<const D1: usize, const D2: usize>;
+
+impl<const D1: usize, const D2: usize> MatrixExprBuilder<D1, D2> {
+    pub fn new() -> Self {MatrixExprBuilder}
+}
 
 impl<const D1: usize, const D2: usize> MatrixBuilder for MatrixExprBuilder<D1, D2> {
     type MatrixWrapped<T: MatrixLike> = MatrixExpr<T, D1, D2>;
@@ -134,8 +153,14 @@ impl<const D1: usize, const D2: usize> MatrixBuilderCompose<VectorExprBuilder<D2
 
 #[derive(Clone)]
 pub struct RSMatrixExprBuilder{
-    pub(crate) num_rows: usize,
-    pub(crate) num_cols: usize,
+    pub num_rows: usize,
+    pub num_cols: usize,
+}
+
+impl RSMatrixExprBuilder {
+    pub fn new(num_rows: usize, num_cols: usize) -> Self {
+        RSMatrixExprBuilder { num_rows, num_cols }
+    }
 }
 
 impl MatrixBuilder for RSMatrixExprBuilder {

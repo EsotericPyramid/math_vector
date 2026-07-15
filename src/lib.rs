@@ -395,11 +395,16 @@ impl<T> AsMut<T> for Scalar<T> {
 pub mod prelude {
     pub use crate::matrix::{
         matrix_exprs::{
-            matrix_gen, 
             MathMatrix, 
+            RSMathIliffeMatrix,
+        },
+        matrix_builders::{
+            MatrixExprBuilder,
+            RSMatrixExprBuilder,
+            MatrixBuilder,
         },
         MatrixEvalOps, 
-        MatrixOps
+        MatrixOps,
     };
     pub use crate::vector::{
         vector_exprs::{
@@ -412,7 +417,7 @@ pub mod prelude {
             VectorBuilder,   
         },
         VectorEvalOps, 
-        VectorOps
+        VectorOps,
     };
 }
 
