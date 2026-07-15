@@ -2,7 +2,13 @@
 
 use crate::{
     matrix::{
-        mat_util_traits::{Get2D, MatrixBuilder}, matrix_structs::{MatColVectorExprs, MatrixColumn}, MatrixOps
+        matrix_structs::{
+            MatColVectorExprs, 
+            MatrixColumn
+        },
+        matrix_builders::MatrixBuilder, 
+        mat_util_traits::Get2D, 
+        MatrixOps
     },
     trait_specialization_utils::*,
     util_traits::HasOutput,

@@ -2,7 +2,7 @@
 
 use super::mat_util_traits::*;
 use crate::{trait_specialization_utils::*, util_traits::*};
-use std::{mem::ManuallyDrop, ops::*, ptr};
+use std::{mem::ManuallyDrop, ops::*, ptr, marker::PhantomData};
 
 mod array_matrix_structs;
 mod slice_matrix_structs;
@@ -150,7 +150,7 @@ Has2DReuseBuf_non_impl!(impl<{T, const D1: usize, const D2: usize}> MatrixArray<
 /// an owned 2d array returning references to its items and which is rigged up to manually drop via the MatrixLike traits
 pub struct ReferringMatrixArray<'a, T: 'a, const D1: usize, const D2: usize>(
     pub(crate) [[T; D1]; D2],
-    pub(crate) std::marker::PhantomData<&'a T>,
+    pub(crate) PhantomData<&'a T>,
 );
 
 unsafe impl<'a, T: 'a, const D1: usize, const D2: usize> Get2D for ReferringMatrixArray<'a, T, D1, D2> {
@@ -243,6 +243,7 @@ unsafe impl<T, const D1: usize, const D2: usize> Is2DRepeatable for &mut [[T; D1
 
 Has2DReuseBuf_non_impl!(impl<{T, const D1: usize, const D2: usize}> &mut [[T; D1]; D2]);
 
+
 #[repr(transparent)]
 pub struct MatrixIliffeSlice<T>(pub(crate) Box<[Box<[ManuallyDrop<T>]>]>);
 
@@ -306,6 +307,34 @@ unsafe impl<T: Copy> Is2DRepeatable for MatrixIliffeSlice<T> {}
 
 HasOutput_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
 Has2DReuseBuf_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
+
+pub struct ReferringMatrixIliffeSlice<'a, T>(
+    pub(crate) Box<[Box<[T]>]>,
+    pub(crate) PhantomData<&'a T>,
+);
+
+unsafe impl<'a, T> Get2D for ReferringMatrixIliffeSlice<'a, T> {
+    type GetBool = Y;
+    type AreInputsTransposed = N;
+    type Inputs = &'a T;
+    type Item = &'a T;
+    type BoundItems = ();
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {
+        unsafe { &*(self.0.get_unchecked(col_index).get_unchecked(row_index) as *const T) }
+    }
+    #[inline]
+    fn process(&mut self, _: usize, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        (inputs, ())
+    }
+
+    #[inline]
+    unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
+}
+
+HasOutput_non_impl!(impl<{'a, T}> ReferringMatrixIliffeSlice<'a, T>);
+Has2DReuseBuf_non_impl!(impl<{'a, T}> ReferringMatrixIliffeSlice<'a, T>);
 
 unsafe impl<'a, T: 'a, S: Deref<Target = [T]>> Get2D for &'a [S] {
     type GetBool = Y;
@@ -395,6 +424,35 @@ unsafe impl<T: Copy> Is2DRepeatable for MatrixDopeSlice<T> {}
 
 HasOutput_non_impl!(impl<{T}> MatrixDopeSlice<T>);
 Has2DReuseBuf_non_impl!(impl<{T}> MatrixDopeSlice<T>);
+
+pub struct ReferringMatrixDopeSlice<'a, T>{
+    pub(crate) mat: Box<[T]>, 
+    pub(crate) height: usize,
+    pub(crate) marker: PhantomData<&'a T>,
+}
+
+unsafe impl<'a, T> Get2D for ReferringMatrixDopeSlice<'a, T> {
+    type GetBool = Y;
+    type AreInputsTransposed = N;
+    type Inputs = &'a T;
+    type Item = &'a T;
+    type BoundItems = ();
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {
+        unsafe{ &*(self.mat.get_unchecked(row_index + col_index * self.height) as *const T) }
+    }
+    #[inline]
+    fn process(&mut self, _: usize, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        (inputs, ())
+    }
+
+    #[inline]
+    unsafe fn drop_inputs(&mut self, _: usize, _: usize) {}
+}
+
+HasOutput_non_impl!(impl<{'a, T}> ReferringMatrixDopeSlice<'a, T>);
+Has2DReuseBuf_non_impl!(impl<{'a, T}> ReferringMatrixDopeSlice<'a, T>);
 
 pub struct RefMatrixDopeSlice<'a, T>{pub(crate) mat: &'a [T], pub(crate) height: usize}
 

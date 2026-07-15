@@ -1,14 +1,8 @@
 //! Module containing the traits which define a MatrixLike type (primative lazy matrix)
 
 use crate::{
-    matrix::MatrixOps, 
     trait_specialization_utils::TyBool, 
     util_traits::HasOutput, 
-    vector::{   
-        VectorOps, 
-        vec_util_traits::VectorLike,
-        vector_builders::VectorBuilder,
-    },
 };
 
 // Note: traits here aren't meant to be used by end users
@@ -166,65 +160,6 @@ pub trait Has2DReuseBuf {
 pub trait MatrixLike: Get2D + HasOutput + Has2DReuseBuf {}
 
 impl<T: Get2D + HasOutput + Has2DReuseBuf> MatrixLike for T {}
-
-/// A way for a type to "build" wrappers around MatrixLikes which encode sizing information
-/// or in other words, implementors carry minimal sizing information which can be applied to MatrixLikes
-pub trait MatrixBuilder: Clone {
-    /// wrapper directly indicated by this builder
-    type MatrixWrapped<T: MatrixLike>: MatrixOps;
-    /// transposition of the wrapper indicated
-    type TransposedMatrixWrapped<T: MatrixLike>: MatrixOps;
-    /// wrapper for an indicated column
-    type ColWrapped<T: VectorLike>: VectorOps;
-    /// wrapper for an indicated row
-    type RowWrapped<T: VectorLike>: VectorOps;
-
-    //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
-    /// a builder wrapping columns like this builder
-    type ColBuilder: VectorBuilder;
-    /// a builder wrapping rows like this builder
-    type RowBuilder: VectorBuilder;
-
-    /// creates wrapper directly indicated by this builder
-    unsafe fn wrap_mat<T: MatrixLike>(&self, mat: T) -> Self::MatrixWrapped<T>;
-    /// creates transposition of the wrapper indicated
-    unsafe fn wrap_trans_mat<T: MatrixLike>(&self, mat: T) -> Self::TransposedMatrixWrapped<T>;
-    /// creates wrapper for an indicated column
-    unsafe fn wrap_col_vec<T: VectorLike>(&self, vec: T) -> Self::ColWrapped<T>;
-    /// creates wrapper for an indicated row
-    unsafe fn wrap_row_vec<T: VectorLike>(&self, vec: T) -> Self::RowWrapped<T>;
-
-    //FIXME (above is source of issue): currently requires correct implementation even though trait is not unsafe
-    /// decomposes this matrix builder into a column and row vector builders
-    fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder);
-
-    /// get the dimensions of this builder in `(num_rows, num_cols)` format
-    fn dimensions(&self) -> (usize, usize);
-}
-
-/// Enables an union operation between 2 MatrixBuilders into a single MatrixBuilder
-pub trait MatrixBuilderUnion<T: MatrixBuilder>: MatrixBuilder {
-    /// the resulting type of the Union
-    type Union: MatrixBuilder;
-
-    /// union 2 MatrixBuilders into a single MatrixBuilder
-    /// additionally checks that the sizing information of each MatrixBuilder is equal
-    fn union(self, other: T) -> Self::Union;
-}
-
-/// Enables 2 vector builders to construct a matrix builder
-///
-/// syntax: `ColBuilder: MatrixBuilderCompose<RowBuilder>`
-pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
-    //FIXME (HRTBs): for<T: VectorLike> Self::Composition::ColBuilder::Wrapped<T> == Self::Wrapped
-    /// the resulting type of the composition
-    type Composition: MatrixBuilder;
-
-    /// composes the 2 VectorBuilders into 1 MatrixBuilder
-    ///
-    /// self is the column builder, other is the row builder
-    fn compose(self, other: T) -> Self::Composition;
-}
 
 /// Implies that the struct's impl of Get2D is repeatable & can be called multiple times at a given idx
 ///

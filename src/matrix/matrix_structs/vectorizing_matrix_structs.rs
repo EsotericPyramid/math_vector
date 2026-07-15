@@ -1,5 +1,10 @@
 use crate::{
-    matrix::mat_util_traits::*, trait_specialization_utils::*, util_traits::*,
+    matrix::{
+        mat_util_traits::*, 
+        matrix_builders::{MatrixBuilder}
+    },
+    trait_specialization_utils::*, 
+    util_traits::*,
     vector::vec_util_traits::*,
 };
 

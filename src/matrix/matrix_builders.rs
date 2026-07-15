@@ -2,9 +2,12 @@
 
 use crate::{
     matrix::{
-        MatrixExpr,
-        RSMatrixExpr,
-        mat_util_traits::{MatrixBuilder, MatrixBuilderCompose, MatrixBuilderUnion, MatrixLike},
+        matrix_exprs::{
+            MatrixExpr,
+            RSMatrixExpr,
+        },
+        mat_util_traits::MatrixLike,
+        MatrixOps,
     },
     vector::{
         vector_exprs::{
@@ -12,9 +15,71 @@ use crate::{
             RSVectorExpr, 
         },
         vec_util_traits::VectorLike, 
-        vector_builders::*
+        vector_builders::*,
+        VectorOps,
     },
 };
+
+
+/// A way for a type to "build" wrappers around MatrixLikes which encode sizing information
+/// or in other words, implementors carry minimal sizing information which can be applied to MatrixLikes
+pub trait MatrixBuilder: Clone {
+    /// wrapper directly indicated by this builder
+    type MatrixWrapped<T: MatrixLike>: MatrixOps;
+    /// transposition of the wrapper indicated
+    type TransposedMatrixWrapped<T: MatrixLike>: MatrixOps;
+    /// wrapper for an indicated column
+    type ColWrapped<T: VectorLike>: VectorOps;
+    /// wrapper for an indicated row
+    type RowWrapped<T: VectorLike>: VectorOps;
+
+    //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
+    /// a builder wrapping columns like this builder
+    type ColBuilder: VectorBuilder;
+    /// a builder wrapping rows like this builder
+    type RowBuilder: VectorBuilder;
+
+    /// creates wrapper directly indicated by this builder
+    unsafe fn wrap_mat<T: MatrixLike>(&self, mat: T) -> Self::MatrixWrapped<T>;
+    /// creates transposition of the wrapper indicated
+    unsafe fn wrap_trans_mat<T: MatrixLike>(&self, mat: T) -> Self::TransposedMatrixWrapped<T>;
+    /// creates wrapper for an indicated column
+    unsafe fn wrap_col_vec<T: VectorLike>(&self, vec: T) -> Self::ColWrapped<T>;
+    /// creates wrapper for an indicated row
+    unsafe fn wrap_row_vec<T: VectorLike>(&self, vec: T) -> Self::RowWrapped<T>;
+
+    //FIXME (above is source of issue): currently requires correct implementation even though trait is not unsafe
+    /// decomposes this matrix builder into a column and row vector builders
+    fn decompose(self) -> (Self::ColBuilder, Self::RowBuilder);
+
+    /// get the dimensions of this builder in `(num_rows, num_cols)` format
+    fn dimensions(&self) -> (usize, usize);
+}
+
+/// Enables an union operation between 2 MatrixBuilders into a single MatrixBuilder
+pub trait MatrixBuilderUnion<T: MatrixBuilder>: MatrixBuilder {
+    /// the resulting type of the Union
+    type Union: MatrixBuilder;
+
+    /// union 2 MatrixBuilders into a single MatrixBuilder
+    /// additionally checks that the sizing information of each MatrixBuilder is equal
+    fn union(self, other: T) -> Self::Union;
+}
+
+/// Enables 2 vector builders to construct a matrix builder
+///
+/// syntax: `ColBuilder: MatrixBuilderCompose<RowBuilder>`
+pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
+    //FIXME (HRTBs): for<T: VectorLike> Self::Composition::ColBuilder::Wrapped<T> == Self::Wrapped
+    /// the resulting type of the composition
+    type Composition: MatrixBuilder;
+
+    /// composes the 2 VectorBuilders into 1 MatrixBuilder
+    ///
+    /// self is the column builder, other is the row builder
+    fn compose(self, other: T) -> Self::Composition;
+}
+
 
 /// a simple const sized MatrixBuilder
 #[derive(Clone)]
