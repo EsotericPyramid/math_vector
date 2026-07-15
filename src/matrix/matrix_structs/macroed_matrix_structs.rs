@@ -1,5 +1,6 @@
 use crate::{matrix::mat_util_traits::*, trait_specialization_utils::*, util_traits::*};
 use std::{mem::ManuallyDrop, ops::*};
+use alga::general::ComplexField;
 
 macro_rules! is_unit {
     (()) => {
@@ -318,6 +319,9 @@ mat_structs!(
     MatCopiedEntrySum<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: AddAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar += input; input};
     "Struct multiplying together the entries of a Matrix while preserving the item";
     MatCopiedEntryProd<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: MulAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar *= input; input};
+
+    "UHOH, I forgor to write this documentation (FIXME)";
+    MatConjugate<{M}>{mat} where M::Item: ComplexField; get2D: M::Item, |self, input| input.conjugate();
 );
 
 mat_structs!(

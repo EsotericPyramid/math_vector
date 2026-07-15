@@ -436,6 +436,91 @@ impl<M: MatrixLike> Has2DReuseBuf for DynamicMatrixLike<M> {
     }
 }
 
+/// An instance of a repeatable matrix which can be consumed separate from reference vector
+/// 
+/// to make that stable, Has2DOutput and Has2DReuseBuf are reduced into non-impls
+/// (ie. no output and no bindable buffers)
+pub struct RepeatedMatrix<'a, M: MatrixLike + Is2DRepeatable> {
+    pub(crate) mat: &'a mut M,
+}
+
+
+unsafe impl<'a, M: MatrixLike + Is2DRepeatable> Get2D for RepeatedMatrix<'a, M> {
+    type GetBool = M::GetBool;
+    type AreInputsTransposed = M::AreInputsTransposed;
+    type Inputs = M::Inputs;
+    type Item = M::Item;
+    type BoundItems = M::BoundItems;
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {
+        unsafe { self.mat.get_inputs(col_index, row_index) }
+    }
+    #[inline]
+    unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) {
+        unsafe { self.mat.drop_inputs(col_index, row_index) }
+    }
+    #[inline]
+    fn process(
+        &mut self,
+        col_index: usize,
+        row_index: usize,
+        inputs: Self::Inputs,
+    ) -> (Self::Item, Self::BoundItems) {
+        self.mat.process(col_index, row_index, inputs)
+    }
+}
+
+unsafe impl<'a, M: MatrixLike + Is2DRepeatable> Is2DRepeatable for RepeatedMatrix<'a, M> {}
+
+impl<'a, M: MatrixLike + Is2DRepeatable> HasOutput for RepeatedMatrix<'a, M> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {}
+    #[inline]
+    unsafe fn drop_output(&mut self) {}
+}
+
+impl<'a, M: MatrixLike + Is2DRepeatable> Has2DReuseBuf for RepeatedMatrix<'a, M> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type IsFstBufferTransposed = N;
+    type IsSndBufferTransposed = N;
+    type AreBoundBuffersTransposed = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, _: usize, _: usize, _: Self::SndType) {}
+    #[inline]
+    unsafe fn assign_bound_bufs(&mut self, _: usize, _: usize, _: Self::BoundTypes) {}
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, _: usize, _: usize) {}
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
+}
+
+
 /// FIXME: unused, see readme
 pub struct VectorizedMatrix<M: MatrixLike>{
     mat: M,
