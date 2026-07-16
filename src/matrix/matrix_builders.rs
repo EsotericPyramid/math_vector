@@ -18,13 +18,14 @@ use crate::{
 /// or in other words, implementors carry minimal sizing information which can be applied to MatrixLikes
 pub trait MatrixBuilder: Clone {
     /// wrapper directly indicated by this builder
-    type MatrixWrapped<T: MatrixLike>: MatrixOps;
+    type MatrixWrapped<T: MatrixLike>: MatrixOps<Unwrapped = T, Builder = Self>;
     /// transposition of the wrapper indicated
-    type TransposedMatrixWrapped<T: MatrixLike>: MatrixOps;
+    // future FIXME: if transpoed Builder is added as a assoc type, add it here
+    type TransposedMatrixWrapped<T: MatrixLike>: MatrixOps<Unwrapped = T>;
     /// wrapper for an indicated column
-    type ColWrapped<T: VectorLike>: VectorOps;
+    type ColWrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self::ColBuilder>;
     /// wrapper for an indicated row
-    type RowWrapped<T: VectorLike>: VectorOps;
+    type RowWrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self::RowBuilder>;
 
     //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
     /// a builder wrapping columns like this builder

@@ -6,6 +6,7 @@ use crate::{
 use super::{
     mat_util_traits::*,
     matrix_structs::*,
+    matrix_builders::*,
     MatrixOps,
     ArrayMatrixOps,
 };
@@ -477,6 +478,68 @@ where
     }
 }
 
+
+impl<T: MulAssign<S>, S: Copy, const D1: usize, const D2: usize> MulAssign<S> for MathMatrix<T, D1, D2> {
+    #[inline]
+    fn mul_assign(&mut self, rhs: S) {
+        MatrixOps::mul_assign(self, rhs).consume();
+    }
+}
+
+impl<T: DivAssign<S>, S: Copy, const D1: usize, const D2: usize> DivAssign<S> for MathMatrix<T, D1, D2> {
+    #[inline]
+    fn div_assign(&mut self, rhs: S) {
+        MatrixOps::div_assign(self, rhs).consume();
+    }
+}
+
+impl<T: RemAssign<S>, S: Copy, const D1: usize, const D2: usize> RemAssign<S> for MathMatrix<T, D1, D2> {
+    #[inline]
+    fn rem_assign(&mut self, rhs: S) {
+        MatrixOps::rem_assign(self, rhs).consume();
+    }
+}
+
+impl<T: AddAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps, const D1: usize, const D2: usize> AddAssign<M> for MathMatrix<T, D1, D2> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    MatrixExprBuilder<D1, D2>: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: M) {
+        MatrixOps::add_assign(self, rhs).consume();
+    }
+}
+
+impl<T: SubAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps, const D1: usize, const D2: usize> SubAssign<M> for MathMatrix<T, D1, D2> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    MatrixExprBuilder<D1, D2>: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: M) {
+        MatrixOps::sub_assign(self, rhs).consume();
+    }
+}
+
 impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display
     for MathMatrix<T, D1, D2>
 {
@@ -527,6 +590,8 @@ impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display
         Ok(())
     }
 }
+
+
 
 #[derive(Clone)]
 pub struct RSMatrixExpr<M: MatrixLike> {
@@ -643,6 +708,68 @@ impl<T> IndexMut<usize> for RSMathDopeMatrix<T> {
         let slice_start = index * self.mat.height;
         let raw = &mut self.mat.mat[slice_start..slice_start + self.mat.height];
         unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }
+    }
+}
+
+
+impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathDopeMatrix<T> {
+    #[inline]
+    fn mul_assign(&mut self, rhs: S) {
+        MatrixOps::mul_assign(self, rhs).consume();
+    }
+}
+
+impl<T: DivAssign<S>, S: Copy> DivAssign<S> for RSMathDopeMatrix<T> {
+    #[inline]
+    fn div_assign(&mut self, rhs: S) {
+        MatrixOps::div_assign(self, rhs).consume();
+    }
+}
+
+impl<T: RemAssign<S>, S: Copy> RemAssign<S> for RSMathDopeMatrix<T> {
+    #[inline]
+    fn rem_assign(&mut self, rhs: S) {
+        MatrixOps::rem_assign(self, rhs).consume();
+    }
+}
+
+impl<T: AddAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps> AddAssign<M> for RSMathDopeMatrix<T> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    RSMatrixExprBuilder: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: M) {
+        MatrixOps::add_assign(self, rhs).consume();
+    }
+}
+
+impl<T: SubAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps> SubAssign<M> for RSMathDopeMatrix<T> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    RSMatrixExprBuilder: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: M) {
+        MatrixOps::sub_assign(self, rhs).consume();
     }
 }
 
@@ -784,6 +911,70 @@ impl<T> IndexMut<usize> for RSMathIliffeMatrix<T> {
         &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.0) })[index]
     }
 }
+
+
+
+impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathIliffeMatrix<T> {
+    #[inline]
+    fn mul_assign(&mut self, rhs: S) {
+        MatrixOps::mul_assign(self, rhs).consume();
+    }
+}
+
+impl<T: DivAssign<S>, S: Copy> DivAssign<S> for RSMathIliffeMatrix<T> {
+    #[inline]
+    fn div_assign(&mut self, rhs: S) {
+        MatrixOps::div_assign(self, rhs).consume();
+    }
+}
+
+impl<T: RemAssign<S>, S: Copy> RemAssign<S> for RSMathIliffeMatrix<T> {
+    #[inline]
+    fn rem_assign(&mut self, rhs: S) {
+        MatrixOps::rem_assign(self, rhs).consume();
+    }
+}
+
+impl<T: AddAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps> AddAssign<M> for RSMathIliffeMatrix<T> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    RSMatrixExprBuilder: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: M) {
+        MatrixOps::add_assign(self, rhs).consume();
+    }
+}
+
+impl<T: SubAssign<<M::Unwrapped as Get2D>::Item>, M: MatrixOps> SubAssign<M> for RSMathIliffeMatrix<T> 
+where 
+    M::Unwrapped: Has2DReuseBuf<BoundHandlesBool = N>,
+    M::Unwrapped: HasOutput<OutputBool = N>,
+    RSMatrixExprBuilder: MatrixBuilderUnion<M::Builder>,
+    (N, <M::Unwrapped as Get2D>::AreInputsTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <M::Unwrapped as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: M) {
+        MatrixOps::sub_assign(self, rhs).consume();
+    }
+}
+
 
 /// not entirely free as this includes a check that it is rectangular, but that is highly minimal
 impl<'a, T: 'a, S: Deref<Target = [T]>> From<&'a [S]> for RSMatrixExpr<&'a [S]> {
