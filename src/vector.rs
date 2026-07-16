@@ -12,6 +12,7 @@ use crate::{
     },
     trait_specialization_utils::*,
     util_traits::HasOutput,
+    Scalar,
 };
 use std::{
     marker::PhantomData,
@@ -2465,6 +2466,34 @@ macro_rules! impl_ops_for_wrapper {
                             self.rem_l(rhs)
                         }
                     }
+
+                    impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Mul<$ty> for Scalar<Z> where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, Z: Mul<<$trait_vector as Get>::Item>, Self: Sized {
+                        type Output =  <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecMulR<$true_vector, Z>>;
+
+                        #[inline]
+                        fn mul(self, rhs: $ty) -> Self::Output {
+                            rhs.mul_r(*self)
+                        }
+                    }
+
+                    impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Div<$ty> for Scalar<Z> where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, Z: Div<<$trait_vector as Get>::Item>, Self: Sized {
+                        type Output = <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecDivR<$true_vector, Z>>;
+
+                        #[inline]
+                        fn div(self, rhs: $ty) -> Self::Output {
+                            rhs.div_r(*self)
+                        }
+                    }
+
+                    impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: Copy $(, const $size: usize)?> Rem<$ty> for Scalar<Z> where (<$trait_vector as HasOutput>::OutputBool, N): FilterPair, Z: Rem<<$trait_vector as Get>::Item>, Self: Sized {
+                        type Output = <<$ty as VectorOps>::Builder as VectorBuilder>::Wrapped<VecRemR<$true_vector, Z>>;
+
+                        #[inline]
+                        fn rem(self, rhs: $ty) -> Self::Output {
+                            rhs.rem_r(*self)
+                        }
+                    }
+
 
                     impl<
                         $($($lifetime),+, )?

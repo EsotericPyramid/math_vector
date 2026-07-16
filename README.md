@@ -15,8 +15,9 @@ as well as their assign counterpoints when possible (ex. `+=`, `-=`, `*=`, `/=`,
 
 note 1: `vec1 * vec2` is not a valid operation, see dot or comp_mul operations<br>
 note 2: `scalar * vec` should be valid but due to orphan rules cannot implemented, 
-        `vec * scalar` is implemented though and for commutative scalar multiplication is identitical, if not see `mul_r`. (also applies to `/` and `%`)<br>
-note 3: `scalar / vec` (& `scaler % vec`) (really div_r and rem_r, see note 2) as far as I'm aware aren't really a thing but is defined such that `(scalar / vec)[idx] == scalar / vec[idx]`.<br>
+        `vec * scalar` is implemented though and for commutative scalar multiplication is identitical, if not see `mul_r`. (also applies to `/` and `%`).
+        Additionally, there is the `Scalar` type defined which does implement this so `Scalar(scalar) * vec` is valid.<br>
+note 3: `scalar / vec` (& `scaler % vec`) (really div_r and rem_r, see note 2) as far as I'm aware these aren't really a thing but is defined such that `(scalar / vec)[idx] == scalar / vec[idx]`.<br>
 note 4: By the nature of assign ops, the type of mutated value cannot change so I can't pull the same lazily-evaluation shenanigans so sadly these are readily-evaluated & can only be done on concrete vectors
 
 ## Miscelaneous
