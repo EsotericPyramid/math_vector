@@ -5,6 +5,7 @@ Key:
     X: to do if possible (which it may not be)
     ~X: to do *when* possible (ie. definitely not possible now)
     ~: deferred for far later
+    XX: to do but likely never possible (ex. breaks orphans rules) (still good to motivate further design)
 
 
 To Do's:
@@ -35,6 +36,8 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        - add buffer discarding
+        - output redirector which uses mpsc's to message out outputs and the neutralize the output field
         ? remove MathVectoredMatrix (for now)
         X change gen functions to assoc fns of the wrapper they make
         ~X finish implementing VectorizedMatrix (reqs more advanced wrap sizing)
@@ -53,6 +56,8 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - add buffer discarding
+        - output redirector which uses mpsc's to message out outputs and the neutralize the output field
         ? provide default impl for VectorOps::size
         ? add ConcreteVectorLike trait to help generalize ConcreteVectorExpr impl's
         X generalize the VecAttachUsedVec ConcreteVectorExpr impl (see prototype in misc_vector_structs.rs)
@@ -67,7 +72,7 @@ To Do's:
         X remove &Box and &mut Box for impls VectorExpr (should be redundant because of Borrow but isn't fully)
         ? generic MaybeCreate wrapper
         X improve VectorEvalOps to allow differentiation of attempted buffer types
-        X Add addassign and subassign for generic V2: VectorOps
+        XX Add addassign and subassign for generic V1: ConcreteVectorExpr, V2: VectorOps (impossible from orphan rules)
         ? merge ArrayVectorOps into VectorOps using Builder bounds
 
         + vec_util_traits.rs:

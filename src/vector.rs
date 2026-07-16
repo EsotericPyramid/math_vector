@@ -2404,16 +2404,6 @@ impl<T> VectorEvalOps for &mut RSMathVector<T> {
 
 
 
-macro_rules! conditional_syntax {
-    (
-        $cond:tt {$($tt:tt)*}
-    ) => {
-        $($tt)*
-    };
-    (
-        {$($tt:tt)*}
-    ) => {}
-}
 
 macro_rules! not_conditional_syntax {
     (
@@ -2558,45 +2548,6 @@ macro_rules! impl_ops_for_wrapper {
                     }
                 }
             );
-
-            conditional_syntax!(
-                $($size)?
-                {
-                    impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: AddAssign<<$trait_vector as Get>::Item> $(, const $size: usize)?> AddAssign<$ty> for MathVector<Z $(, $size)?>
-                    where
-                        (N, <$trait_vector as HasOutput>::OutputBool): FilterPair,
-                        (<(N, <$trait_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-                        (N, <$trait_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-                        (N, <$trait_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-                        $trait_vector: HasReuseBuf<BoundTypes = <$trait_vector as Get>::BoundItems>
-                    {
-                        #[inline]
-                        fn add_assign(&mut self, rhs: $ty) {
-                            VectorOps::add_assign(self, rhs).consume();
-                        }
-                    }
-
-                    impl<$($($lifetime),+, )? $($generic: $($lifetime_bound +)? $($fst_trait_bound $(+ $trait_bound)*)?),+, Z: SubAssign<<$trait_vector as Get>::Item> $(, const $size: usize)?> SubAssign<$ty> for MathVector<Z $(, $size)?>
-                    where
-                        (N, <$trait_vector as HasOutput>::OutputBool): FilterPair,
-                        (<(N, <$trait_vector as HasOutput>::OutputBool) as TyBoolPair>::Or, N): FilterPair,
-                        (N, <$trait_vector as HasReuseBuf>::BoundHandlesBool): FilterPair,
-                        (N, <$trait_vector as HasReuseBuf>::FstHandleBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::SndHandleBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
-                        (N, <$trait_vector as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
-                        $trait_vector: HasReuseBuf<BoundTypes = <$trait_vector as Get>::BoundItems>
-                    {
-                        #[inline]
-                        fn sub_assign(&mut self, rhs: $ty) {
-                            VectorOps::sub_assign(self, rhs).consume();
-                        }
-                    }
-                }
-            );
         )*
     };
 }
@@ -2610,8 +2561,9 @@ impl_ops_for_wrapper!(
     <'a, T, {D}>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
 
     <V: VectorLike>, RSVectorExpr<V>, trait_vector: V, true_vector: V;
-    <'a, T>, RefRSMathVector<'a, T>, trait_vector: &'a [T], true_vector: &'a [T], true;
-    <'a, T>, RefMutRSMathVector<'a, T>, trait_vector: &'a mut [T], true_vector: &'a mut [T], true;
+    // Note: not sure why I ever added these here, they never did anything I think
+    //<'a, T>, RefRSMathVector<'a, T>, trait_vector: &'a [T], true_vector: &'a [T], true;
+    //<'a, T>, RefMutRSMathVector<'a, T>, trait_vector: &'a mut [T], true_vector: &'a mut [T], true;
     <'a, T>, &'a RSMathVector<T>, trait_vector: &'a [T], true_vector: &'a [T];
     <'a, T>, &'a mut RSMathVector<T>, trait_vector: &'a mut [T], true_vector: &'a mut [T];
 );

@@ -2507,7 +2507,7 @@ macro_rules! conditional_syntax {
 macro_rules! impl_ops_for_wrapper {
     (
         $(
-            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?,)+ $({$d1:ident, $d2:ident})?>,
+            <$($($lifetime:lifetime),+, )? $($generic:ident $(:)? $($lifetime_bound:lifetime |)? $($fst_trait_bound:path $(| $trait_bound:path)*)?),+ $(,{$d1:ident, $d2:ident})?>,
             $ty:ty,
             trait_matrix: $trait_matrix:ty,
             true_matrix: $true_matrix:ty;
@@ -2704,10 +2704,16 @@ macro_rules! impl_ops_for_wrapper {
 }
 
 impl_ops_for_wrapper!(
-    <M1: MatrixLike, {D1, D2}>, MatrixExpr<M1, D1, D2>, trait_matrix: M1, true_matrix: M1;
-    <M1: MatrixLike, {D1, D2}>, Box<MatrixExpr<M1, D1, D2>>, trait_matrix: M1, true_matrix: Box<M1>;
-    <'a, T1, {D1, D2}>, &'a MathMatrix<T1, D1, D2>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
-    <'a, T1, {D1, D2}>, &'a mut MathMatrix<T1, D1, D2>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
-    <'a, T1, {D1, D2}>, &'a Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a [[T1; D1]; D2], true_matrix: &'a [[T1; D1]; D2];
-    <'a, T1, {D1, D2}>, &'a mut Box<MathMatrix<T1, D1, D2>>, trait_matrix: &'a mut [[T1; D1]; D2], true_matrix: &'a mut [[T1; D1]; D2];
+    <M: MatrixLike, {D1, D2}>, MatrixExpr<M, D1, D2>, trait_matrix: M, true_matrix: M;
+    <M: MatrixLike, {D1, D2}>, Box<MatrixExpr<M, D1, D2>>, trait_matrix: M, true_matrix: Box<M>;
+    <'a, T, {D1, D2}>, &'a MathMatrix<T, D1, D2>, trait_matrix: &'a [[T; D1]; D2], true_matrix: &'a [[T; D1]; D2];
+    <'a, T, {D1, D2}>, &'a mut MathMatrix<T, D1, D2>, trait_matrix: &'a mut [[T; D1]; D2], true_matrix: &'a mut [[T; D1]; D2];
+    <'a, T, {D1, D2}>, &'a Box<MathMatrix<T, D1, D2>>, trait_matrix: &'a [[T; D1]; D2], true_matrix: &'a [[T; D1]; D2];
+    <'a, T, {D1, D2}>, &'a mut Box<MathMatrix<T, D1, D2>>, trait_matrix: &'a mut [[T; D1]; D2], true_matrix: &'a mut [[T; D1]; D2];
+
+    <M: MatrixLike>, RSMatrixExpr<M>, trait_matrix: M, true_matrix: M;
+    <'a, T>, &'a RSMathIliffeMatrix<T>, trait_matrix: &'a [Box<[T]>], true_matrix: &'a [Box<[T]>];
+    <'a, T>, &'a mut RSMathIliffeMatrix<T>, trait_matrix: &'a mut [Box<[T]>], true_matrix: &'a mut [Box<[T]>];
+    <'a, T>, &'a RSMathDopeMatrix<T>, trait_matrix: RefMatrixDopeSlice<'a, T>, true_matrix: RefMatrixDopeSlice<'a, T>;
+    <'a, T>, &'a mut RSMathDopeMatrix<T>, trait_matrix: RefMutMatrixDopeSlice<'a, T>, true_matrix: RefMutMatrixDopeSlice<'a, T>;
 );

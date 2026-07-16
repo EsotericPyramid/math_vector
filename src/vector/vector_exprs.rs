@@ -606,6 +606,73 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<Vec
 }
 
 
+impl<T: MulAssign<S>, S: Copy, const D: usize> MulAssign<S> for MathVector<T, D> {
+    #[inline]
+    fn mul_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::mul_assign(self, rhs).consume();
+    }
+}
+
+impl<T: DivAssign<S>, S: Copy, const D: usize> DivAssign<S> for MathVector<T, D> {
+    #[inline]
+    fn div_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::div_assign(self, rhs).consume();
+    }
+}
+
+impl<T: RemAssign<S>, S: Copy, const D: usize> RemAssign<S> for MathVector<T, D> {
+    #[inline]
+    fn rem_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::rem_assign(self, rhs).consume();
+    }
+}
+
+impl<T: AddAssign<<V::Unwrapped as Get>::Item>, V: VectorOps, const D: usize> AddAssign<V> for MathVector<T, D> where 
+    V::Unwrapped: HasReuseBuf<BoundHandlesBool = N>,
+    V::Unwrapped: HasOutput<OutputBool = N>,
+    VectorExprBuilder<D>: VectorBuilderUnion<V::Builder>,
+    (N, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: V) {
+        VectorOps::add_assign(self, rhs).consume()
+    }
+}
+
+impl<T: SubAssign<<V::Unwrapped as Get>::Item>, V: VectorOps, const D: usize> SubAssign<V> for MathVector<T, D> where 
+    V::Unwrapped: HasReuseBuf<BoundHandlesBool = N>,
+    V::Unwrapped: HasOutput<OutputBool = N>,
+    VectorExprBuilder<D>: VectorBuilderUnion<V::Builder>,
+    (N, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: V) {
+        VectorOps::sub_assign(self, rhs).consume()
+    }
+}
+
+impl<T1: num_traits::Zero + AddAssign<T2>, T2, const D: usize> Sum<MathVector<T2, D>> for MathVector<T1, D> {
+    #[inline]
+    fn sum<I: Iterator<Item = MathVector<T2, D>>>(iter: I) -> Self {
+        let mut sum = VectorExprBuilder::new().generate(|| T1::zero())
+            .create_array()
+            .bind()
+            .consume();
+        for vec in iter {
+            sum += vec;
+        }
+        sum
+    }
+}
+
+
+
 impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut strings = Vec::with_capacity(D);
@@ -629,50 +696,8 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
     }
 }
 
-//impl<T1: AddAssign<T2>, T2, const D: usize> AddAssign<MathVector<T2, D>> for MathVector<T1, D>
-//{
-//    #[inline]
-//    fn add_assign(&mut self, rhs: MathVector<T2, D>) {
-//        VectorExpr::<_, D>::consume(VectorOps::add_assign(self, rhs));
-//    }
-//}
 
-impl<T: MulAssign<S>, S: Copy, const D: usize> MulAssign<S> for MathVector<T, D> {
-    #[inline]
-    fn mul_assign(&mut self, rhs: S) {
-        <&mut Self as VectorOps>::mul_assign(self, rhs).consume();
-    }
-}
 
-impl<T: DivAssign<S>, S: Copy, const D: usize> DivAssign<S> for MathVector<T, D> {
-    #[inline]
-    fn div_assign(&mut self, rhs: S) {
-        <&mut Self as VectorOps>::div_assign(self, rhs).consume();
-    }
-}
-
-impl<T: RemAssign<S>, S: Copy, const D: usize> RemAssign<S> for MathVector<T, D> {
-    #[inline]
-    fn rem_assign(&mut self, rhs: S) {
-        <&mut Self as VectorOps>::rem_assign(self, rhs).consume();
-    }
-}
-
-impl<T1: num_traits::Zero + AddAssign<T2>, T2, const D: usize> Sum<MathVector<T2, D>> for MathVector<T1, D> {
-    #[inline]
-    fn sum<I: Iterator<Item = MathVector<T2, D>>>(iter: I) -> Self {
-        let mut sum = VectorExprBuilder::new().generate(|| T1::zero())
-            .create_array()
-            .bind()
-            .consume();
-        for vec in iter {
-            sum += vec;
-        }
-        sum
-    }
-}
-
-// TODO: finish implementing RSVectorExpr
 #[derive(Clone)]
 pub struct RSVectorExpr<V: VectorLike> {
     pub(crate) vec: V,
@@ -1150,11 +1175,66 @@ impl<T, USEDV: VectorLike> ConcreteVectorExpr for RSVectorExpr<VecAttachUsedVec<
     }
 }
 
+impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathVector<T> {
+    #[inline]
+    fn mul_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::mul_assign(self, rhs).consume();
+    }
+}
+
+impl<T: DivAssign<S>, S: Copy> DivAssign<S> for RSMathVector<T> {
+    #[inline]
+    fn div_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::div_assign(self, rhs).consume();
+    }
+}
+
+impl<T: RemAssign<S>, S: Copy> RemAssign<S> for RSMathVector<T> {
+    #[inline]
+    fn rem_assign(&mut self, rhs: S) {
+        <&mut Self as VectorOps>::rem_assign(self, rhs).consume();
+    }
+}
+
+impl<T: AddAssign<<V::Unwrapped as Get>::Item>, V: VectorOps> AddAssign<V> for RSMathVector<T> where 
+    V::Unwrapped: HasReuseBuf<BoundHandlesBool = N>,
+    V::Unwrapped: HasOutput<OutputBool = N>,
+    RSVectorExprBuilder: VectorBuilderUnion<V::Builder>,
+    (N, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+{
+    #[inline]
+    fn add_assign(&mut self, rhs: V) {
+        VectorOps::add_assign(self, rhs).consume()
+    }
+}
+
+impl<T: SubAssign<<V::Unwrapped as Get>::Item>, V: VectorOps> SubAssign<V> for RSMathVector<T> where 
+    V::Unwrapped: HasReuseBuf<BoundHandlesBool = N>,
+    V::Unwrapped: HasOutput<OutputBool = N>,
+    RSVectorExprBuilder: VectorBuilderUnion<V::Builder>,
+    (N, <V::Unwrapped as HasReuseBuf>::FstHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndHandleBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <V::Unwrapped as HasReuseBuf>::SndOwnedBufferBool): SelectPair,
+{
+    #[inline]
+    fn sub_assign(&mut self, rhs: V) {
+        VectorOps::sub_assign(self, rhs).consume()
+    }
+}
+
+
+
+
 impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.deref().fmt(f)
     }
 }
+
 
 
 // monad lol
