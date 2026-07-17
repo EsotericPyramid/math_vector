@@ -1029,12 +1029,11 @@ pub unsafe trait VectorOps: Sized {
         /// 
         /// note: this isn't technically correct if working with complex numbers. In that case, use [`Self::sqr_euclid_mag`]
         /// 
-        /// math-nerd note: 
-        ///     "magnitude" isn't a strictly defined thing in linear algebra, the closest actual thing is the [https://en.wikipedia.org/wiki/Norm_(mathematics)](norm).
-        ///     However, in a given vector space, there can be an infinite number of norms defined so this method doesn't really make sense, unless a norm is actually
-        ///     defined (which it at best only implicitly is).
-        ///     
-        /// tl;dr: this method should really be titled `sqr_euclidan_distance` with the caveat that it only works with real numbers
+        /// ## math-nerd note: 
+        /// "magnitude" isn't a strictly defined thing in linear algebra, the closest actual thing is the [norm](https://en.wikipedia.org/wiki/Norm_(mathematics)).
+        /// However, in a given vector space, there can be an infinite number of norms defined so this method 
+        /// doesn't really make sense, unless a norm is actually defined (which it at best only implicitly is). 
+        /// To be specific, this norm is based on the dot product as the inner product which is only valid for Real fields thus the note above.
         fn sqr_mag<S: num_traits::One | AddAssign<<<Self::Unwrapped as Get>::Item as Mul>::Output>>(self) -> {has_output} VecSqrMag<Self::Unwrapped, S>, output: S
         where
             <Self::Unwrapped as Get>::Item: Copy | Mul,
