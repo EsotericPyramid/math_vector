@@ -56,6 +56,9 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - impl Clone for RSMathVector
+        ~? make the VectorExpr wrappers a singular type with a builder generic
+        - move InializableVectorExpr and Uninit to builder traits
         - add buffer discarding
         - output redirector which uses mpsc's to message out outputs and the neutralize the output field
         ? provide default impl for VectorOps::size

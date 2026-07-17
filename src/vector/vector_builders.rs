@@ -1,4 +1,4 @@
-//! Structs implementing VectorBuilder to wrap VectorLikes with sizing information (and potentially more like inner products)
+//! Structs implementing VectorBuilder to wrap VectorLikes with sizing information
 
 use crate::vector::vector_math::GenericInnerProduct;
 use crate::vector::vector_structs::{VecGenerator, VecIndexGenerator};
@@ -7,41 +7,57 @@ use super::vec_util_traits::VectorLike;
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
+/// 
 /// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
 pub trait VectorBuilder: Copy {
+    /// The parametrized wrapper generated around VectorLikes which this builder generates
     type Wrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self>;
 
-    ///Safety: The VectorLike passed to this function MUST match the implications of the wrapper (ATM (Oct 2024), just needs to be unused)
+    /// Wrap the given [`VectorLike`] in this builder's corresponding wrapper. 
+    /// 
+    /// Safety:
+    /// - the [`VectorLike`] is unused
+    /// - the [`VectorLike`] can be taken as this builder's size (most will have exactly one correct size but some like [`super::vector_structs::VecMap`] do not)
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T>;
 
+    /// get the size indicated by this builder
     fn size(&self) -> usize;
 
-    /// generates a Vector of size D using the given closure (FnMut) with no inputs
+    /// generate a Vector of size D using the given closure (FnMut) with no inputs
     fn generate<F: FnMut() -> O, O>(&self, f: F) -> Self::Wrapped<VecGenerator<F, O>> {
         unsafe { self.wrap(VecGenerator(f)) }
     }
 
-    /// generates a Vector of size D using the given closure (FnMut) with an input of the current index
+    /// generate a Vector of size D using the given closure (FnMut) with an input of the current index
     fn index_generate<F: FnMut(usize) -> O, O>(&self, f: F) -> Self::Wrapped<VecIndexGenerator<F, O>> {
         unsafe { self.wrap(VecIndexGenerator(f)) }
     }
 }
 
-/// Enables an union operation between 2 VectorBuilders into a single VectorBuilder
+/// Enables an union operation between 2 VectorBuilders into a single [`VectorBuilder`]
 pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
     /// the resulting type of the Union
     type Union: VectorBuilder;
 
     /// union 2 VectorBuilders into a single VectorBuilder
+    /// 
     /// additionally checks that the sizing information of each VectorBuilder is equal
     fn union(self, other: T) -> Self::Union;
 }
 
-/// a simple const sized VectorBuilder
+/// a simple const sized [`VectorBuilder`]
+/// 
+/// this is the builder equivalent of [`VectorExpr`]
 #[derive(Clone, Copy)]
 pub struct VectorExprBuilder<const D: usize>;
 
 impl<const D: usize> VectorExprBuilder<D> {
+    /// Create a new [`VectorExprBuilder`]
+    /// 
+    /// the sizing isn't expressed in this function but rather in the type calling it or in the type returned.
+    /// so, to generate a dimension 10 builder, use `VectorExprBuilder::<10>::new()`
+    /// 
+    /// note: since this struct has no fields, it is equivalent to simply use `VectorExprBuilder::<10>`
     pub fn new() -> Self {VectorExprBuilder}
 }
 
@@ -56,13 +72,16 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     }
 }
 
-/// a simple runtime sized VectorBuilder
+/// a simple runtime sized [`VectorBuilder`]
+/// 
+/// this is the builder equivalent of [`RSVectorExpr`]
 #[derive(Clone, Copy)]
 pub struct RSVectorExprBuilder {
     pub size: usize,
 }
 
 impl RSVectorExprBuilder {
+    /// Create a new [`RSVectorExprBuilder`] with the given size
     pub fn new(size: usize) -> Self {
         RSVectorExprBuilder { size }
     }
@@ -82,10 +101,18 @@ impl VectorBuilder for RSVectorExprBuilder {
     }
 }
 
+/// a [`VectorBuilder`] monad which additionally adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) to its wrapped [`VectorLike`] 
+/// 
+/// this is the builder equivalent of [`VectorInnerProdExpr`]
 #[derive(Clone, Copy)]
 pub struct VectorInnerProdExprBuilder<B: VectorBuilder, IP: GenericInnerProduct> {
-    pub(crate) builder: B,
-    pub(crate) inner_prod: IP,
+    /// the underlying builder which provides sizing information
+    pub builder: B,
+    /// the attached innerproduct
+    /// 
+    /// although it is only required to impl GenericInnerProduct, it is expected
+    /// to also impl `InnerProduct<F>` for some F: [`alga::general::ComplexField`] to be useful
+    pub inner_prod: IP,
 }
 
 impl<B: VectorBuilder, IP: GenericInnerProduct> VectorBuilder for VectorInnerProdExprBuilder<B, IP> {
@@ -105,7 +132,8 @@ impl<B: VectorBuilder, IP: GenericInnerProduct> VectorBuilder for VectorInnerPro
     }
 }
 
-// for now, this is the only impl of Union on it since its the only one which is obvious
+/// for now, this is the only impl of Union on [`VectorInnerProdExprBuilder`] since its the only one which is obvious.
+/// In the future, some may be added for between it and other builders.
 impl<B1: VectorBuilderUnion<B2>, B2: VectorBuilder, IP: GenericInnerProduct> VectorBuilderUnion<VectorInnerProdExprBuilder<B2, IP>> for VectorInnerProdExprBuilder<B1, IP> {
     type Union = VectorInnerProdExprBuilder<<B1 as VectorBuilderUnion<B2>>::Union, IP>;
 

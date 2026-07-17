@@ -13,50 +13,58 @@ use super::vector_structs::*;
 use super::vector_math::{GenericInnerProduct, VectorInnerProdOps};
 use super::*;
 
+/// a trait expressing that an implementor's data from [`Get`] is stored and accessible, allowing it to be indexed and borrowed
 pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
+    /// The inner [`VectorLike`] contained in the borrowed version of this vector
     type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> + IsRepeatable
     where 
         Self::Output: 'a,
         Self: 'a,
     ;
+    /// the borrowed version of this vector
     type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output>
     where
         Self::Output: 'a,
         Self: 'a,
     ;
+    /// A borrowed version of this vector except that its items are copied
     type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>>
     where
         Self::Output: Copy,
         Self::Output: 'a,
         Self: 'a,
     ;
+    /// The inner [`VectorLike`] contained in the mutably borrowed version of this vector
     type ReferencedMutInner<'a>: VectorLike<Item = &'a mut Self::Output> 
     where 
         Self::Output: 'a,
         Self: 'a,
     ;
+    /// the mutably borrowed version of this vector
     type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = Self::Output> + IndexMut<usize>
     where 
         Self::Output: 'a,
         Self: 'a,
     ;
 
-    
+    /// create a borrowed version of this vector which contains a reference to each of its items
     fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
         <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
         Self::Output: 'a,
         Self: 'a
     ;
 
+    /// create a mutably borrowed version of this vector which contain a mutable reference to each of its items
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
         <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
         Self::Output: 'a,
         Self: 'a,
     ;
 
+    /// create a borrowed version of this vector which contains a copy each of its items
     fn copy<'a>(&'a self) -> Self::Copied<'a> where
         Self::Output: Copy,
         Self::Output: 'a,
@@ -94,24 +102,25 @@ pub unsafe trait UninitVectorExpr: InitializableVectorExpr {
 
 
 /// A const sized vector wrapper
-/// T: the underlying VectorLike type, generally inferred or generic
+/// 
+/// V: the underlying VectorLike type, generally inferred or generic
 /// D: the size of the vector
 #[repr(transparent)]
 pub struct VectorExpr<V: VectorLike, const D: usize>(pub(crate) V); // note: VectorExpr only holds fully unused VectorLike objects
 
 impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
-    /// evaluates the VectorExpr and returns the resulting vector (on the heap) alongside its output (if present)
-    /// if the VectorExpr has no item (& thus results in a vector w/ ZST elements), see consume to not return that vector
+    /// evaluates the [`VectorExpr`] and returns the resulting vector (on the heap) alongside its output (if present)
+    /// if the [`VectorExpr`] has no item (& thus results in a vector w/ ZST elements), see consume to not return that vector
     /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
     ///
     /// Warning:
     /// this method may cause a stack overflow if not compiled with `--release`
     ///
     /// Note:
-    /// methods like sum, product, or fold can place build up outputs
+    /// methods like [`VectorOps::sum`], [`VectorOps::product`], or [`VectorOps::fold`] can place build up outputs
     ///
-    /// output is generally nested 2 element tuples
-    /// newer values to the right
+    /// output is generally nested 2 element tuples,
+    /// newer values to the right,
     /// binary operators merge the output of the 2 vectors
     #[inline]
     pub fn heap_eval(self) -> <VecBind<VecMaybeCreateHeapArray<V, V::Item, D>> as HasOutput>::Output
@@ -134,6 +143,8 @@ impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
 
 impl<V: VectorLike + IsRepeatable, const D: usize> VectorExpr<V, D> {
     /// Retrieves an arbitrary value from a repeatable VectorExpr
+    /// 
+    /// panics if `index` is out of bounds (outside of 0..D)
     pub fn get(&mut self, index: usize) -> V::Item {
         // the nature of IsRepeatable means that any index can be called any number of times so this is fine
         if index >= D {
@@ -179,14 +190,16 @@ where
 pub type MathVector<T, const D: usize> = VectorExpr<VectorArray<T, D>, D>;
 
 impl<T, const D: usize> MathVector<T, D> {
-    /// marks this MathVector to have its buffer reused
-    /// buffer placed on fst buffer
+    /// marks this [`MathVector`] to have its buffer reused
+    /// 
+    /// buffer placed on the first buffer
     #[inline]
     pub fn reuse(self) -> VectorExpr<ReplaceArray<T, D>, D> {
         VectorExpr(ReplaceArray(self.unwrap().0))
     }
-    /// marks this MathVector to have its buffer reused while keeping it on the heap
-    /// buffer placed on fst buffer
+    /// marks this [`MathVector`] to have its buffer reused while keeping it on the heap
+    /// 
+    /// buffer placed on the first buffer
     #[inline]
     pub fn heap_reuse(self: Box<Self>) -> VectorExpr<Box<ReplaceArray<T, D>>, D> {
         // Safety, series of equivilent types:
@@ -197,7 +210,7 @@ impl<T, const D: usize> MathVector<T, D> {
         unsafe { mem::transmute::<Box<Self>, VectorExpr<Box<ReplaceArray<T, D>>, D>>(self) }
     }
 
-    /// converts this MathVector to a repeatable VectorExpr w/ Item = &'a T
+    /// converts this [`MathVector`] to a repeatable [`VectorExpr`] w/ Item = `&'a T`
     #[inline]
     pub fn referred<'a>(self) -> VectorExpr<ReferringVectorArray<'a, T, D>, D>
     where
@@ -210,14 +223,16 @@ impl<T, const D: usize> MathVector<T, D> {
     }
 
     /// references the element at index without checking bounds
-    /// safety: index is in bounds
+    /// 
+    /// safety: index is in bounds (0..D)
     #[inline]
     pub unsafe fn get_unchecked<I: SliceIndex<[T]>>(&self, index: I) -> &I::Output {
         unsafe { self.0.0.get_unchecked(index) }
     }
 
     /// mutably references the element at index without checking bounds
-    /// safety: index is in bounds
+    /// 
+    /// safety: index is in bounds (0..D)
     #[inline]
     pub unsafe fn get_unchecked_mut<I: SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output {
         unsafe { self.0.0.get_unchecked_mut(index) }
@@ -672,7 +687,14 @@ impl<T1: num_traits::Zero + AddAssign<T2>, T2, const D: usize> Sum<MathVector<T2
 }
 
 
-
+/// formats this vector as a column vector with stylized unicode brackets
+/// 
+/// example:
+/// ```txt
+/// ┌ 11  ┐
+/// │ 2   │
+/// └ 333 ┘
+/// ```
 impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut strings = Vec::with_capacity(D);
@@ -697,7 +719,9 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
 }
 
 
-
+/// a **R**untime **S**ized vector wrapper
+/// 
+/// V: the underlying VectorLike type, generally inferred or generic
 #[derive(Clone)]
 pub struct RSVectorExpr<V: VectorLike> {
     pub(crate) vec: V,
@@ -721,6 +745,9 @@ impl<V: VectorLike> RSVectorExpr<V> {
 }
 
 impl<V: VectorLike + IsRepeatable> RSVectorExpr<V> {
+    /// Retrieves an arbitrary value from a repeatable VectorExpr
+    /// 
+    /// panics if `index` is out of bounds (outside of 0..D)
     #[inline]
     pub fn get(&mut self, index: usize) -> V::Item {
         if index >= self.size {
@@ -764,6 +791,9 @@ where
 pub type RSMathVector<T> = RSVectorExpr<VectorSlice<T>>;
 
 impl<T> RSMathVector<T> {
+    /// marks this [`RSMathVector`] to have its buffer reused
+    /// 
+    /// buffer placed on the first buffer
     #[inline]
     pub fn reuse(self) -> RSVectorExpr<ReplaceSlice<T>> {
         let size = self.size;
@@ -773,7 +803,7 @@ impl<T> RSMathVector<T> {
         }
     }
 
-    /// converts this RSMathVector to a repeatable VectorExpr w/ Item = &'a T
+    /// converts this [`RSMathVector`] to a repeatable [`RSVectorExpr`] w/ Item = `&'a T`
     #[inline]
     pub fn referred<'a>(self) -> RSVectorExpr<ReferringVectorSlice<'a, T>>
     where
@@ -791,11 +821,17 @@ impl<T> RSMathVector<T> {
         } //FIXME: unecessary transmute copy to get the compiler to not complain
     }
 
+    /// references the element at index without checking bounds
+    /// 
+    /// safety: index is in bounds (0..size)
     #[inline]
     pub unsafe fn get_unchecked<I: SliceIndex<[T]>>(&self, index: I) -> &I::Output {
         unsafe { self.vec.0.get_unchecked(index) }
     }
 
+    /// mutably references the element at index without checking bounds
+    /// 
+    /// safety: index is in bounds (0..size)
     #[inline]
     pub unsafe fn get_unchecked_mut<I: SliceIndex<[T]>>(&mut self, index: I) -> &mut I::Output {
         unsafe { self.vec.0.get_unchecked_mut(index) }
@@ -978,6 +1014,14 @@ impl<T> ConcreteVectorExpr for RSMathVector<T> {
     }
 }
 
+/// formats this vector as a column vector with stylized unicode brackets
+/// 
+/// example:
+/// ```txt
+/// ┌ 11  ┐
+/// │ 2   │
+/// └ 333 ┘
+/// ```
 impl<T: std::fmt::Display> std::fmt::Display for RSMathVector<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.borrow().fmt(f)
@@ -1016,6 +1060,14 @@ where
     }
 }
 
+/// formats this vector as a column vector with stylized unicode brackets
+/// 
+/// example:
+/// ```txt
+/// ┌ 11  ┐
+/// │ 2   │
+/// └ 333 ┘
+/// ```
 impl<'a, T: std::fmt::Display> std::fmt::Display for RefRSMathVector<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut strings = Vec::with_capacity(self.size());
@@ -1226,9 +1278,14 @@ impl<T: SubAssign<<V::Unwrapped as Get>::Item>, V: VectorOps> SubAssign<V> for R
     }
 }
 
-
-
-
+/// formats this vector as a column vector with stylized unicode brackets
+/// 
+/// example:
+/// ```txt
+/// ┌ 11  ┐
+/// │ 2   │
+/// └ 333 ┘
+/// ```
 impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.deref().fmt(f)
@@ -1236,7 +1293,7 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
 }
 
 
-
+/// a vector wrapper which adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) onto another vector wrapper
 // monad lol
 pub struct VectorInnerProdExpr<V: VectorOps, IP: GenericInnerProduct> {
     pub(crate) vec: V,
