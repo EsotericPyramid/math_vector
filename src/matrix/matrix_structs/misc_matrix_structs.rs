@@ -114,6 +114,114 @@ impl<M: MatrixLike> Has2DReuseBuf for MatBufSwap<M> {
     }
 }
 
+/// Struct discarding the unbound buffer in the first slot
+pub struct MatBufDicard<M: MatrixLike> {
+    pub(crate) mat: M,
+}
+
+unsafe impl<M: MatrixLike> Get2D for MatBufDicard<M> {
+    type GetBool = M::GetBool;
+    type AreInputsTransposed = M::AreInputsTransposed;
+    type Inputs = M::Inputs;
+    type Item = M::Item;
+    type BoundItems = M::BoundItems;
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, col_index: usize, row_index: usize) -> Self::Inputs {
+        unsafe { self.mat.get_inputs(col_index, row_index) }
+    }
+    #[inline]
+    unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) {
+        unsafe { self.mat.drop_inputs(col_index, row_index) }
+    }
+    #[inline]
+    fn process(
+        &mut self,
+        col_index: usize,
+        row_index: usize,
+        inputs: Self::Inputs,
+    ) -> (Self::Item, Self::BoundItems) {
+        self.mat.process(col_index, row_index, inputs)
+    }
+}
+
+unsafe impl<M: Is2DRepeatable + MatrixLike> Is2DRepeatable for MatBufDicard<M> {}
+
+impl<M: MatrixLike> HasOutput for MatBufDicard<M> {
+    type OutputBool = M::OutputBool;
+    type Output = M::Output;
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {
+        unsafe { self.mat.output() }
+    }
+    #[inline]
+    unsafe fn drop_output(&mut self) {
+        unsafe { self.mat.drop_output() }
+    }
+}
+
+impl<M: MatrixLike> Has2DReuseBuf for MatBufDicard<M> {
+    type FstHandleBool = N;
+    type SndHandleBool = M::SndHandleBool;
+    type BoundHandlesBool = M::BoundHandlesBool;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = M::SndOwnedBufferBool;
+    type IsFstBufferTransposed = N;
+    type IsSndBufferTransposed = M::IsSndBufferTransposed;
+    type AreBoundBuffersTransposed = M::AreBoundBuffersTransposed;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = M::SndOwnedBuffer;
+    type FstType = ();
+    type SndType = M::SndType;
+    type BoundTypes = M::BoundTypes;
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, _: usize, _: usize, _: Self::FstType) {}
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, col_index: usize, row_index: usize, val: Self::SndType) {
+        unsafe { self.mat.assign_2nd_buf(col_index, row_index, val) }
+    }
+    #[inline]
+    unsafe fn assign_bound_bufs(
+        &mut self,
+        col_index: usize,
+        row_index: usize,
+        val: Self::BoundTypes,
+    ) {
+        unsafe { self.mat.assign_bound_bufs(col_index, row_index, val) }
+    }
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
+        unsafe { self.mat.get_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {
+        unsafe { self.mat.drop_2nd_buffer() }
+    }
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, _: usize, _: usize) {}
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, col_index: usize, row_index: usize) {
+        unsafe { self.mat.drop_2nd_buf_index(col_index, row_index) }
+    }
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, col_index: usize, row_index: usize) {
+        unsafe { self.mat.drop_bound_bufs_index(col_index, row_index) }
+    }
+}
+
+impl<M: MatrixLike> Drop for MatBufDicard<M> {
+    fn drop(&mut self) {
+        unsafe { self.mat.drop_1st_buffer(); }
+    }
+}
+
+
 /// struct attaching a *used* matrix's output and buffers to another matrix
 /// SAFETY: it is expected that the used_mat field is safe to output in addition to normal correct implementation
 pub struct MatAttachUsedMat<M: MatrixLike, USEDM: MatrixLike> {

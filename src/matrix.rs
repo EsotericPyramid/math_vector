@@ -318,13 +318,20 @@ pub trait MatrixOps {
         self,
     ) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatBufSwap<Self::Unwrapped>>
     where
-        (<Self::Unwrapped as HasOutput>::OutputBool, N): FilterPair,
         Self: Sized,
     {
         let builder = self.get_builder();
         unsafe { builder.wrap_mat(MatBufSwap { mat: self.unwrap() }) }
     }
 
+    /// discards the vector's buffer in the first slot
+    #[inline]
+    fn buf_discard(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatBufDicard<Self::Unwrapped>> where Self: Sized {
+        let builder = self.get_builder();
+        unsafe { builder.wrap_mat(MatBufDicard { mat: self.unwrap() }) }
+    }
+     
+    
     /// converts the underlying VectorLike to a dynamic object
     /// stabilizes the overall type to a consitent one
     #[inline]

@@ -507,6 +507,12 @@ pub unsafe trait VectorOps: Sized {
             let builder = self.get_builder();
             unsafe { builder.wrap(VecBufSwap { vec: self.unwrap() }) }
         }
+
+        /// discards the vector's first unbound buffer
+        fn buf_discard(self) -> VecBufDiscard<Self::Unwrapped> {
+            let builder = self.get_builder();
+            unsafe { builder.wrap(VecBufDiscard { vec: self.unwrap() }) }
+        }
         
         /// returns a vector nearly identical to a Repeatable Vector
         /// 
