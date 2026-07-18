@@ -11,15 +11,6 @@ macro_rules! is_unit {
     };
 }
 
-macro_rules! is_present {
-    ($tokens:tt) => {
-        Y
-    };
-    () => {
-        N
-    };
-}
-
 macro_rules! if_present {
     ({$($tokens:tt)*}, $bool:tt) => {
         $($tokens)*
@@ -47,13 +38,13 @@ macro_rules! optional_expr {
     };
 }
 
-macro_rules! optimized_or {
-    ($ty_bool:ty, $tokens:tt) => {
-        Y
+macro_rules! select {
+    ($bool:tt {$($true:tt)*} {$($false:tt)*}) => {
+        $($true)*
     };
-    ($ty_bool:ty, ) => {
-        $ty_bool
-    };
+    ({$($true:tt)*} {$($false:tt)*}) => {
+        $($false)*
+    }
 }
 
 macro_rules! mat_structs {
@@ -90,24 +81,45 @@ macro_rules! mat_structs {
                 }
             }
 
-            impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
-            where ($mat_generic::OutputBool, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
-                type OutputBool = optimized_or!($mat_generic::OutputBool, $($outputted_field)?);
-                type Output = <($mat_generic::OutputBool, is_present!($($outputted_field)?)) as FilterPair>::Filtered<$mat_generic::Output, optional_type!($($output_ty)?)>;
-
-                #[inline]
-                unsafe fn output(&mut self) -> Self::Output { unsafe {
-                    <($mat_generic::OutputBool, is_present!($($outputted_field)?)) as FilterPair>::filter(self.$mat.output(), optional_expr!($(self.$outputted_field.output())?))
-                }}
-
-                #[inline]
-                unsafe fn drop_output(&mut self) { unsafe {
-                    self.$mat.drop_output();
-                    $(self.$outputted_field.output();)?
-                }}
-            }
-
             if_present!({unsafe impl<$($($lifetime),+, )? $mat_generic: MatrixLike + Is2DRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Is2DRepeatable for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
+
+            select!($($outputted_field)? {
+                impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
+                where ($mat_generic::OutputBool, Y): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+                    type OutputBool = Y;
+                    type Output = <($mat_generic::OutputBool, Y) as FilterPair>::Filtered<$mat_generic::Output, optional_type!($($output_ty)?)>;
+                
+                    #[inline]
+                    unsafe fn output(&mut self) -> Self::Output { unsafe {
+                        <($mat_generic::OutputBool, Y) as FilterPair>::filter(
+                            self.$mat.output(), 
+                            optional_expr!($(self.$outputted_field.output())?)
+                        )
+                    }}
+                
+                    #[inline]
+                    unsafe fn drop_output(&mut self) { unsafe {
+                        self.$mat.drop_output();
+                        $(self.$outputted_field.output();)?
+                    }}
+                }
+            } {
+                impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
+                where $($($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+                    type OutputBool = $mat_generic::OutputBool;
+                    type Output = $mat_generic::Output;
+
+                    #[inline]
+                    unsafe fn output(&mut self) -> Self::Output { unsafe {
+                        self.$mat.output()
+                    }}
+
+                    #[inline]
+                    unsafe fn drop_output(&mut self) { unsafe {
+                        self.$mat.drop_output();
+                    }}
+                }
+            });
 
             impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?>
             $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
@@ -177,25 +189,48 @@ macro_rules! mat_structs {
 
             if_present!({unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike + Is2DRepeatable, $r_mat_generic: MatrixLike + Is2DRepeatable $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Is2DRepeatable for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {}}, $($is_repeatable)?);
 
-            impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::OutputBool, $r_mat_generic::OutputBool): FilterPair, (<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
-                type OutputBool = optimized_or!(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, $($outputted_field)?);
-                type Output = <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)) as FilterPair>::Filtered<<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::Filtered<$l_mat_generic::Output, $r_mat_generic::Output>, optional_type!($($output_ty)?)>;
+            select!($($outputted_field)? {
+                impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::OutputBool, $r_mat_generic::OutputBool): FilterPair, (<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+                    type OutputBool = Y;
+                    type Output = <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, Y) as FilterPair>::Filtered<<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::Filtered<$l_mat_generic::Output, $r_mat_generic::Output>, optional_type!($($output_ty)?)>;
+    
+                    #[inline]
+                    unsafe fn output(&mut self) -> Self::Output { unsafe {
+                        <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, Y) as FilterPair>::filter(
+                            <($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::filter(self.$l_mat.output(), self.$r_mat.output()),
+                            optional_expr!($(self.$outputted_field.output())?)
+                        )
+                    }}
+    
+                    #[inline]
+                    unsafe fn drop_output(&mut self) { unsafe {
+                        self.$l_mat.drop_output();
+                        self.$r_mat.drop_output();
+                        $(self.$outputted_field.output();)?
+                    }}
+                }
+            } {
+                impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> HasOutput for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> 
+                where ($l_mat_generic::OutputBool, $r_mat_generic::OutputBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
+                    type OutputBool = <($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or;
+                    type Output = <($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::Filtered<$l_mat_generic::Output, $r_mat_generic::Output>;
+    
+                    #[inline]
+                    unsafe fn output(&mut self) -> Self::Output { unsafe {
+                        <($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::filter(
+                            self.$l_mat.output(), 
+                            self.$r_mat.output()
+                        )
+                    }}
+    
+                    #[inline]
+                    unsafe fn drop_output(&mut self) { unsafe {
+                        self.$l_mat.drop_output();
+                        self.$r_mat.drop_output();
+                    }}
+                }
+            });
 
-                #[inline]
-                unsafe fn output(&mut self) -> Self::Output { unsafe {
-                    <(<($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as TyBoolPair>::Or, is_present!($($outputted_field)?)) as FilterPair>::filter(
-                        <($l_mat_generic::OutputBool, $r_mat_generic::OutputBool) as FilterPair>::filter(self.$l_mat.output(), self.$r_mat.output()),
-                        optional_expr!($(self.$outputted_field.output())?)
-                    )
-                }}
-
-                #[inline]
-                unsafe fn drop_output(&mut self) { unsafe {
-                    self.$l_mat.drop_output();
-                    self.$r_mat.drop_output();
-                    $(self.$outputted_field.output();)?
-                }}
-            }
 
             impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Has2DReuseBuf for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?>
             where
