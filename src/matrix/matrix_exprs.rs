@@ -24,44 +24,29 @@ pub trait ConcreteMatrixExpr: MatrixOps + IndexMut<usize> where
 {
     /// The inner [`MatrixLike`] contained in the borrowed version of this matrix
     type ReferencedInner<'a>: MatrixLike<Item = &'a <Self::Output as Index<usize>>::Output> + Is2DRepeatable
-    where
-        Self: 'a,
-    ;
+        where Self: 'a;
     /// the borrowed version of this matrix
     type Referenced<'a>: MatrixOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output>
-    where
-        Self: 'a,
-    ;
+        where Self: 'a;
     /// A borrowed version of this matrix except that its items are copied
     type Copied<'a>: MatrixOps<Unwrapped = MatCopy<'a, Self::ReferencedInner<'a>, <Self::Output as Index<usize>>::Output>>
-    where
-        <Self::Output as Index<usize>>::Output: Copy,
-        Self: 'a,
-    ;
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
     /// The inner [`MatrixLike`] contained in the mutably borrowed version of this matrix
     type ReferencedMutInner<'a>: MatrixLike<Item = &'a mut <Self::Output as Index<usize>>::Output> 
-    where
-        Self: 'a,
-    ;
+        where Self: 'a;
     /// the mutably borrowed version of this matrix
     type ReferencedMut<'a>: MatrixOps<Unwrapped = Self::ReferencedMutInner<'a>> + IndexMut<usize, Output = Self::Output> + IndexMut<usize>
-    where
-        Self: 'a,
-    ;
+        where Self: 'a;
 
     /// create a borrowed version of this vector which contains a reference to each of its items
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Output as Index<usize>>::Output: 'a,
-    ;
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a>;
 
     /// create a mutably borrowed version of this vector which contain a mutable reference to each of its items
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::Output as Index<usize>>::Output: 'a,
-    ;
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a>;
 
     /// create a borrowed version of this vector which contains a copy each of its items
     fn copy<'a>(&'a self) -> Self::Copied<'a> where 
-        <Self::Output as Index<usize>>::Output: 'a + Copy,
+        <Self::Output as Index<usize>>::Output: Copy,
     ;
 }
 
@@ -527,7 +512,6 @@ where
         (&mut self.0.0[index]).into()
     }
 }
-
 
 impl<T: MulAssign<S>, S: Copy, const D1: usize, const D2: usize> MulAssign<S> for MathMatrix<T, D1, D2> {
     #[inline]
