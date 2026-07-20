@@ -229,7 +229,7 @@ macro_rules! vec_op {
                     $($generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?),*
                 >)?($self $(: $self_ty)? $(, $val: $ty)*) -> <Self::Builder as VectorBuilder>::Wrapped<$unwrapped_output>
                 where
-                    (<<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
+                    (<Self::Unwrapped as HasOutput>::OutputBool, Y): FilterPair,
                     $($(
                         $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
                     )+)?
@@ -280,40 +280,40 @@ macro_rules! vec_op {
                     $v : $($($v_lifetime +)?)? VectorOps $($(+ $v_bound)+)?
                     $(,$generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?)*
                 >($self $(: $self_ty:ty)? $(, $val: $ty)*) -> <<
-                    <Self as VectorOps>::Builder as VectorBuilderUnion<<$v as VectorOps>::Builder>
+                    Self::Builder as VectorBuilderUnion<$v::Builder>
                 >::Union as VectorBuilder>::Wrapped<$unwrapped_output> 
                 where
-                    <Self as VectorOps>::Builder: VectorBuilderUnion<<V as VectorOps>::Builder>,
+                    Self::Builder: VectorBuilderUnion<$v::Builder>,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                        <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                        <Self::Unwrapped as HasOutput>::OutputBool,
+                        <$v::Unwrapped as HasOutput>::OutputBool,
                     ): FilterPair,
                     (
                         <(
-                            <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                            <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                            <Self::Unwrapped as HasOutput>::OutputBool,
+                            <$v::Unwrapped as HasOutput>::OutputBool,
                         ) as TyBoolPair>::Or,
                         Y,
                     ): FilterPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                        <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                        <$v::Unwrapped as HasReuseBuf>::BoundHandlesBool,
                     ): FilterPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
+                        <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+                        <$v::Unwrapped as HasReuseBuf>::FstHandleBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
+                        <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+                        <$v::Unwrapped as HasReuseBuf>::SndHandleBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                        <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                        <$v::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                        <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                        <$v::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
                     ): SelectPair,
                     $($(
                         $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
@@ -327,33 +327,33 @@ macro_rules! vec_op {
                     $v : $($($v_lifetime +)?)? VectorOps $($(+ $v_bound)+)?
                     $(,$generic $(: $($generic_lifetime+)? $generic_bound_head $(+ $generic_bound)*)?)*
                 >($self $(: $self_ty:ty)? $(, $val: $ty)*) -> <<
-                    <Self as VectorOps>::Builder as VectorBuilderUnion<<$v as VectorOps>::Builder>
+                    Self::Builder as VectorBuilderUnion<$v::Builder>
                 >::Union as VectorBuilder>::Wrapped<$unwrapped_output> 
                 where
-                    <Self as VectorOps>::Builder: VectorBuilderUnion<<V as VectorOps>::Builder>,
+                    Self::Builder: VectorBuilderUnion<$v::Builder>,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasOutput>::OutputBool,
-                        <<V as VectorOps>::Unwrapped as HasOutput>::OutputBool,
+                        <Self::Unwrapped as HasOutput>::OutputBool,
+                        <$v::Unwrapped as HasOutput>::OutputBool,
                     ): FilterPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                        <Self::Unwrapped as HasReuseBuf>::BoundHandlesBool,
+                        <$v::Unwrapped as HasReuseBuf>::BoundHandlesBool,
                     ): FilterPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstHandleBool,
+                        <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+                        <$v::Unwrapped as HasReuseBuf>::FstHandleBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndHandleBool,
+                        <Self::Unwrapped as HasReuseBuf>::SndHandleBool,
+                        <$v::Unwrapped as HasReuseBuf>::SndHandleBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                        <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+                        <$v::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
                     ): SelectPair,
                     (
-                        <<Self as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
-                        <<V as VectorOps>::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                        <Self::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
+                        <$v::Unwrapped as HasReuseBuf>::SndOwnedBufferBool,
                     ): SelectPair,
                     $($(
                         $where_bounded: $($where_bound_lifetime +)? $where_bound_head $(+ $where_bound)*,
