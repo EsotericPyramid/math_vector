@@ -15,6 +15,56 @@ use std::{
     ops::*,
 };
 
+/// a trait expressing that an implementor's data from [`Get`] is stored and accessible, allowing it to be indexed and borrowed
+/// 
+/// the implementation of index must be indexing into a column and then row
+pub trait ConcreteMatrixExpr: MatrixOps + IndexMut<usize> where 
+    Self::Output: IndexMut<usize>,
+    Self::Unwrapped: Get2D<Item = <Self::Output as Index<usize>>::Output>,
+{
+    /// The inner [`MatrixLike`] contained in the borrowed version of this matrix
+    type ReferencedInner<'a>: MatrixLike<Item = &'a <Self::Output as Index<usize>>::Output> + Is2DRepeatable
+    where
+        Self: 'a,
+    ;
+    /// the borrowed version of this matrix
+    type Referenced<'a>: MatrixOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output>
+    where
+        Self: 'a,
+    ;
+    /// A borrowed version of this matrix except that its items are copied
+    type Copied<'a>: MatrixOps<Unwrapped = MatCopy<'a, Self::ReferencedInner<'a>, <Self::Output as Index<usize>>::Output>>
+    where
+        <Self::Output as Index<usize>>::Output: Copy,
+        Self: 'a,
+    ;
+    /// The inner [`MatrixLike`] contained in the mutably borrowed version of this matrix
+    type ReferencedMutInner<'a>: MatrixLike<Item = &'a mut <Self::Output as Index<usize>>::Output> 
+    where
+        Self: 'a,
+    ;
+    /// the mutably borrowed version of this matrix
+    type ReferencedMut<'a>: MatrixOps<Unwrapped = Self::ReferencedMutInner<'a>> + IndexMut<usize, Output = Self::Output> + IndexMut<usize>
+    where
+        Self: 'a,
+    ;
+
+    /// create a borrowed version of this vector which contains a reference to each of its items
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
+        <Self::Output as Index<usize>>::Output: 'a,
+    ;
+
+    /// create a mutably borrowed version of this vector which contain a mutable reference to each of its items
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
+        <Self::Output as Index<usize>>::Output: 'a,
+    ;
+
+    /// create a borrowed version of this vector which contains a copy each of its items
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: 'a + Copy,
+    ;
+}
+
 /// A const sized matrix wrapper
 /// D1: # rows (dimension of vectors), D2: # columns (# of vectors)
 // MatrixExpr assumes that the stored MatrixLike is fully unused

@@ -19,57 +19,35 @@ pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where
     Self::Output: Sized,
 {
     /// The inner [`VectorLike`] contained in the borrowed version of this vector
-    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> + IsRepeatable
-    where 
-        Self::Output: 'a,
+    type ReferencedInner<'a>: VectorLike<Item = &'a Self::Output> + IsRepeatable where 
         Self: 'a,
     ;
     /// the borrowed version of this vector
-    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output>
-    where
-        Self::Output: 'a,
+    type Referenced<'a>: VectorOps<Unwrapped = Self::ReferencedInner<'a>> + Index<usize, Output = Self::Output> where
         Self: 'a,
     ;
     /// A borrowed version of this vector except that its items are copied
-    type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>>
-    where
+    type Copied<'a>: VectorOps<Unwrapped = VecCopy<'a, Self::ReferencedInner<'a>, Self::Output>> where
         Self::Output: Copy,
-        Self::Output: 'a,
         Self: 'a,
     ;
     /// The inner [`VectorLike`] contained in the mutably borrowed version of this vector
-    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut Self::Output> 
-    where 
-        Self::Output: 'a,
+    type ReferencedMutInner<'a>: VectorLike<Item = &'a mut Self::Output> where
         Self: 'a,
     ;
     /// the mutably borrowed version of this vector
-    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + Index<usize, Output = Self::Output> + IndexMut<usize>
-    where 
-        Self::Output: 'a,
+    type ReferencedMut<'a>: VectorOps<Unwrapped = Self::ReferencedMutInner<'a>> + IndexMut<usize, Output = Self::Output> + IndexMut<usize> where 
         Self: 'a,
     ;
 
     /// create a borrowed version of this vector which contains a reference to each of its items
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    ;
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a>;
 
     /// create a mutably borrowed version of this vector which contain a mutable reference to each of its items
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a,
-    ;
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a>;
 
     /// create a borrowed version of this vector which contains a copy each of its items
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    ;
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy;
 }
 
 pub trait InitializableVectorExpr: VectorOps {
@@ -446,53 +424,24 @@ where
 }
 
 impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
-    type ReferencedInner<'a> = &'a [T; D] 
-    where 
-        T: 'a,
-        Self: 'a,
-    ;
-    type Referenced<'a> = &'a MathVector<T, D>
-    where
-        T: 'a,
-        Self: 'a,
-    ;
+    type ReferencedInner<'a> = &'a [T; D] where Self: 'a;
+    type Referenced<'a> = &'a MathVector<T, D> where Self: 'a;
     type Copied<'a> = VectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> = &'a mut [T; D] 
-    where 
-        T: 'a,
-        Self: 'a,
-    ;
-    type ReferencedMut<'a> = &'a mut MathVector<T, D>
     where
-        T: 'a,
-        Self: 'a
-    ;
+        Self::Output: 'a + Copy,
+        Self: 'a,;
+    type ReferencedMutInner<'a> = &'a mut [T; D] where Self: 'a;
+    type ReferencedMut<'a> = &'a mut MathVector<T, D> where Self: 'a;
 
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a 
-    {
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
         self
     }
 
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a, 
-    {
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         self
     }
 
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
         VectorExpr(VecCopy{ vec: self.unwrap() })
     }
 }
@@ -574,48 +523,25 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<Vec
     (N, USEDV::SndHandleBool): SelectPair,
     (N, USEDV::BoundHandlesBool): FilterPair,
 {
-    type ReferencedInner<'a> = &'a [T; D]
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type Referenced<'a> = VectorExpr<&'a [T; D], D>
-        where
-            Self::Output: 'a,
-            Self: 'a,;
+    type ReferencedInner<'a> = &'a [T; D] where Self: 'a;
+    type Referenced<'a> = VectorExpr<&'a [T; D], D> where Self: 'a;
     type Copied<'a> = VectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> =  &'a mut [T; D]
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMut<'a> = VectorExpr<&'a mut [T; D], D>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
+    where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> =  &'a mut [T; D] where Self: 'a;
+    type ReferencedMut<'a> = VectorExpr<&'a mut [T; D], D> where Self: 'a;
 
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-            <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-            Self::Output: 'a,
-            Self: 'a 
-    {
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
         VectorExpr(&*self.0.vec.0)
     }
 
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-            <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-            Self::Output: 'a,
-            Self: 'a, {
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         VectorExpr(&mut *self.0.vec.0)
     }
 
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
         self.borrow().copied()
     }
 }
@@ -962,54 +888,29 @@ where
 }
 
 impl<T> ConcreteVectorExpr for RSMathVector<T> {
-    type ReferencedInner<'a> = &'a [T] 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type Referenced<'a> = RefRSMathVector<'a, T> 
-        where
-            Self::Output: 'a,
-            Self: 'a,;
-    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> = &'a mut [T] 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
+    type ReferencedInner<'a> = &'a [T] where Self: 'a;
+    type Referenced<'a> = RefRSMathVector<'a, T> where Self: 'a;
+    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>> where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> = &'a mut [T] where Self: 'a;
+    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>where Self: 'a;
 
     #[inline]
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
         let size = self.size;
         RSVectorExpr { vec: &**self, size }
     }
 
     #[inline]
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a,
-    {
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         let size = self.size;
         RSVectorExpr { vec: &mut **self, size }
     }
 
     #[inline]
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
         self.borrow().copied()
     }
 }
@@ -1180,49 +1081,24 @@ impl<T, USEDV: VectorLike> ConcreteVectorExpr for RSVectorExpr<VecAttachUsedVec<
     (N, USEDV::SndHandleBool): SelectPair,
     (N, USEDV::BoundHandlesBool): FilterPair,
 {
-    type ReferencedInner<'a> = &'a [T] 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type Referenced<'a> = RefRSMathVector<'a, T> 
-        where
-            Self::Output: 'a,
-            Self: 'a,;
-    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> = &'a mut [T] 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
+    type ReferencedInner<'a> = &'a [T] where Self: 'a;
+    type Referenced<'a> = RefRSMathVector<'a, T> where Self: 'a;
+    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>> where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> = &'a mut [T] where Self: 'a;
+    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>where Self: 'a;
 
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
         let size = self.size;
         RSVectorExpr{ vec: &**self.vec.vec.0, size }
     }
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::ReferencedMut<'a> as VectorOps>::Unwrapped: Get<Item = &'a mut <Self::ReferencedMut<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a,
-    {
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         let size = self.size;
         RSVectorExpr{ vec: &mut **self.vec.vec.0, size }
     }
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
         self.borrow().copied()
     }
 }
@@ -1397,55 +1273,30 @@ where
     <V as VectorOps>::Unwrapped: Get<Item = <V as Index<usize>>::Output>,
     <V as Index<usize>>::Output: Sized,
 {
-    type ReferencedInner<'a> = V::ReferencedInner<'a>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type Referenced<'a> = VectorInnerProdExpr<V::Referenced<'a>, IP>
-        where
-            Self::Output: 'a,
-            Self: 'a,;
-    type Copied<'a> = VectorInnerProdExpr<V::Copied<'a>, IP>
-        where
-            Self::Output: Copy,
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMutInner<'a> = V::ReferencedMutInner<'a> 
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
-    type ReferencedMut<'a> = VectorInnerProdExpr<V::ReferencedMut<'a>, IP>
-        where 
-            Self::Output: 'a,
-            Self: 'a,;
+    type ReferencedInner<'a> = V::ReferencedInner<'a> where Self: 'a;
+    type Referenced<'a> = VectorInnerProdExpr<V::Referenced<'a>, IP> where Self: 'a;
+    type Copied<'a> = VectorInnerProdExpr<V::Copied<'a>, IP> where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> = V::ReferencedMutInner<'a>  where Self: 'a;
+    type ReferencedMut<'a> = VectorInnerProdExpr<V::ReferencedMut<'a>, IP> where Self: 'a;
 
-    fn borrow<'a>(&'a self) -> Self::Referenced<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
         VectorInnerProdExpr {
             vec: self.vec.borrow(),
             inner_prod: self.inner_prod
         }
     }
 
-    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> where 
-        <Self::Referenced<'a> as VectorOps>::Unwrapped: Get<Item = &'a <Self::Referenced<'a> as Index<usize>>::Output>,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         VectorInnerProdExpr {
             vec: self.vec.borrow_mut(),
             inner_prod: self.inner_prod
         }
     }
 
-    fn copy<'a>(&'a self) -> Self::Copied<'a> where
-        Self::Output: Copy,
-        Self::Output: 'a,
-        Self: 'a
-    {
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
         VectorInnerProdExpr {
             vec: self.vec.copy(),
             inner_prod: self.inner_prod
