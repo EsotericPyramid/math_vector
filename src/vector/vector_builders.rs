@@ -1,10 +1,12 @@
 //! Structs implementing VectorBuilder to wrap VectorLikes with sizing information
 
-use crate::vector::vector_math::GenericInnerProduct;
-use crate::vector::vector_structs::{VecGenerator, VecIndexGenerator};
+use super::vector_exprs::ConcreteVectorExpr;
+use super::vector_math::GenericInnerProduct;
+use super::vector_structs::{VecGenerator, VecIndexGenerator, VecFilled};
 
-use super::vec_util_traits::VectorLike;
+use super::vec_util_traits::{Get, VectorLike};
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
+use std::ops::Index;
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// 
@@ -23,14 +25,86 @@ pub trait VectorBuilder: Copy {
     /// get the size indicated by this builder
     fn size(&self) -> usize;
 
-    /// generate a Vector of size D using the given closure (FnMut) with no inputs
+    /// *generate* a Vector of this builder's size using the given closure (FnMut) with no inputs
+    /// 
+    /// this is only a generator, nothing is calculated or stored on this call.
+    #[inline]
     fn generate<F: FnMut() -> O, O>(&self, f: F) -> Self::Wrapped<VecGenerator<F, O>> {
         unsafe { self.wrap(VecGenerator(f)) }
     }
 
-    /// generate a Vector of size D using the given closure (FnMut) with an input of the current index
+    /// *generate* a Vector of this builder's size using the given closure (FnMut) with an input of the current index
+    /// 
+    /// this is only a generator, nothing is calculated or stored on this call.
+    #[inline]
     fn index_generate<F: FnMut(usize) -> O, O>(&self, f: F) -> Self::Wrapped<VecIndexGenerator<F, O>> {
         unsafe { self.wrap(VecIndexGenerator(f)) }
+    }
+
+    /// *generate* a Vector of this builder's size by filling it with copies of the given `filler`
+    /// 
+    /// this is only a generator, nothing is calculated or stored on this call.
+    /// see [`InitializableVectorBuilder::new_filled`] for a version with does *immediately* allocate memory (+ a more convienent type over evaluating)
+    #[inline]
+    fn gen_filled<T: Copy>(&self, filler: T) -> Self::Wrapped<VecFilled<T>> {
+        unsafe { self.wrap(VecFilled(filler)) }
+    }
+
+    /// *generate* a Vector of this builder's size by filling with 0's
+    /// 
+    /// this is only a generator, nothing is calculated or stored on this call.
+    /// see [`InitializableVectorBuilder::new_zeroed`] for a version with does *immediately* allocate memory (+ a more convienent type over evaluating)
+    #[inline]
+    fn gen_zeroed<T: num_traits::Zero + Copy>(&self) -> Self::Wrapped<VecFilled<T>> {
+        self.gen_filled(T::zero())
+    }
+
+    /// *generate* a Vector of this builder's size by filling with 1's
+    /// 
+    /// this is only a generator, nothing is calculated or stored on this call.
+    /// see [`InitializableVectorBuilder::new_oned`] for a version with does *immediately* allocate memory (+ a more convienent type over evaluating)
+    #[inline]
+    fn gen_oned<T: num_traits::One + Copy>(&self) -> Self::Wrapped<VecFilled<T>> {
+        self.gen_filled(T::one())
+    }
+}
+
+pub trait InitializableVectorBuilder: VectorBuilder {
+    type ConcreteInner: VectorLike;
+    type Concrete: ConcreteVectorExpr<Unwrapped = Self::ConcreteInner, Builder = Self> where 
+        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
+        <Self::Concrete as Index<usize>>::Output: Sized,
+    ;
+
+    /// *allocate* a Vector of this builder's size filled with copies of the given `filler`
+    /// 
+    /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_filled`].
+    /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete where 
+        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
+        <Self::Concrete as Index<usize>>::Output: Sized,
+    ;
+
+    /// *allocate* a Vector of this builder's size filled with 0's
+    /// 
+    /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_zeroed`].
+    /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
+    fn new_zeroed<T: num_traits::Zero + Copy>(&self) -> Self::Concrete where 
+        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
+        <Self::Concrete as Index<usize>>::Output: Sized,
+    {
+        self.new_filled(T::zero())
+    }
+
+    /// *allocate* a Vector of this builder's size filled with 1's
+    /// 
+    /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_oned`].
+    /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
+    fn new_oned<T: num_traits::One + Copy>(&self) -> Self::Concrete where 
+        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
+        <Self::Concrete as Index<usize>>::Output: Sized,
+    {
+        self.new_filled(T::one())
     }
 }
 
