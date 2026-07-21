@@ -55,6 +55,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? remove the `&MathVector` and `&mut MathVector` `Index` impls (could cause bad ref coersion)
         ~? make the VectorExpr wrappers a singular type with a builder generic
             note: the only issue I see with this right now is that it would break VectorExpr being repr(transparent) which could cause soundness issues if I don't catch them all
         - move InializableVectorExpr and Uninit to builder traits

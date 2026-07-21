@@ -503,6 +503,30 @@ where
     }
 }
 
+impl<'a, T, I, const D1: usize, const D2: usize> Index<I> for MatrixExpr<&'a [[T; D1]; D2], D1, D2>
+where 
+    [[T; D1]; D2]: Index<I, Output = [T; D1]>,
+{
+    type Output = MathVector<T, D1>;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        (&self.0[index]).into()
+    }
+}
+
+impl<'a, T, I, const D1: usize, const D2: usize> Index<I> for MatrixExpr<&'a mut [[T; D1]; D2], D1, D2>
+where 
+    [[T; D1]; D2]: Index<I, Output = [T; D1]>,
+{
+    type Output = MathVector<T, D1>;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        (&self.0[index]).into()
+    }
+}
+
 impl<T, I, const D1: usize, const D2: usize> IndexMut<I> for MathMatrix<T, D1, D2>
 where
     [[T; D1]; D2]: IndexMut<I, Output = [T; D1]>,
@@ -510,6 +534,16 @@ where
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         (&mut self.0.0[index]).into()
+    }
+}
+
+impl<'a, T, I, const D1: usize, const D2: usize> IndexMut<I> for MatrixExpr<&'a mut [[T; D1]; D2], D1, D2>
+where 
+    [[T; D1]; D2]: IndexMut<I, Output = [T; D1]>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        (&mut self.0[index]).into()
     }
 }
 
@@ -1022,8 +1056,8 @@ impl<'a, T: 'a, S: Deref<Target = [T]>> From<&'a [S]> for RSMatrixExpr<&'a [S]> 
     }
 }
 
-impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I> {
-    type Output = <[S] as Index<I>>::Output;
+impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I, Output = S> {
+    type Output = S;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
@@ -1043,8 +1077,8 @@ impl<'a, T: 'a, S: DerefMut<Target = [T]>> From<&'a mut [S]> for RSMatrixExpr<&'
     }
 }
 
-impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I> {
-    type Output = <[S] as Index<I>>::Output;
+impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I, Output = S> {
+    type Output = S;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
@@ -1052,7 +1086,7 @@ impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut 
     }
 }
 
-impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> IndexMut<I> for RSMatrixExpr<&'a mut [S]> where [S]: IndexMut<I> {
+impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> IndexMut<I> for RSMatrixExpr<&'a mut [S]> where [S]: IndexMut<I, Output = S> {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.mat[index]
