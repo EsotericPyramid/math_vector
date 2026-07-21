@@ -28,6 +28,7 @@ pub trait MatrixBuilder: Clone {
     type RowWrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self::RowBuilder>;
 
     //FIXME (HRTBs): for<T: VectorLike> Self::ColBuilder::Wrapped<T> == Self::ColWrapped
+    // update, with the ColWrapped now specifying that Builder = Self::ColBuilder, that isn't necessary but could be nice
     /// a builder wrapping columns like this builder
     type ColBuilder: VectorBuilder;
     /// a builder wrapping rows like this builder

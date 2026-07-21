@@ -36,6 +36,8 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        ? change MathMatrix Index impl to have Output = [T; D1] instead of MathVector<T, D1> (for consistency w/ RSMathMatrices) (see below)
+        XX impl RSMathMatrix'ces Index to have Output = RSMathVector
         - output redirector which uses mpsc's to message out outputs and the neutralize the output field
         ? remove MathVectoredMatrix (for now)
         X change gen functions to assoc fns of the wrapper they make

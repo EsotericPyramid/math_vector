@@ -547,6 +547,33 @@ where
     }
 }
 
+impl<T, const D1: usize, const D2: usize> ConcreteMatrixExpr for MathMatrix<T, D1, D2> {
+    type ReferencedInner<'a> = &'a [[T; D1]; D2]
+        where Self: 'a;
+    type Referenced<'a> = MatrixExpr<Self::ReferencedInner<'a>, D1, D2>
+        where Self: 'a;
+    type Copied<'a> = MatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>, D1, D2>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> =  &'a mut [[T; D1]; D2]
+        where Self: 'a;
+    type ReferencedMut<'a> = MatrixExpr<Self::ReferencedMutInner<'a>, D1, D2>
+        where Self: 'a;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        MatrixExpr(&**self.0)
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        MatrixExpr(&mut **self.0)
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
+
 impl<T: MulAssign<S>, S: Copy, const D1: usize, const D2: usize> MulAssign<S> for MathMatrix<T, D1, D2> {
     #[inline]
     fn mul_assign(&mut self, rhs: S) {
@@ -779,6 +806,38 @@ impl<T> IndexMut<usize> for RSMathDopeMatrix<T> {
     }
 }
 
+impl<T> ConcreteMatrixExpr for RSMathDopeMatrix<T> {
+    type ReferencedInner<'a> = RefMatrixDopeSlice<'a, T>
+        where Self: 'a;
+    type Referenced<'a> = RSMatrixExpr<Self::ReferencedInner<'a>>
+        where Self: 'a;
+    type Copied<'a> = RSMatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> =  RefMutMatrixDopeSlice<'a, T>
+        where Self: 'a;
+    type ReferencedMut<'a> = RSMatrixExpr<Self::ReferencedMutInner<'a>>
+        where Self: 'a;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        RSMatrixExpr{
+            mat: self.mat.borrow(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        RSMatrixExpr{
+            mat: self.mat.borrow_mut(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
 
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathDopeMatrix<T> {
     #[inline]
@@ -962,8 +1021,8 @@ impl<T> From<Vec<Vec<T>>> for RSMathIliffeMatrix<T> {
     }
 }
 
-impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I> {
-    type Output = <[Box<[T]>] as Index<I>>::Output;
+impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I, Output = Box<[T]>> {
+    type Output = [T];
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
@@ -980,6 +1039,41 @@ impl<T> IndexMut<usize> for RSMathIliffeMatrix<T> {
     }
 }
 
+
+impl<T> ConcreteMatrixExpr for RSMathIliffeMatrix<T> {
+    type ReferencedInner<'a> = &'a [Box<[T]>]
+        where Self: 'a;
+    type Referenced<'a> = RSMatrixExpr<Self::ReferencedInner<'a>>
+        where Self: 'a;
+    type Copied<'a> = RSMatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> = &'a mut [Box<[T]>]
+        where Self: 'a;
+    type ReferencedMut<'a> = RSMatrixExpr<Self::ReferencedMutInner<'a>>
+        where Self: 'a;
+    
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        RSMatrixExpr{
+            mat: self.mat.borrow(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        RSMatrixExpr{
+            mat: self.mat.borrow_mut(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
 
 
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathIliffeMatrix<T> {
@@ -1057,7 +1151,7 @@ impl<'a, T: 'a, S: Deref<Target = [T]>> From<&'a [S]> for RSMatrixExpr<&'a [S]> 
 }
 
 impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I, Output = S> {
-    type Output = S;
+    type Output = [T];
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
@@ -1078,7 +1172,7 @@ impl<'a, T: 'a, S: DerefMut<Target = [T]>> From<&'a mut [S]> for RSMatrixExpr<&'
 }
 
 impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I, Output = S> {
-    type Output = S;
+    type Output = [T];
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
