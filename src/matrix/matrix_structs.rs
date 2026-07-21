@@ -2,7 +2,7 @@
 
 use super::mat_util_traits::*;
 use crate::{trait_specialization_utils::*, util_traits::*};
-use std::{mem::ManuallyDrop, ops::*, ptr, marker::PhantomData};
+use std::{mem::{ManuallyDrop, transmute}, ops::*, ptr, marker::PhantomData};
 
 mod array_matrix_structs;
 mod slice_matrix_structs;
@@ -249,6 +249,16 @@ pub struct MatrixIliffeSlice<T>(pub(crate) Box<[Box<[ManuallyDrop<T>]>]>);
 
 impl<T> MatrixIliffeSlice<T> {
     #[inline]
+    pub fn borrow<'a>(&'a self) -> &'a [Box<[T]>] {
+        unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&*self.0) }
+    }
+
+    #[inline]
+    pub fn borrow_mut<'a>(&'a mut self) -> &'a mut [Box<[T]>] {
+        unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *self.0) }
+    }
+
+    #[inline]
     pub fn unwrap(self) -> Box<[Box<[T]>]> {
         unsafe { std::mem::transmute::<Box<[Box<[ManuallyDrop<T>]>]>, Box<[Box<[T]>]>>(self.0)}
     }
@@ -393,6 +403,22 @@ Has2DReuseBuf_non_impl!(impl<{'a, T: 'a, S: DerefMut<Target = [T]>}> &'a mut [S]
 
 
 pub struct MatrixDopeSlice<T>{pub(crate) mat: Box<[ManuallyDrop<T>]>, pub(crate) height: usize}
+
+impl<T> MatrixDopeSlice<T> {
+    pub fn borrow<'a>(&'a self) -> RefMatrixDopeSlice<'a, T> {
+        RefMatrixDopeSlice { 
+            mat: unsafe { std::mem::transmute::<&'a [ManuallyDrop<T>], &'a [T]>(&*self.mat) }, 
+            height: self.height 
+        }
+    }
+
+    pub fn borrow_mut<'a>(&'a mut self) -> RefMutMatrixDopeSlice<'a, T> {
+        RefMutMatrixDopeSlice{
+            mat: unsafe { transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *self.mat) },
+            height: self.height,
+        }
+    }
+}
 
 unsafe impl<T> Get2D for MatrixDopeSlice<T> {
     type GetBool = Y;

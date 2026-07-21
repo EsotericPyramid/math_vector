@@ -2196,7 +2196,7 @@ impl<'a, T> MatrixOps for &'a RSMathIliffeMatrix<T> {
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
-        unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&*self.mat.0) }
+        self.mat.borrow()
     }
     RSMatrixExpr_get_builder_and_dimensions!();
 }
@@ -2211,7 +2211,7 @@ impl<'a, T> MatrixOps for &'a mut RSMathIliffeMatrix<T> {
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
-        unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *self.mat.0) }
+        self.mat.borrow_mut()
     }
     RSMatrixExpr_get_builder_and_dimensions!();
 }
@@ -2226,10 +2226,7 @@ impl<'a, T> MatrixOps for &'a RSMathDopeMatrix<T> {
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
-        RefMatrixDopeSlice{
-            mat: unsafe { transmute::<&[ManuallyDrop<T>], &[T]>(&*self.mat.mat) },
-            height: self.mat.height,
-        }
+        self.mat.borrow()
     }
     RSMatrixExpr_get_builder_and_dimensions!();
 }
@@ -2244,10 +2241,7 @@ impl<'a, T> MatrixOps for &'a mut RSMathDopeMatrix<T> {
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
-        RefMutMatrixDopeSlice{
-            mat: unsafe { transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *self.mat.mat) },
-            height: self.mat.height,
-        }
+        self.mat.borrow_mut()
     }
     RSMatrixExpr_get_builder_and_dimensions!();
 }
