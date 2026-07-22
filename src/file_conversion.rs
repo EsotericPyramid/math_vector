@@ -26,8 +26,11 @@ use std::path::{Path, PathBuf};
 use crate::vector::{
     VectorOps,
     vec_util_traits::Get, 
-    vector_exprs::UninitVectorExpr, 
-    vector_exprs::ConcreteVectorExpr
+    vector_exprs::{
+        UninitVectorExpr, 
+        InitializableVectorExpr,
+        ConcreteVectorExpr,
+    },
 };
 
 pub trait AsText: Sized {
@@ -164,7 +167,7 @@ impl From<hdf5::Error> for HDF5Error {
 macro_rules! mtx_read_fns {
     ($($read_fn_name:ident $field_name:ident $ty:ty;)*) => {
         $(
-            fn $read_fn_name<P: AsRef<Path>>(path: P, builder: Self::Builder) -> Result<Self, MTXError> where Self: Index<usize, Output = $ty> {
+            fn $read_fn_name<P: AsRef<Path>>(path: P, builder: Self::Builder) -> Result<Self, MTXError> where Self: Index<usize, Output = $ty>, Self: InitializableVectorExpr + UninitVectorExpr {
                 let reader = MtxReader::new_reader(fs::File::open(path)?)?;
                 match reader.matrix().unwrap() {
                     MatrixReader::MatrixArray(array_reader) => {
@@ -229,14 +232,14 @@ macro_rules! mtx_read_fns {
     };
 }
 
-pub trait VectorFileConversions: UninitVectorExpr + ConcreteVectorExpr 
+pub trait VectorFileConversions: ConcreteVectorExpr 
 where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
     #[cfg(feature = "csv")]
     /// top left corner == (row = 0, col = 0), vector is read top down
-    fn read_csv_column<P: AsRef<Path>>(path: P, builder: Self::Builder, row_start: usize, col: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText {
+    fn read_csv_column<P: AsRef<Path>>(path: P, builder: Self::Builder, row_start: usize, col: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText, Self: UninitVectorExpr {
         let mut csv = csv::Reader::from_path(path)?;
         let mut records = csv.records();
         for _ in 0..row_start {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
@@ -285,7 +288,7 @@ where
     }
 
     #[cfg(feature = "csv")]
-    fn read_csv_row<P: AsRef<Path>>(path: P, builder: Self::Builder, row: usize, col_start: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText {
+    fn read_csv_row<P: AsRef<Path>>(path: P, builder: Self::Builder, row: usize, col_start: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText, Self: UninitVectorExpr {
         let mut csv = csv::Reader::from_path(path)?;
         let mut records = csv.records();
         for _ in 0..row {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
@@ -444,7 +447,7 @@ where
     }
 
     #[cfg(feature = "hdf5")]
-    fn read_hdf5_dataset(builder: Self::Builder, dataset: &Dataset) -> Result<Self, HDF5Error> where Self::Output: hdf5::H5Type {
+    fn read_hdf5_dataset(builder: Self::Builder, dataset: &Dataset) -> Result<Self, HDF5Error> where Self::Output: hdf5::H5Type, Self: UninitVectorExpr {
         let data = dataset.read_1d()?;
         if data.len() != builder.size() {
             return Err(HDF5Error::WrongSize)
@@ -463,9 +466,8 @@ where
     }
 
     #[cfg(feature = "hdf5")]
-    fn write_hdf5_dataset(&self, dataset: &Dataset) -> Result<(), HDF5Error> where Self::Output: hdf5::H5Type + Clone + ndarray::DataOwned {
-        // note: if rust-analyzer says that this is an error, its lying 
-        Ok(dataset.as_writer().write((0..self.size()).into_iter().map(|x| self[x].clone()).collect::<Vec<_>>())?)
+    fn write_hdf5_dataset(&self, dataset: &Dataset) -> Result<(), HDF5Error> where Self::Output: hdf5::H5Type + Clone {
+        Ok(dataset.as_writer().write(&(0..self.size()).into_iter().map(|x| self[x].clone()).collect::<Vec<_>>())?)
     }
 }
 
