@@ -1,9 +1,17 @@
 use crate::prelude::*;
+use crate::vector::vector_builders::InitializableVectorBuilder;
+use crate::vector::vector_exprs::InitializableVectorExpr;
 use crate::{
     vector::{VectorInPlaceEvalOps},
 };
 use rand::Rng;
 use std::{hint::black_box, time::*};
+
+/// A quantity of 8 byte types (ex u64) which is known to not fit on the stack
+/// 
+/// The exact correct quantity likely depends the targetted architecture (and possibly compiler options (haven't checked)).
+/// This number works at least for my system (2023 Macbook Pro; M2 Max, 32 GB)
+const UNSTACKABLE_SIZE: usize = 1000000;
 
 #[test]
 fn vector_display() {
@@ -139,6 +147,18 @@ fn rs_vec_basic_arithmetic_ops_test() {
         vec![-3, -5, -7],
         "Compound Expr Failed"
     );
+}
+
+/// checking if array vectors get allocated on the heap without first being on the stack
+/// 
+/// this test (& thus proper heaping) is **KNOWN** to fail without compiling with `--release`
+/// 
+/// also doubles as a list of known valid ways to generate array vectors on the heap
+#[test]
+fn boxed_array_vector_test() {
+    black_box(VectorExprBuilder::<UNSTACKABLE_SIZE>.gen_zeroed::<u64>().heap_eval());
+    black_box(Box::new(VectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>())); 
+    black_box(Box::new(MathVector::<u64, UNSTACKABLE_SIZE>::new_zeroed(VectorExprBuilder)));
 }
 
 /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
