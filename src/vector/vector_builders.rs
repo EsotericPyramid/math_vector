@@ -2,7 +2,7 @@
 
 use super::vector_exprs::*;
 use super::vector_math::GenericInnerProduct;
-use super::vector_structs::{VectorArray, VecGenerator, VecIndexGenerator, VecFilled};
+use super::vector_structs::{VectorArray, VectorSlice, VecGenerator, VecIndexGenerator, VecFilled};
 
 use super::vec_util_traits::VectorLike;
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
@@ -138,7 +138,6 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
     }
 }
 
-
 impl<const D: usize> InitializableVectorBuilder for VectorExprBuilder<D> {
     type ConcreteInner<T: Sized> = VectorArray<T, D>;
     type Concrete<T> = MathVector<T, D>;
@@ -176,6 +175,19 @@ impl VectorBuilder for RSVectorExprBuilder {
     }
     fn size(&self) -> usize {
         self.size
+    }
+}
+
+impl InitializableVectorBuilder for RSVectorExprBuilder {
+    type ConcreteInner<T: Sized> = VectorSlice<T>;
+    type Concrete<T: Sized> = RSMathVector<T>;
+
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete<T> {
+        unsafe { self.wrap(
+            VectorSlice(std::mem::transmute::<
+                Box<[T]>, Box<ManuallyDrop<[T]>>
+            >(vec![filler; self.size].into_boxed_slice()))
+        ) }
     }
 }
 

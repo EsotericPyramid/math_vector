@@ -57,6 +57,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? add BoxedVectorExprBuilder
         ? add generate & index_generate equivalents to InitializableVectorBuilder
         ? remove the `&MathVector` and `&mut MathVector` `Index` impls (could cause bad ref coersion)
         ~? make the VectorExpr wrappers a singular type with a builder generic
