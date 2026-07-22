@@ -1,12 +1,12 @@
 //! Structs implementing VectorBuilder to wrap VectorLikes with sizing information
 
-use super::vector_exprs::ConcreteVectorExpr;
+use super::vector_exprs::*;
 use super::vector_math::GenericInnerProduct;
-use super::vector_structs::{VecGenerator, VecIndexGenerator, VecFilled};
+use super::vector_structs::{VectorArray, VecGenerator, VecIndexGenerator, VecFilled};
 
-use super::vec_util_traits::{Get, VectorLike};
+use super::vec_util_traits::VectorLike;
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
-use std::ops::Index;
+use std::mem::ManuallyDrop;
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// 
@@ -70,28 +70,22 @@ pub trait VectorBuilder: Copy {
 }
 
 pub trait InitializableVectorBuilder: VectorBuilder {
-    type ConcreteInner: VectorLike;
-    type Concrete: ConcreteVectorExpr<Unwrapped = Self::ConcreteInner, Builder = Self> where 
-        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
-        <Self::Concrete as Index<usize>>::Output: Sized,
-    ;
+    // source code reader note: wonder why ConcreteInner is needed?, so do I.
+    //.     Good luck trying to write this w/o it, every time I tried it results in E0275
+    type ConcreteInner<T: Sized>: VectorLike<Item = T>;
+    type Concrete<T: Sized>: ConcreteVectorExpr<Unwrapped = Self::ConcreteInner<T>, Builder = Self, Output = T>;
 
     /// *allocate* a Vector of this builder's size filled with copies of the given `filler`
     /// 
     /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_filled`].
     /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
-    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete where 
-        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
-        <Self::Concrete as Index<usize>>::Output: Sized,
-    ;
-
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete<T>;
+    
     /// *allocate* a Vector of this builder's size filled with 0's
     /// 
     /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_zeroed`].
     /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
-    fn new_zeroed<T: num_traits::Zero + Copy>(&self) -> Self::Concrete where 
-        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
-        <Self::Concrete as Index<usize>>::Output: Sized,
+    fn new_zeroed<T: num_traits::Zero + Copy>(&self) -> Self::Concrete<T>
     {
         self.new_filled(T::zero())
     }
@@ -100,9 +94,7 @@ pub trait InitializableVectorBuilder: VectorBuilder {
     /// 
     /// there is also a generator variant of this method which avoids allocating memory unecessarily: [`VectorBuilder::gen_oned`].
     /// This may be prefered over that to get a `ConcreteVectorExpr` with a cleaner typing that simply eval-ing in generic implementations
-    fn new_oned<T: num_traits::One + Copy>(&self) -> Self::Concrete where 
-        Self::ConcreteInner: Get<Item = <Self::Concrete as Index<usize>>::Output>,
-        <Self::Concrete as Index<usize>>::Output: Sized,
+    fn new_oned<T: num_traits::One + Copy>(&self) -> Self::Concrete<T>
     {
         self.new_filled(T::one())
     }
@@ -145,6 +137,18 @@ impl<const D: usize> VectorBuilder for VectorExprBuilder<D> {
         D
     }
 }
+
+
+impl<const D: usize> InitializableVectorBuilder for VectorExprBuilder<D> {
+    type ConcreteInner<T: Sized> = VectorArray<T, D>;
+    type Concrete<T> = MathVector<T, D>;
+
+    #[inline]
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete<T> {
+        unsafe { self.wrap(VectorArray(ManuallyDrop::new([filler; D]))) }
+    }
+}
+
 
 /// a simple runtime sized [`VectorBuilder`]
 /// 
