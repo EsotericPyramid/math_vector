@@ -1852,7 +1852,7 @@ impl<V: VectorLike, const D: usize> VectorEvalOps for VectorExpr<V, D> {
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
     type Unwrapped = Box<V>;
-    type Builder = VectorExprBuilder<D>;
+    type Builder = HeapedVectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -1866,7 +1866,7 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for Box<VectorExpr<V, D>> {
     }
     #[inline]
     fn get_builder(&self) -> Self::Builder {
-        VectorExprBuilder
+        HeapedVectorExprBuilder
     }
     #[inline]
     fn size(&self) -> usize {
@@ -2083,7 +2083,7 @@ impl<T, const D: usize> VectorEvalOps for &mut MathVector<T, D> {
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
     type Unwrapped = &'a [T; D];
-    type Builder = VectorExprBuilder<D>;
+    type Builder = HeapedVectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -2091,7 +2091,7 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
     }
     #[inline]
     fn get_builder(&self) -> Self::Builder {
-        VectorExprBuilder
+        HeapedVectorExprBuilder
     }
     #[inline]
     fn size(&self) -> usize {
@@ -2135,7 +2135,7 @@ impl<T, const D: usize> VectorEvalOps for &Box<MathVector<T, D>> {
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
     type Unwrapped = &'a mut [T; D];
-    type Builder = VectorExprBuilder<D>;
+    type Builder = HeapedVectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
@@ -2143,7 +2143,7 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
     }
     #[inline]
     fn get_builder(&self) -> Self::Builder {
-        VectorExprBuilder
+        HeapedVectorExprBuilder
     }
     #[inline]
     fn size(&self) -> usize {
@@ -2184,19 +2184,14 @@ impl<T, const D: usize> VectorEvalOps for &mut Box<MathVector<T, D>> {
     }
 }
 
+
 unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> {
     type Unwrapped = V;
     type Builder = HeapedVectorExprBuilder<D>;
 
     #[inline]
     fn unwrap(self) -> Self::Unwrapped {
-        // safe because this is just move done manually as VectorExpr impls Drop
-        // normally a problem as this leaves the fields of the struct at potentially
-        // invalid states which are assumed valid by the drop impl, however we just
-        // disable dropping temporarily so this isn't a concern
-        // does lead to leaking however, but it is ultimately fixed by wrap and the interim
-        // (should) be non-panicking so leaking shouldn't happen
-        unsafe { ptr::read(&ManuallyDrop::new(self).0) }
+        self.0.unwrap()
     }
     #[inline]
     fn get_builder(&self) -> Self::Builder {
@@ -2205,6 +2200,78 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> 
     #[inline]
     fn size(&self) -> usize {D}
 }
+
+impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for HeapedVectorExpr<V, D> {}
+
+impl<V: VectorLike, const D: usize> VectorEvalOps for HeapedVectorExpr<V, D> {
+    type MaybeCreateBuffer<T: VectorLike> 
+        = VecMaybeCreateHeapArray<T, <T as Get>::Item, D>
+    where
+        <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <T as HasReuseBuf>::FstHandleBool,
+            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <T as HasReuseBuf>::FstOwnedBufferBool,
+            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair
+    ;
+
+    #[inline]
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
+    where
+        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair,
+        Self: Sized
+    {
+        self.maybe_create_heap_array().unwrap()
+    }
+}
+
+
+unsafe impl<'a, T, const D: usize> VectorOps for &'a HeapedMathVector<T, D> {
+    type Unwrapped = &'a [T; D];
+    type Builder = HeapedVectorExprBuilder<D>;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        &*self.0.0
+    }
+    #[inline]
+    fn get_builder(&self) -> Self::Builder {
+        HeapedVectorExprBuilder
+    }
+    #[inline]
+    fn size(&self) -> usize {D}
+}
+
+impl<T, const D: usize> ArrayVectorOps<D> for &HeapedMathVector<T, D> {}
+
+unsafe impl<'a, T, const D: usize> VectorOps for &'a mut HeapedMathVector<T, D> {
+    type Unwrapped = &'a mut [T; D];
+    type Builder = HeapedVectorExprBuilder<D>;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        &mut *self.0.0
+    }
+    #[inline]
+    fn get_builder(&self) -> Self::Builder {
+        HeapedVectorExprBuilder
+    }
+    #[inline]
+    fn size(&self) -> usize {D}
+}
+
+impl<T, const D: usize> ArrayVectorOps<D> for &mut HeapedMathVector<T, D> {}
 
 
 unsafe impl<V: VectorLike> VectorOps for RSVectorExpr<V> {

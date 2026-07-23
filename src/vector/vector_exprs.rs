@@ -642,6 +642,19 @@ impl<V: VectorLike, const D: usize> From<HeapedVectorExpr<V, D>> for VectorExpr<
     }
 }
 
+impl<V: VectorLike, const D: usize> IntoIterator for HeapedVectorExpr<V, D> 
+where
+    V: HasReuseBuf<BoundTypes = V::BoundItems>,
+{
+    type IntoIter = VectorIter<V>;
+    type Item = <V as Get>::Item;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec_iter()
+    }
+}
+
 pub type HeapedMathVector<T, const D: usize> = HeapedVectorExpr<Box<VectorArray<T, D>>, D>;
 
 impl<T: Clone, const D: usize> Clone for HeapedMathVector<T, D> {
@@ -730,6 +743,71 @@ impl<T, const D: usize> ConcreteVectorExpr for HeapedMathVector<T, D> {
     }
 }
 
+impl<T, I, USEDV: VectorLike, const D: usize> Index<I> for HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D>
+where
+    [T; D]: Index<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type Output = <[T; D] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<T, I, USEDV: VectorLike, const D: usize> IndexMut<I> for HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D>
+where
+    [T; D]: IndexMut<I>,
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+
+impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D> where
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+{
+    type ReferencedInner<'a> = &'a [T; D] where Self: 'a;
+    type Referenced<'a> = HeapedVectorExpr<&'a [T; D], D> where Self: 'a;
+    type Copied<'a> = HeapedVectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
+    where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> =  &'a mut [T; D] where Self: 'a;
+    type ReferencedMut<'a> = HeapedVectorExpr<&'a mut [T; D], D> where Self: 'a;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        HeapedVectorExpr(VectorExpr(&*self.0.0.vec.0))
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        HeapedVectorExpr(VectorExpr(&mut *self.0.0.vec.0))
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
+        self.borrow().copied()
+    }
+}
 
 /// a **R**untime **S**ized vector wrapper
 /// 
