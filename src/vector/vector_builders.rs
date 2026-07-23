@@ -283,6 +283,14 @@ impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for VectorExprBuil
     }
 }
 
+impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for HeapedVectorExprBuilder<D> {
+    type Union = Self;
+
+    fn union(self, _: VectorExprBuilder<D>) -> Self::Union {
+        self
+    }
+}
+
 impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for RSVectorExprBuilder {
     type Union = VectorExprBuilder<D>;
 
@@ -295,8 +303,50 @@ impl<const D: usize> VectorBuilderUnion<VectorExprBuilder<D>> for RSVectorExprBu
     }
 }
 
+
+impl<const D: usize> VectorBuilderUnion<HeapedVectorExprBuilder<D>> for VectorExprBuilder<D> {
+    type Union = HeapedVectorExprBuilder<D>;
+
+    fn union(self, other: HeapedVectorExprBuilder<D>) -> Self::Union {
+        other
+    }
+}
+
+impl<const D: usize> VectorBuilderUnion<HeapedVectorExprBuilder<D>> for HeapedVectorExprBuilder<D> {
+    type Union = HeapedVectorExprBuilder<D>;
+
+    fn union(self, other: HeapedVectorExprBuilder<D>) -> Self::Union {
+        other
+    }
+}
+
+impl<const D: usize> VectorBuilderUnion<HeapedVectorExprBuilder<D>> for RSVectorExprBuilder {
+    type Union = HeapedVectorExprBuilder<D>;
+
+    fn union(self, other: HeapedVectorExprBuilder<D>) -> Self::Union {
+        assert!(
+            self.size == D,
+            "math_vector error: cannot combine 2 vectors of different size"
+        ); //FIXME: scuff error message
+        other
+    }
+}
+
+
 impl<const D: usize> VectorBuilderUnion<RSVectorExprBuilder> for VectorExprBuilder<D> {
     type Union = VectorExprBuilder<D>;
+
+    fn union(self, other: RSVectorExprBuilder) -> Self::Union {
+        assert!(
+            other.size == D,
+            "math_vector error: cannot combine 2 vectors of different size"
+        ); //FIXME: scuff error message
+        self
+    }
+}
+
+impl<const D: usize> VectorBuilderUnion<RSVectorExprBuilder> for HeapedVectorExprBuilder<D> {
+    type Union = HeapedVectorExprBuilder<D>;
 
     fn union(self, other: RSVectorExprBuilder) -> Self::Union {
         assert!(
