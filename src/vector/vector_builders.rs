@@ -148,6 +148,45 @@ impl<const D: usize> InitializableVectorBuilder for VectorExprBuilder<D> {
     }
 }
 
+/// a simple const sized [`VectorBuilder`]
+/// 
+/// this is the builder equivalent of [`VectorExpr`]
+#[derive(Clone, Copy)]
+pub struct HeapedVectorExprBuilder<const D: usize>;
+
+impl<const D: usize> HeapedVectorExprBuilder<D> {
+    /// Create a new [`HeapedVectorExprBuilder`]
+    /// 
+    /// the sizing isn't expressed in this function but rather in the type calling it or in the type returned.
+    /// so, to generate a dimension 10 builder, use `HeapedVectorExprBuilder::<10>::new()`
+    /// 
+    /// note: since this struct has no fields, it is equivalent to simply use `HeapedVectorExprBuilder::<10>`
+    pub fn new() -> Self {HeapedVectorExprBuilder}
+}
+
+impl<const D: usize> VectorBuilder for HeapedVectorExprBuilder<D> {
+    type Wrapped<T: VectorLike> = HeapedVectorExpr<T, D>;
+
+    unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
+        HeapedVectorExpr(vec)
+    }
+    fn size(&self) -> usize {
+        D
+    }
+}
+
+/*
+impl<const D: usize> InitializableVectorBuilder for HeapedVectorExprBuilder<D> {
+    type ConcreteInner<T: Sized> = VectorArray<T, D>;
+    type Concrete<T> = HeapedMathVector<T, D>;
+
+    #[inline]
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete<T> {
+        unsafe { self.wrap(Box::new(VectorArray(ManuallyDrop::new([filler; D])))) }
+    }
+}
+*/
+
 
 /// a simple runtime sized [`VectorBuilder`]
 /// 

@@ -611,6 +611,49 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
     }
 }
 
+#[repr(transparent)]
+pub struct HeapedVectorExpr<V: VectorLike, const D: usize>(pub(crate) V);
+
+impl<V: VectorLike, const D: usize> Drop for HeapedVectorExpr<V, D> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            for i in 0..D {
+                self.0.drop_inputs(i);
+            }
+            self.0.drop_output();
+            self.0.drop_1st_buffer();
+            self.0.drop_2nd_buffer();
+        }
+    }
+}
+
+impl<V: VectorLike, const D: usize> Deref for HeapedVectorExpr<V, D> {
+    type Target = VectorExpr<V, D>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        unsafe { transmute::<&HeapedVectorExpr<V, D>, &VectorExpr<V, D>>(self) }
+    }
+}
+
+impl<V: VectorLike, const D: usize> DerefMut for HeapedVectorExpr<V, D> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { transmute::<&mut HeapedVectorExpr<V, D>, &mut VectorExpr<V, D>>(self) }
+    }
+}
+
+impl<V: VectorLike, const D: usize> From<VectorExpr<V, D>> for HeapedVectorExpr<V, D> {
+    #[inline]
+    fn from(value: VectorExpr<V, D>) -> Self {
+        HeapedVectorExpr(value.unwrap())
+    }
+}
+
+pub type HeapedMathVector<T, const D: usize> = HeapedVectorExpr<Box<VectorArray<T, D>>, D>;
+
+
 
 /// a **R**untime **S**ized vector wrapper
 /// 

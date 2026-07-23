@@ -2184,6 +2184,27 @@ impl<T, const D: usize> VectorEvalOps for &mut Box<MathVector<T, D>> {
     }
 }
 
+unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> {
+    type Unwrapped = V;
+    type Builder = HeapedVectorExprBuilder<D>;
+
+    #[inline]
+    fn unwrap(self) -> Self::Unwrapped {
+        // safe because this is just move done manually as VectorExpr impls Drop
+        // normally a problem as this leaves the fields of the struct at potentially
+        // invalid states which are assumed valid by the drop impl, however we just
+        // disable dropping temporarily so this isn't a concern
+        // does lead to leaking however, but it is ultimately fixed by wrap and the interim
+        // (should) be non-panicking so leaking shouldn't happen
+        unsafe { ptr::read(&ManuallyDrop::new(self).0) }
+    }
+    #[inline]
+    fn get_builder(&self) -> Self::Builder {
+        HeapedVectorExprBuilder
+    }
+    #[inline]
+    fn size(&self) -> usize {D}
+}
 
 
 unsafe impl<V: VectorLike> VectorOps for RSVectorExpr<V> {
