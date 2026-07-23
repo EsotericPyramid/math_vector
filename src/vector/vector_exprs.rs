@@ -67,13 +67,14 @@ pub trait InitializableVectorExpr: VectorOps {
 }
 
 /// as always: this being 'unsafe' is tbd
-pub unsafe trait UninitVectorExpr: InitializableVectorExpr {
-    type Uninitialized: VectorOps;
+pub unsafe trait UninitVectorExpr: VectorOps {
+    type Uninitialized: VectorOps<Builder = Self::Builder>;
 
     fn new_uninit(builder: Self::Builder) -> Self::Uninitialized;
     unsafe fn assume_init(uninit: Self::Uninitialized) -> Self;
     unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item);
     unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize);
+    /// drop one times (so Output and Buffers)
     unsafe fn drop_ots(uninit: &mut Self::Uninitialized);
 }
 
@@ -345,18 +346,6 @@ where
     }
 }
 
-impl<T, I, const D: usize> Index<I> for &MathVector<T, D>
-where
-    [T; D]: Index<I>,
-{
-    type Output = <[T; D] as Index<I>>::Output;
-
-    #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        &self.0.0[index]
-    }
-}
-
 impl<T, I, const D: usize> Index<I> for VectorExpr<&[T; D], D>
 where
     [T; D]: Index<I>,
@@ -366,18 +355,6 @@ where
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
-    }
-}
-
-impl<T, I, const D: usize> Index<I> for &mut MathVector<T, D>
-where
-    [T; D]: Index<I>,
-{
-    type Output = <[T; D] as Index<I>>::Output;
-
-    #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        &self.0.0[index]
     }
 }
 
@@ -403,16 +380,6 @@ where
     }
 }
 
-impl<T, I, const D: usize> IndexMut<I> for &mut MathVector<T, D>
-where
-    [T; D]: IndexMut<I>,
-{
-    #[inline]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.0.0[index]
-    }
-}
-
 impl<T, I, const D: usize> IndexMut<I> for VectorExpr<&mut [T; D], D>
 where
     [T; D]: IndexMut<I>,
@@ -425,20 +392,20 @@ where
 
 impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
     type ReferencedInner<'a> = &'a [T; D] where Self: 'a;
-    type Referenced<'a> = &'a MathVector<T, D> where Self: 'a;
+    type Referenced<'a> = VectorExpr<&'a [T; D], D> where Self: 'a;
     type Copied<'a> = VectorExpr<VecCopy<'a, Self::ReferencedInner<'a>, T>, D>
     where
         Self::Output: 'a + Copy,
         Self: 'a,;
     type ReferencedMutInner<'a> = &'a mut [T; D] where Self: 'a;
-    type ReferencedMut<'a> = &'a mut MathVector<T, D> where Self: 'a;
+    type ReferencedMut<'a> = VectorExpr<&'a mut [T; D], D> where Self: 'a;
 
     fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
-        self
+        VectorExpr(&self.0)
     }
 
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
-        self
+        VectorExpr(&mut self.0)
     }
 
     fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
