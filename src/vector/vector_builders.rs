@@ -168,16 +168,15 @@ impl<const D: usize> VectorBuilder for HeapedVectorExprBuilder<D> {
     type Wrapped<T: VectorLike> = HeapedVectorExpr<T, D>;
 
     unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
-        HeapedVectorExpr(vec)
+        HeapedVectorExpr(VectorExpr(vec))
     }
     fn size(&self) -> usize {
         D
     }
 }
 
-/*
 impl<const D: usize> InitializableVectorBuilder for HeapedVectorExprBuilder<D> {
-    type ConcreteInner<T: Sized> = VectorArray<T, D>;
+    type ConcreteInner<T: Sized> = Box<VectorArray<T, D>>;
     type Concrete<T> = HeapedMathVector<T, D>;
 
     #[inline]
@@ -185,7 +184,6 @@ impl<const D: usize> InitializableVectorBuilder for HeapedVectorExprBuilder<D> {
         unsafe { self.wrap(Box::new(VectorArray(ManuallyDrop::new([filler; D])))) }
     }
 }
-*/
 
 
 /// a simple runtime sized [`VectorBuilder`]
