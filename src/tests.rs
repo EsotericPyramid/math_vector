@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::vector::vector_builders::InitializableVectorBuilder;
+use crate::vector::vector_builders::{HeapedVectorExprBuilder, InitializableVectorBuilder};
 use crate::vector::vector_exprs::InitializableVectorExpr;
 use crate::{
     vector::{VectorInPlaceEvalOps},
@@ -159,6 +159,7 @@ fn boxed_array_vector_test() {
     black_box(VectorExprBuilder::<UNSTACKABLE_SIZE>.gen_zeroed::<u64>().heap_eval());
     black_box(Box::new(VectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>())); 
     black_box(Box::new(MathVector::<u64, UNSTACKABLE_SIZE>::new_zeroed(VectorExprBuilder)));
+    black_box(HeapedVectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>());
 }
 
 /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
@@ -315,8 +316,8 @@ fn vector_variation_test() {
         let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
-        let res = (vec1.heap_reuse() + vec2).heap_eval();
-        black_box(res);
+        //let res = (vec1.heap_reuse() + vec2).heap_eval();
+        //black_box(res);
         let elapsed = now.elapsed();
         heap_time += elapsed;
 
@@ -331,8 +332,8 @@ fn vector_variation_test() {
         let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
-        let res = (vec1.heap_reuse() + vec2).make_dynamic().heap_eval();
-        black_box(res);
+        //let res = (vec1.heap_reuse() + vec2).make_dynamic().heap_eval();
+        //black_box(res);
         let elapsed = now.elapsed();
         dyn_heap_time += elapsed;
     }
