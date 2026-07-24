@@ -58,7 +58,6 @@ To Do's:
         + matrix_structs.rs:
     + vector.rs:
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
-        ? add BoxedVectorExprBuilder
         ? add generate and index_generate equivalents to InitializableVectorBuilder
         ~? make the VectorExpr wrappers a singular type with a builder generic
             note: the only issue I see with this right now is that it would break VectorExpr being repr(transparent) which could cause soundness issues if I don't catch them all

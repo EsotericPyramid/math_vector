@@ -288,59 +288,97 @@ fn mat_mat_mul_preformance_test() {
     println!("Elapsed: {}", elapsed.as_nanos());
 }
 
-/// tests the preformance difference of a light calculation between different vector variants
+/// tests the preformance difference of a light calculation between different vector variants and sizes
+/// 
+/// to run, use `cargo test --release vector_variation_test -- --no-capture --include-ignored`.
+/// 
+/// sizes tested: powers of 2 from 8 to 32768
+/// 
 /// variants tested:
 ///     Normal: `VectorExpr<_>`
 ///     Heaped: `Box<VectorExpr<_>>`
 ///     Dynamic: `VectorExpr<dyn VectorLike>`
 ///     Heaped Dynamic: `Box<VectorExpr<dyn VectorLike>>`
-/// prints preformance of each in nanoseconds
+/// 
+/// for each size and variant combo, 2^24 additions are performed
+/// prints preformance of each combo in nanoseconds
+/// 
+/// results (on my 2023 Macbook Pro):
+///     Heaped is better than Normal at size >= 256, and worse size <= 128
+///     Dyn Heap is better than Dynamic at size >= 64, and comparable at smallar sizes (and better at size 8 but that feels like a separate trend)
+///     Dyn Heap is comparable to Heaped most of the time (if not a little faster)
 #[test]
 #[ignore]
 fn vector_variation_test() {
     let mut rng = rand::rng();
-    let mut normal_time = Duration::new(0, 0);
-    let mut heap_time = Duration::new(0, 0);
-    let mut dynamic_time = Duration::new(0, 0);
-    let mut dyn_heap_time = Duration::new(0, 0);
-    let builder = VectorExprBuilder::<10000>;
-    for _ in 0..1000 {
-        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
-        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
-        let now = Instant::now();
-        let res = (vec1.reuse() + vec2).eval();
-        black_box(res);
-        let elapsed = now.elapsed();
-        normal_time += elapsed;
-
-        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
-        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
-        let now = Instant::now();
-        let res = (vec1.reuse() + vec2).eval();
-        black_box(res);
-        let elapsed = now.elapsed();
-        heap_time += elapsed;
-
-        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
-        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).eval());
-        let now = Instant::now();
-        let res = (vec1.reuse() + vec2).make_dynamic().eval();
-        black_box(res);
-        let elapsed = now.elapsed();
-        dynamic_time += elapsed;
-
-        let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
-        let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
-        let now = Instant::now();
-        let res = (vec1.reuse() + vec2).make_dynamic().eval();
-        black_box(res);
-        let elapsed = now.elapsed();
-        dyn_heap_time += elapsed;
+    macro_rules! test_for_builder {
+        (
+            $rng:ident;
+            $($builder:expr;)*
+        ) => {
+            $(
+                let mut normal_time = Duration::new(0, 0);
+                let mut heap_time = Duration::new(0, 0);
+                let mut dynamic_time = Duration::new(0, 0);
+                let mut dyn_heap_time = Duration::new(0, 0);
+                let builder = $builder;
+                for _ in 0..((1 << 24) / builder.size()) {
+                    let vec1 = black_box(builder.generate::<_, f64>(|| $rng.random()).eval());
+                    let vec2 = black_box(builder.generate::<_, f64>(|| $rng.random()).eval());
+                    let now = Instant::now();
+                    let res = (vec1.reuse() + vec2).eval();
+                    black_box(res);
+                    let elapsed = now.elapsed();
+                    normal_time += elapsed;
+            
+                    let vec1 = black_box(builder.generate::<_, f64>(|| $rng.random()).heap_eval());
+                    let vec2 = black_box(builder.generate::<_, f64>(|| $rng.random()).heap_eval());
+                    let now = Instant::now();
+                    let res = (vec1.reuse() + vec2).eval();
+                    black_box(res);
+                    let elapsed = now.elapsed();
+                    heap_time += elapsed;
+            
+                    let vec1 = black_box(builder.generate::<_, f64>(|| $rng.random()).eval());
+                    let vec2 = black_box(builder.generate::<_, f64>(|| $rng.random()).eval());
+                    let now = Instant::now();
+                    let res = (vec1.reuse() + vec2).make_dynamic().eval();
+                    black_box(res);
+                    let elapsed = now.elapsed();
+                    dynamic_time += elapsed;
+            
+                    let vec1 = black_box(builder.generate::<_, f64>(|| $rng.random()).heap_eval());
+                    let vec2 = black_box(builder.generate::<_, f64>(|| $rng.random()).heap_eval());
+                    let now = Instant::now();
+                    let res = (vec1.reuse() + vec2).make_dynamic().eval();
+                    black_box(res);
+                    let elapsed = now.elapsed();
+                    dyn_heap_time += elapsed;
+                }
+                println!("Size: {}", builder.size());
+                println!("\tNormal Time:    {:>9}", normal_time.as_nanos());
+                println!("\tHeap Time:      {:>9}", heap_time.as_nanos());
+                println!("\tDynamic Time:   {:>9}", dynamic_time.as_nanos());
+                println!("\tDyn Heap Time:  {:>9}", dyn_heap_time.as_nanos());
+            )*
+        };
     }
-    println!("Normal Time:    {}", normal_time.as_nanos());
-    println!("Heap Time:      {}", heap_time.as_nanos());
-    println!("Dynamic Time:   {}", dynamic_time.as_nanos());
-    println!("Dyn Heap Time:  {}", dyn_heap_time.as_nanos());
+    test_for_builder!(
+        rng;
+        VectorExprBuilder::<8>;
+        VectorExprBuilder::<16>;
+        VectorExprBuilder::<32>;
+        VectorExprBuilder::<64>;
+        VectorExprBuilder::<128>;
+        VectorExprBuilder::<256>;
+        VectorExprBuilder::<512>;
+        VectorExprBuilder::<1024>;
+        VectorExprBuilder::<2048>;
+        VectorExprBuilder::<4096>;
+        VectorExprBuilder::<8192>;
+        VectorExprBuilder::<16384>;
+        VectorExprBuilder::<32768>;
+    );
 }
 
 ///tests rref basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`) (real values only given to 14)
