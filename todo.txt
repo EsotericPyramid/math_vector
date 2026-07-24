@@ -57,11 +57,11 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
         ? add generate and index_generate equivalents to InitializableVectorBuilder
         ~? make the VectorExpr wrappers a singular type with a builder generic
             note: the only issue I see with this right now is that it would break VectorExpr being repr(transparent) which could cause soundness issues if I don't catch them all
-        - move Uninit to builder traits
         - add buffer discarding
         - output redirector which uses mpsc's to message out outputs and the neutralize the output field
             note: thinking bout this, kinda think it may be more generally mapping Output
@@ -102,6 +102,7 @@ To Do's:
 
 Fix Me's:
 + lib.rs:
+    - replace transmute_copy's used to bypass incorrect size errors
     + test:
     + matrix.rs:
         + mat_util_traits.rs:

@@ -6,7 +6,7 @@ use super::vector_structs::{VectorArray, VectorSlice, VecGenerator, VecIndexGene
 
 use super::vec_util_traits::VectorLike;
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
-use std::mem::ManuallyDrop;
+use std::mem::{ManuallyDrop, MaybeUninit, transmute, transmute_copy};
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// 
@@ -100,6 +100,11 @@ pub trait InitializableVectorBuilder: VectorBuilder {
     }
 }
 
+pub unsafe trait UninitVectorBuilder: InitializableVectorBuilder {
+    fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>>;
+    unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T>;
+}
+
 /// Enables an union operation between 2 VectorBuilders into a single [`VectorBuilder`]
 pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
     /// the resulting type of the Union
@@ -148,6 +153,17 @@ impl<const D: usize> InitializableVectorBuilder for VectorExprBuilder<D> {
     }
 }
 
+unsafe impl<const D: usize> UninitVectorBuilder for VectorExprBuilder<D> {
+    fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>> {
+        let uninit_arr: ManuallyDrop<[MaybeUninit<T>; D]> = unsafe { MaybeUninit::uninit().assume_init() };
+        VectorExpr(VectorArray(uninit_arr))
+    }
+
+    unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        unsafe { transmute_copy::<MathVector<MaybeUninit<T>, D>, MathVector<T, D>>(&uninit) }
+    }
+}
+
 /// a simple const sized [`VectorBuilder`]
 /// 
 /// this is the builder equivalent of [`VectorExpr`]
@@ -185,6 +201,19 @@ impl<const D: usize> InitializableVectorBuilder for HeapedVectorExprBuilder<D> {
     }
 }
 
+unsafe impl<const D: usize> UninitVectorBuilder for HeapedVectorExprBuilder<D> {
+    fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>> {
+        let uninit_arr  = unsafe { Box::new_uninit().assume_init() };
+        unsafe { self.wrap(transmute::<
+            Box<ManuallyDrop<[MaybeUninit<T>; D]>>,
+            Box<VectorArray<MaybeUninit<T>, D>>
+        >(uninit_arr)) }
+    }
+
+    unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        unsafe { transmute::<HeapedMathVector<MaybeUninit<T>, D>, HeapedMathVector<T, D>>(uninit) }
+    }
+}
 
 /// a simple runtime sized [`VectorBuilder`]
 /// 
@@ -228,6 +257,20 @@ impl InitializableVectorBuilder for RSVectorExprBuilder {
     }
 }
 
+unsafe impl UninitVectorBuilder for RSVectorExprBuilder {
+    fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>> {
+        let uninit_slice = unsafe { transmute::<
+            Box<[MaybeUninit<T>]>,
+            Box<ManuallyDrop<[MaybeUninit<T>]>>    
+        >(Box::new_uninit_slice(self.size)) };
+        unsafe { self.wrap(VectorSlice(uninit_slice)) }
+    }
+
+    unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        unsafe { transmute::<RSMathVector<MaybeUninit<T>>, RSMathVector<T>>(uninit) }
+    }
+}
+
 /// a [`VectorBuilder`] monad which additionally adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) to its wrapped [`VectorLike`] 
 /// 
 /// this is the builder equivalent of [`VectorInnerProdExpr`]
@@ -255,6 +298,35 @@ impl<B: VectorBuilder, IP: GenericInnerProduct> VectorBuilder for VectorInnerPro
                 self.builder.wrap(vec)
             },
             inner_prod: self.inner_prod,
+        }
+    }
+}
+
+impl<B: InitializableVectorBuilder, IP: GenericInnerProduct> InitializableVectorBuilder for VectorInnerProdExprBuilder<B, IP> {
+    type ConcreteInner<T: Sized> = B::ConcreteInner<T>;
+    type Concrete<T: Sized> = VectorInnerProdExpr<B::Concrete<T>, IP>;
+
+    fn new_filled<T: Copy>(&self, filler: T) -> Self::Concrete<T> {
+        VectorInnerProdExpr{
+            vec: self.builder.new_filled(filler),
+            inner_prod: self.inner_prod,
+        }
+    }
+}
+
+unsafe impl<B: UninitVectorBuilder, IP: GenericInnerProduct> UninitVectorBuilder for VectorInnerProdExprBuilder<B, IP> {
+    fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>> {
+        VectorInnerProdExpr{
+            vec: self.builder.new_uninit(),
+            inner_prod: self.inner_prod,
+        }
+    }
+
+    unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        let VectorInnerProdExpr { vec, inner_prod } = uninit;
+        VectorInnerProdExpr {
+            vec: unsafe { B::assume_init(vec) },
+            inner_prod
         }
     }
 }
