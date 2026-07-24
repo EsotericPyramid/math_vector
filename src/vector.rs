@@ -382,7 +382,10 @@ pub unsafe trait VectorOps: Sized {
     /// get the builder for this vector's wrapper
     fn get_builder(&self) -> Self::Builder;
     /// get the size of this vector
-    fn size(&self) -> usize;
+    #[inline]
+    fn size(&self) -> usize {
+        self.get_builder().size()
+    }
 
     /// converts the vector into a iterator
     #[inline]
@@ -1997,37 +2000,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a MathVector<T, D> {
 
 impl<T, const D: usize> ArrayVectorOps<D> for &MathVector<T, D> {}
 
-impl<T, const D: usize> VectorEvalOps for &MathVector<T, D> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateArray<V, <V as Get>::Item, D>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_array().unwrap()
-    }
-}
-
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut MathVector<T, D> {
     type Unwrapped = &'a mut [T; D];
@@ -2048,37 +2020,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut MathVector<T, D> {
 }
 
 impl<T, const D: usize> ArrayVectorOps<D> for &mut MathVector<T, D> {}
-
-impl<T, const D: usize> VectorEvalOps for &mut MathVector<T, D> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateArray<V, <V as Get>::Item, D>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_array().unwrap()
-    }
-}
 
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
@@ -2101,37 +2042,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a Box<MathVector<T, D>> {
 
 impl<T, const D: usize> ArrayVectorOps<D> for &Box<MathVector<T, D>> {}
 
-impl<T, const D: usize> VectorEvalOps for &Box<MathVector<T, D>> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateHeapArray<V, <V as Get>::Item, D>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_heap_array().unwrap()
-    }
-}
-
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
     type Unwrapped = &'a mut [T; D];
@@ -2153,37 +2063,6 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a mut Box<MathVector<T, D>> {
 
 impl<T, const D: usize> ArrayVectorOps<D> for &mut Box<MathVector<T, D>> {}
 
-impl<T, const D: usize> VectorEvalOps for &mut Box<MathVector<T, D>> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateHeapArray<V, <V as Get>::Item, D>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_heap_array().unwrap()
-    }
-}
-
 
 unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> {
     type Unwrapped = V;
@@ -2203,39 +2082,6 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> 
 
 impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for HeapedVectorExpr<V, D> {}
 
-impl<V: VectorLike, const D: usize> VectorEvalOps for HeapedVectorExpr<V, D> {
-    type MaybeCreateBuffer<T: VectorLike> 
-        = VecMaybeCreateHeapArray<T, <T as Get>::Item, D>
-    where
-        <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <T as HasReuseBuf>::FstHandleBool,
-            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <T as HasReuseBuf>::FstOwnedBufferBool,
-            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair
-    ;
-
-    #[inline]
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized
-    {
-        self.maybe_create_heap_array().unwrap()
-    }
-}
-
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a HeapedMathVector<T, D> {
     type Unwrapped = &'a [T; D];
@@ -2254,6 +2100,7 @@ unsafe impl<'a, T, const D: usize> VectorOps for &'a HeapedMathVector<T, D> {
 }
 
 impl<T, const D: usize> ArrayVectorOps<D> for &HeapedMathVector<T, D> {}
+
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a mut HeapedMathVector<T, D> {
     type Unwrapped = &'a mut [T; D];
