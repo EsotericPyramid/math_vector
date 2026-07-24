@@ -57,7 +57,6 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - fix heap_reuse (the output isn't heaped so its bad)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
         ? add BoxedVectorExprBuilder
         ? add generate and index_generate equivalents to InitializableVectorBuilder

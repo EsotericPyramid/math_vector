@@ -176,17 +176,19 @@ impl<T, const D: usize> MathVector<T, D> {
     pub fn reuse(self) -> VectorExpr<ReplaceArray<T, D>, D> {
         VectorExpr(ReplaceArray(self.unwrap().0))
     }
+    
     /// marks this [`MathVector`] to have its buffer reused while keeping it on the heap
     /// 
     /// buffer placed on the first buffer
     #[inline]
-    pub fn heap_reuse(self: Box<Self>) -> VectorExpr<Box<ReplaceArray<T, D>>, D> {
+    pub fn heap_reuse(self: Box<Self>) -> VectorExpr<HeapedReplaceArray<T, D>, D> {
         // Safety, series of equivilent types:
         // Box<MathVector<T,D>>
         // Box<VectorExpr<VectorArray<T, D>, D>>, de-alias MathVector
         // Box<ManuallyDrop<[T; D]>>, VectorExpr & VectorArray are transparent
-        // VectorExpr<Box<ReplaceArray<T, D>>, D>, VectorExpr & ReplaceArray are transparent
-        unsafe { mem::transmute::<Box<Self>, VectorExpr<Box<ReplaceArray<T, D>>, D>>(self) }
+        // ManuallyDrop<Box<[T; D]>>, ManuallyDrop is transparent
+        // VectorExpr<HeapedReplaceArray<T, D>, D>, VectorExpr & HeapedReplaceArray are transparent
+        unsafe { mem::transmute::<Box<Self>, VectorExpr<HeapedReplaceArray<T, D>, D>>(self) }
     }
 
     /// converts this [`MathVector`] to a repeatable [`VectorExpr`] w/ Item = `&'a T`
@@ -656,6 +658,15 @@ where
 }
 
 pub type HeapedMathVector<T, const D: usize> = HeapedVectorExpr<Box<VectorArray<T, D>>, D>;
+
+impl<T, const D: usize> HeapedMathVector<T, D> {
+    #[inline]
+    pub fn reuse(self) -> HeapedVectorExpr<HeapedReplaceArray<T, D>, D> {
+        HeapedVectorExpr(VectorExpr(
+            unsafe { std::mem::transmute::<Box<VectorArray<T, D>>, HeapedReplaceArray<T, D>>(self.unwrap()) }
+        ))
+    }
+}
 
 impl<T: Clone, const D: usize> Clone for HeapedMathVector<T, D> {
     fn clone(&self) -> Self {

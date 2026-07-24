@@ -316,8 +316,8 @@ fn vector_variation_test() {
         let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
-        //let res = (vec1.heap_reuse() + vec2).heap_eval();
-        //black_box(res);
+        let res = (vec1.reuse() + vec2).eval();
+        black_box(res);
         let elapsed = now.elapsed();
         heap_time += elapsed;
 
@@ -332,8 +332,8 @@ fn vector_variation_test() {
         let vec1 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let vec2 = black_box(builder.generate::<_, f64>(|| rng.random()).heap_eval());
         let now = Instant::now();
-        //let res = (vec1.heap_reuse() + vec2).make_dynamic().heap_eval();
-        //black_box(res);
+        let res = (vec1.reuse() + vec2).make_dynamic().eval();
+        black_box(res);
         let elapsed = now.elapsed();
         dyn_heap_time += elapsed;
     }

@@ -2,7 +2,7 @@ use super::VectorArray;
 use crate::{
     trait_specialization_utils::*,
     util_traits::*,
-    vector::{MathVector, VectorExpr, vec_util_traits::*},
+    vector::{MathVector, HeapedMathVector, VectorExpr, HeapedVectorExpr, vec_util_traits::*},
 };
 use std::{
     mem::{self, ManuallyDrop, MaybeUninit},
@@ -85,6 +85,86 @@ impl<T, const D: usize> HasReuseBuf for ReplaceArray<T, D> {
     #[inline]
     unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
+
+/// an owned array which additionally acts as an buffer for HasReuseBuf (in the first slot)
+#[repr(transparent)]
+pub struct HeapedReplaceArray<T, const D: usize>(pub(crate) ManuallyDrop<Box<[T; D]>>);
+
+unsafe impl<T, const D: usize> Get for HeapedReplaceArray<T, D> {
+    type GetBool = Y;
+    type Inputs = T;
+    type Item = T;
+    type BoundItems = ();
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+        unsafe { ptr::read(self.0.get_unchecked(index)) }
+    }
+
+    #[inline]
+    unsafe fn drop_inputs(&mut self, index: usize) {
+        unsafe { ptr::drop_in_place(self.0.get_unchecked_mut(index)) }
+    }
+
+    #[inline]
+    fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        (inputs, ())
+    }
+}
+
+impl<T: Sized, const D: usize> HasOutput for HeapedReplaceArray<T, D> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {}
+
+    #[inline]
+    unsafe fn drop_output(&mut self) {} // dropped through reuse buf instead
+}
+
+impl<T, const D: usize> HasReuseBuf for HeapedReplaceArray<T, D> {
+    type FstHandleBool = Y;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = Y;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = HeapedMathVector<T, D>;
+    type SndOwnedBuffer = ();
+    type FstType = T;
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, index: usize, val: Self::FstType) {
+        unsafe { ptr::write(self.0.get_unchecked_mut(index), val) }
+    }
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline]
+    unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
+        HeapedVectorExpr(VectorExpr(unsafe { std::mem::transmute_copy::<ManuallyDrop<Box<[T; D]>>, Box<VectorArray<T, D>>>(&self.0) }))
+    }
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {}
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {
+        unsafe { ManuallyDrop::drop(&mut self.0) }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, index: usize) {
+        unsafe { ptr::drop_in_place(self.0.get_unchecked_mut(index)) }
+    }
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
 
 /// struct attaching an array to a VectorLike to be used as a HasReuseBuf buffer (first slot)
 pub struct VecAttachArray<'a, V: VectorLike<FstHandleBool = N>, T, const D: usize> {
@@ -327,8 +407,7 @@ unsafe impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> Get
 
 unsafe impl<V: IsRepeatable + VectorLike<FstHandleBool = N>, T, const D: usize> IsRepeatable
     for VecCreateHeapArray<V, T, D>
-{
-}
+{}
 
 impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasOutput
     for VecCreateHeapArray<V, T, D>
@@ -354,7 +433,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf
     type BoundHandlesBool = V::BoundHandlesBool;
     type FstOwnedBufferBool = Y;
     type SndOwnedBufferBool = V::SndOwnedBufferBool;
-    type FstOwnedBuffer = Box<MathVector<T, D>>;
+    type FstOwnedBuffer = HeapedMathVector<T, D>;
     type SndOwnedBuffer = V::SndOwnedBuffer;
     type FstType = T;
     type SndType = V::SndType;
@@ -374,7 +453,7 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf
     }
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
-        unsafe { mem::transmute_copy::<Box<[MaybeUninit<T>; D]>, Box<MathVector<T, D>>>(&self.buf) }
+        HeapedVectorExpr(VectorExpr(unsafe { mem::transmute_copy::<Box<[MaybeUninit<T>; D]>, Box<VectorArray<T, D>>>(&self.buf) }))
     }
     #[inline]
     unsafe fn get_2nd_buffer(&mut self) -> Self::SndOwnedBuffer {
@@ -591,8 +670,7 @@ unsafe impl<V: IsRepeatable + VectorLike, T, const D: usize> IsRepeatable
     for VecMaybeCreateHeapArray<V, T, D>
 where
     <V::FstHandleBool as TyBool>::Neg: Filter,
-{
-}
+{}
 
 impl<V: VectorLike, T, const D: usize> HasOutput for VecMaybeCreateHeapArray<V, T, D>
 where
@@ -626,7 +704,7 @@ where
     type FstOwnedBuffer =
         <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<
             V::FstOwnedBuffer,
-            Box<MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>, D>>,
+            HeapedMathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>, D>,
         >;
     type SndOwnedBuffer = V::SndOwnedBuffer;
     type FstType = <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::Selected<
@@ -665,10 +743,9 @@ where
                 self.vec.get_1st_buffer(),
                 mem::transmute_copy::<
                     Box<
-                        [MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>;
-                            D],
+                        [MaybeUninit<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>>; D],
                     >,
-                    Box<MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>, D>>,
+                    HeapedMathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<T>, D>,
                 >(&self.buf),
             )
         }

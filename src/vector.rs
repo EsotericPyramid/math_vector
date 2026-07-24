@@ -541,13 +541,13 @@ pub unsafe trait VectorOps: Sized {
         /// 
         /// example:
         /// ```
-        ///    use math_vector::{vector::*};
+        /// use math_vector::prelude::*;
         ///
-        ///    let mut vec = VectorExpr::from([1; 100]).make_dynamic();
-        ///    for _ in 0..10 {
-        ///        vec = vec.add(VectorExpr::from([1; 100])).make_dynamic();
-        ///    }
-        ///    let output = vec.eval();
+        /// let mut vec = VectorExpr::from([1; 100]).make_dynamic();
+        /// for _ in 0..10 {
+        ///     vec = vec.add(VectorExpr::from([1; 100])).make_dynamic();
+        /// }
+        /// let output = vec.eval();
         /// ```
         fn make_dynamic(self) -> Box<
             dyn VectorLike<
@@ -1884,7 +1884,7 @@ where
     <V::FstHandleBool as TyBool>::Neg: Filter,
     (V::BoundHandlesBool, Y): FilterPair,
     (V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg): SelectPair<
-        Selected<V::FstOwnedBuffer, Box<MathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>>> = Box<MathVector<V::Item, D>>
+        Selected<V::FstOwnedBuffer, HeapedMathVector<<<V::FstHandleBool as TyBool>::Neg as Filter>::Filtered<<V as Get>::Item>, D>> = Box<MathVector<V::Item, D>>
     >,
     (V::FstOwnedBufferBool, <V::FstHandleBool as TyBool>::Neg): TyBoolPair,
     (<V::FstHandleBool as TyBool>::Neg, V::FstOwnedBufferBool): TyBoolPair,
@@ -2081,6 +2081,37 @@ unsafe impl<V: VectorLike, const D: usize> VectorOps for HeapedVectorExpr<V, D> 
 }
 
 impl<V: VectorLike, const D: usize> ArrayVectorOps<D> for HeapedVectorExpr<V, D> {}
+
+impl<V: VectorLike, const D: usize> VectorEvalOps for HeapedVectorExpr<V, D> {
+    type MaybeCreateBuffer<T: VectorLike> = VecMaybeCreateHeapArray<T, T::Item, D>
+    where
+        <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <T as HasReuseBuf>::FstHandleBool,
+            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <T as HasReuseBuf>::FstOwnedBufferBool,
+            <<T as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair
+    ;
+
+    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
+    where
+        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): SelectPair,
+        (
+            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
+            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
+        ): TyBoolPair,
+        Self: Sized
+    {
+        self.maybe_create_heap_array().unwrap()
+    }
+}
 
 
 unsafe impl<'a, T, const D: usize> VectorOps for &'a HeapedMathVector<T, D> {
@@ -2499,6 +2530,10 @@ impl_ops_for_wrapper!(
     <'a, T, {D}>, &'a mut MathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
     <'a, T, {D}>, &'a Box<MathVector<T,D>>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
     <'a, T, {D}>, &'a mut Box<MathVector<T,D>>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
+    
+    <V: VectorLike, {D}>, HeapedVectorExpr<V, D>, trait_vector: V, true_vector: V;
+    <'a, T, {D}>, &'a HeapedMathVector<T,D>, trait_vector: &'a [T; D], true_vector: &'a [T; D];
+    <'a, T, {D}>, &'a mut HeapedMathVector<T,D>, trait_vector: &'a mut [T; D], true_vector: &'a mut [T; D];
 
     <V: VectorLike>, RSVectorExpr<V>, trait_vector: V, true_vector: V;
     // Note: not sure why I ever added these here, they never did anything I think

@@ -411,6 +411,8 @@ pub mod prelude {
         vector_exprs::{
             MathVector, 
             RSMathVector, 
+            VectorExpr,
+            RSVectorExpr,
         },
         vector_builders::{
             VectorExprBuilder,
