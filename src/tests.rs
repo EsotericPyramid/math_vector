@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use crate::vector::vector_builders::{HeapedVectorExprBuilder, InitializableVectorBuilder};
-use crate::vector::vector_exprs::InitializableVectorExpr;
 use crate::{
     vector::{VectorInPlaceEvalOps},
 };
@@ -157,9 +156,9 @@ fn rs_vec_basic_arithmetic_ops_test() {
 #[test]
 fn boxed_array_vector_test() {
     black_box(VectorExprBuilder::<UNSTACKABLE_SIZE>.gen_zeroed::<u64>().heap_eval());
-    black_box(Box::new(VectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>())); 
-    black_box(Box::new(MathVector::<u64, UNSTACKABLE_SIZE>::new_zeroed(VectorExprBuilder)));
+    black_box(HeapedVectorExprBuilder::<UNSTACKABLE_SIZE>.gen_zeroed::<u64>().eval());
     black_box(HeapedVectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>());
+    black_box(Box::new(VectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>())); 
 }
 
 /// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)

@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{
     iter::Sum,
-    mem::{self, ManuallyDrop, transmute},
+    mem::{self, ManuallyDrop},
     ops::*,
     slice::SliceIndex,
 };
@@ -50,35 +50,6 @@ pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where
     fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy;
 }
 
-pub trait InitializableVectorExpr: VectorOps {
-    fn new_filled(builder: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy;
-    fn new_zeroed(builder: Self::Builder) -> Self where <Self::Unwrapped as Get>::Item: num_traits::Zero + Copy { //not sure on the Copy requirement
-        Self::new_filled(
-            builder,
-            <<Self::Unwrapped as Get>::Item as num_traits::Zero>::zero()
-        )
-    } 
-    fn new_oned(builder: Self::Builder) -> Self where <Self::Unwrapped as Get>::Item: num_traits::One + Copy { // TBD name //not sure on the Copy requirement
-        Self::new_filled(
-            builder,
-            <<Self::Unwrapped as Get>::Item as num_traits::One>::one()
-        )
-    } 
-}
-
-/// as always: this being 'unsafe' is tbd
-pub unsafe trait UninitVectorExpr: VectorOps {
-    type Uninitialized: VectorOps<Builder = Self::Builder>;
-
-    fn new_uninit(builder: Self::Builder) -> Self::Uninitialized;
-    unsafe fn assume_init(uninit: Self::Uninitialized) -> Self;
-    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item);
-    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize);
-    /// drop one times (so Output and Buffers)
-    unsafe fn drop_ots(uninit: &mut Self::Uninitialized);
-}
-
-
 
 /// A const sized vector wrapper
 /// 
@@ -88,6 +59,11 @@ pub unsafe trait UninitVectorExpr: VectorOps {
 pub struct VectorExpr<V: VectorLike, const D: usize>(pub(crate) V); // note: VectorExpr only holds fully unused VectorLike objects
 
 impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
+    #[inline]
+    pub fn heaped(self) -> HeapedVectorExpr<V, D> {
+        HeapedVectorExpr(self)
+    }    
+
     /// evaluates the [`VectorExpr`] and returns the resulting vector (on the heap) alongside its output (if present)
     /// if the [`VectorExpr`] has no item (& thus results in a vector w/ ZST elements), see consume to not return that vector
     /// will try to use the first buffer if available (fails if the provided buffer is not bindable to the output)
@@ -295,45 +271,6 @@ impl<T, const D: usize> From<Box<MathVector<T, D>>> for Box<[T; D]> {
     fn from(value: Box<MathVector<T, D>>) -> Self {
         unsafe { mem::transmute::<Box<MathVector<T, D>>, Box<[T; D]>>(value) }
     }
-}
-
-impl<T, const D: usize> InitializableVectorExpr for MathVector<T, D> {
-    fn new_filled(_: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy {
-        VectorExpr(VectorArray(ManuallyDrop::new([val; D])))
-    }
-}
-
-unsafe impl<T, const D: usize> UninitVectorExpr for MathVector<T, D> {
-    type Uninitialized = MathVector<MaybeUninit<T>, D>;
-
-    fn new_uninit(_: Self::Builder) -> Self::Uninitialized {
-        // safe bc the assume_init just moves the MaybeUninit inwards
-        let inner: [MaybeUninit<T>; D] = unsafe { MaybeUninit::uninit().assume_init() };
-        VectorExpr(VectorArray(ManuallyDrop::new(inner)))
-    }
-
-    unsafe fn assume_init(uninit: Self::Uninitialized) -> Self {
-        unsafe {
-            // FIXME: the copy isn't actually needed, just used to skirt around overly conservative size complaints
-            std::mem::transmute_copy::<
-                MathVector<MaybeUninit<T>, D>,
-                MathVector<T, D>,
-            >(&*ManuallyDrop::new(uninit))    
-        }
-    }
-
-    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item) {
-        uninit.0.0[index] = MaybeUninit::new(val);
-    }
-
-    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize) {
-        unsafe {
-            MaybeUninit::assume_init_drop(uninit.0.0.get_unchecked_mut(index));
-        }
-    }
-
-    // no actual one-time drops for this
-    unsafe fn drop_ots(_: &mut Self::Uninitialized) {}
 }
 
 impl<T, I, const D: usize> Index<I> for MathVector<T, D>
@@ -615,6 +552,13 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
 
 #[repr(transparent)]
 pub struct HeapedVectorExpr<V: VectorLike, const D: usize>(pub(crate) VectorExpr<V, D>);
+
+impl<V: VectorLike, const D: usize> HeapedVectorExpr<V, D> {
+    #[inline]
+    pub fn unheaped(self) -> VectorExpr<V, D> {
+        self.0
+    }
+}
 
 impl<V: VectorLike, const D: usize> Deref for HeapedVectorExpr<V, D> {
     type Target = VectorExpr<V, D>;
@@ -987,57 +931,6 @@ impl<T> From<RSMathVector<T>> for Box<[T]> {
     fn from(value: RSMathVector<T>) -> Self {
         unsafe { mem::transmute_copy::<VectorSlice<T>, Box<[T]>>(&ManuallyDrop::new(value).vec) }
     }
-}
-
-impl<T> InitializableVectorExpr for RSMathVector<T> {
-    fn new_filled(builder: Self::Builder, val: <Self::Unwrapped as Get>::Item) -> Self where <Self::Unwrapped as Get>::Item: Copy {
-        RSVectorExpr{
-            vec: VectorSlice(
-                unsafe {transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(vec![val; builder.size].into_boxed_slice())}
-            ),
-            size: builder.size,
-        }
-    }
-}
-
-unsafe impl<T> UninitVectorExpr for RSMathVector<T> {
-    type Uninitialized = RSMathVector<MaybeUninit<T>>;
-
-    fn new_uninit(builder: Self::Builder) -> Self::Uninitialized {
-        RSVectorExpr{
-            vec: VectorSlice(
-                unsafe {
-                    transmute::<
-                        Box<[MaybeUninit<T>]>, 
-                        Box<ManuallyDrop<[MaybeUninit<T>]>>,
-                    >(Box::new_uninit_slice(builder.size))
-                }
-            ),
-            size: builder.size,
-        }
-    }
-
-    unsafe fn assume_init(uninit: Self::Uninitialized) -> Self {
-        unsafe {
-            transmute::<
-                RSMathVector<MaybeUninit<T>>,
-                RSMathVector<T>,
-            >(uninit)
-        }
-    }
-
-    unsafe fn init_index(uninit: &mut Self::Uninitialized, index: usize, val: <Self::Unwrapped as Get>::Item) {
-        uninit.vec.0[index] = MaybeUninit::new(val);
-    }
-
-    unsafe fn drop_index(uninit: &mut Self::Uninitialized, index: usize) {
-        unsafe {
-            MaybeUninit::assume_init_drop(uninit.vec.0.get_unchecked_mut(index));
-        }
-    }
-
-    // no actual one-time drops for this
-    unsafe fn drop_ots(_: &mut Self::Uninitialized) {}
 }
 
 impl<T, I> Index<I> for RSMathVector<T>
