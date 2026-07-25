@@ -1,6 +1,4 @@
 #[cfg(feature = "mtx")]
-use std::ops::Index;
-#[cfg(feature = "mtx")]
 use matrix_merchant::{
     reader::*, 
     writer::MatrixWriter,
@@ -19,18 +17,18 @@ use std::{
     io,
     hash::{Hash, Hasher, DefaultHasher},
 };
-use crate::vector::vector_builders::VectorBuilder;
+use crate::vector::vector_builders::{
+    VectorBuilder,
+    UninitVectorBuilder,
+};
 use std::path::{Path, PathBuf};
+use std::mem::MaybeUninit;
 
 
 use crate::vector::{
     VectorOps,
     vec_util_traits::Get, 
-    vector_exprs::{
-        UninitVectorExpr, 
-        InitializableVectorExpr,
-        ConcreteVectorExpr,
-    },
+    vector_exprs::ConcreteVectorExpr,
 };
 
 pub trait AsText: Sized {
@@ -163,176 +161,11 @@ impl From<hdf5::Error> for HDF5Error {
     }
 }
 
-#[cfg(feature = "mtx")]
-macro_rules! mtx_read_fns {
-    ($($read_fn_name:ident $field_name:ident $ty:ty;)*) => {
-        $(
-            fn $read_fn_name<P: AsRef<Path>>(path: P, builder: Self::Builder) -> Result<Self, MTXError> where Self: Index<usize, Output = $ty>, Self: InitializableVectorExpr + UninitVectorExpr {
-                let reader = MtxReader::new_reader(fs::File::open(path)?)?;
-                match reader.matrix().unwrap() {
-                    MatrixReader::MatrixArray(array_reader) => {
-                        let mut uninit = Self::new_uninit(builder);
-                        let mut num_fields_written = 0;
-                        let mut error = None;
-                    
-                        let MatrixSize {num_rows, num_cols} = array_reader.size();
-                        if (num_rows != 1) & (num_cols != 1) {
-                            error = Some(MTXError::NonVector);
-                        } 
-                    
-                        let MatrixArrayReader::$field_name(array_reader) = array_reader else {return Err(MTXError::WrongType)};
-                        for column in array_reader {
-                            let column = match column {
-                                Ok(column) => column,
-                                Err(e) => {error = Some(e.into()); break}
-                            };
-                            for field in column {
-                                unsafe { 
-                                    Self::init_index(&mut uninit, num_fields_written, field);
-                                    num_fields_written += 1;
-                                }
-                            }
-                        }
-                    
-                        if let Some(error) = error {
-                            unsafe {
-                                for i in 0..num_fields_written {
-                                    Self::drop_index(&mut uninit, i);
-                                }
-                                Self::drop_ots(&mut uninit);
-                            }
-                            return Err(error);
-                        }
-                        unsafe { Ok(Self::assume_init(uninit)) }
-                    }
-                    MatrixReader::MatrixCoordinate(coord_reader) => {
-                        use matrix_merchant::Position;
-                    
-                        let MatrixSize {num_rows, num_cols} = coord_reader.size();
-                        if (num_rows != 1) & (num_cols != 1) {
-                            return Err(MTXError::NonVector);
-                        }
-                    
-                        let mut vector = Self::new_zeroed(builder);
-                        let MatrixCoordinateReader::$field_name(coord_reader) = coord_reader else {return Err(MTXError::WrongType)};
-                        for field_data in coord_reader {
-                            let (Position { row, col }, field) = field_data?;
-                            if num_rows == 1 {
-                                vector[col] = field;
-                            } else {
-                                vector[row] = field;
-                            }
-                        }
-                    
-                        Ok(vector)
-                    }
-                }
-            }
-        )*
-    };
-}
-
-pub trait VectorFileConversions: ConcreteVectorExpr 
+pub trait IntoFileVector: ConcreteVectorExpr 
 where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
-    #[cfg(feature = "csv")]
-    /// top left corner == (row = 0, col = 0), vector is read top down
-    fn read_csv_column<P: AsRef<Path>>(path: P, builder: Self::Builder, row_start: usize, col: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText, Self: UninitVectorExpr {
-        let mut csv = csv::Reader::from_path(path)?;
-        let mut records = csv.records();
-        for _ in 0..row_start {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
-        let mut uninit = Self::new_uninit(builder);
-        let mut num_fields_written = 0;
-        let mut error = None;
-
-        // Note: this section *must not return/crash* to avoid leaking
-        for _ in 0..uninit.size() {
-            let record = match records.next() {
-                None => {
-                    error = Some(CSVError::CellOutOfBounds);
-                    break;
-                }
-                Some(Err(e)) => {
-                    error = Some(CSVError::CSVError(e));
-                    break;
-                }
-                Some(Ok(record)) => record
-            };
-            if col >= record.len() {
-                error = Some(CSVError::CellOutOfBounds);
-                break;
-            }
-            let field = match Self::Output::from_text(&record[col]) {
-                Err(e) => {
-                    error = Some(CSVError::FieldError(e));
-                    break;
-                }
-                Ok(field) => field
-            };
-            unsafe { Self::init_index(&mut uninit, num_fields_written, field); }
-            num_fields_written += 1;
-        }
-
-        if let Some(error) = error {
-            unsafe {
-                for i in 0..num_fields_written {
-                    Self::drop_index(&mut uninit, i);
-                }
-                Self::drop_ots(&mut uninit);
-            }
-            return Err(error);
-        }
-        unsafe { Ok(Self::assume_init(uninit)) }
-    }
-
-    #[cfg(feature = "csv")]
-    fn read_csv_row<P: AsRef<Path>>(path: P, builder: Self::Builder, row: usize, col_start: usize) -> Result<Self, CSVError<<Self::Output as AsText>::Error>> where Self::Output: AsText, Self: UninitVectorExpr {
-        let mut csv = csv::Reader::from_path(path)?;
-        let mut records = csv.records();
-        for _ in 0..row {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
-        let mut uninit = Self::new_uninit(builder);
-        let mut num_fields_written = 0;
-        let mut error = None;
-
-        // Note: this section *must not return/crash* to avoid leaking
-        match records.next() {
-            None => {
-                error = Some(CSVError::CellOutOfBounds);
-            }
-            Some(Err(e)) => {
-                error = Some(CSVError::CSVError(e));
-            }
-            Some(Ok(record)) => {
-                for field in record.into_iter().skip(col_start).take(uninit.size()) {
-                    let field = match Self::Output::from_text(field) {
-                        Err(e) => {
-                            error = Some(CSVError::FieldError(e));
-                            break;
-                        }
-                        Ok(field) => field
-                    };
-                    unsafe {
-                        Self::init_index(&mut uninit, num_fields_written, field);
-                        num_fields_written += 1;
-                    }
-                }
-            }
-        };
-
-        if let Some(error) = error {
-            unsafe {
-                for i in 0..num_fields_written {
-                    Self::drop_index(&mut uninit, i);
-                }
-                Self::drop_ots(&mut uninit);
-            }
-            return Err(error);
-        }
-        unsafe { Ok(Self::assume_init(uninit)) }
-    }
-
     #[cfg(feature = "csv")]
     fn write_csv_column<P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
     where 
@@ -427,13 +260,6 @@ where
     }
 
     #[cfg(feature = "mtx")]
-    mtx_read_fns!(
-        read_mtx_real Real f64;
-        read_mtx_integer Integer i64;
-        read_mtx_complex Complex Complex<f64>;
-    );
-
-    #[cfg(feature = "mtx")]
     fn write_mtx<P: AsRef<Path>, C: AsRef<str>>(&self, path: P, comment: Option<C>) -> Result<(), MTXError> where Self::Output: matrix_merchant::Field {
         let temp_path = generate_tmp_file_path(&path);
         let mut writer = MatrixWriter::new(fs::File::open(&temp_path)?, self.size(), 1);
@@ -447,32 +273,205 @@ where
     }
 
     #[cfg(feature = "hdf5")]
-    fn read_hdf5_dataset(builder: Self::Builder, dataset: &Dataset) -> Result<Self, HDF5Error> where Self::Output: hdf5::H5Type, Self: UninitVectorExpr {
-        let data = dataset.read_1d()?;
-        if data.len() != builder.size() {
-            return Err(HDF5Error::WrongSize)
-        }
-        let mut uninit = Self::new_uninit(builder);
-        let mut num_written = 0;
-        for field in data {
-            unsafe {
-                Self::init_index(&mut uninit, num_written, field);
-                num_written += 1;
-            }
-        }
-        // assuming that this ^^^ is infallible
-        
-        Ok(unsafe { Self::assume_init(uninit) })
-    }
-
-    #[cfg(feature = "hdf5")]
     fn write_hdf5_dataset(&self, dataset: &Dataset) -> Result<(), HDF5Error> where Self::Output: hdf5::H5Type + Clone {
         Ok(dataset.as_writer().write(&(0..self.size()).into_iter().map(|x| self[x].clone()).collect::<Vec<_>>())?)
     }
 }
 
-impl<V: UninitVectorExpr + ConcreteVectorExpr> VectorFileConversions for V 
+impl<V: ConcreteVectorExpr> IntoFileVector for V 
 where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {}
+
+
+#[cfg(feature = "mtx")]
+macro_rules! mtx_read_fns {
+    ($($read_fn_name:ident $field_name:ident $ty:ty;)*) => {
+        $(
+            fn $read_fn_name<P: AsRef<Path>>(&self, path: P) -> Result<Self::Concrete<$ty>, MTXError> where Self: UninitVectorBuilder {
+                let reader = MtxReader::new_reader(fs::File::open(path)?)?;
+                match reader.matrix().unwrap() {
+                    MatrixReader::MatrixArray(array_reader) => {
+                        let mut uninit = self.new_uninit();
+                        let mut num_fields_written = 0;
+                        let mut error = None;
+                    
+                        let MatrixSize {num_rows, num_cols} = array_reader.size();
+                        if (num_rows != 1) & (num_cols != 1) {
+                            error = Some(MTXError::NonVector);
+                        } 
+                    
+                        let MatrixArrayReader::$field_name(array_reader) = array_reader else {return Err(MTXError::WrongType)};
+                        for column in array_reader {
+                            let column = match column {
+                                Ok(column) => column,
+                                Err(e) => {error = Some(e.into()); break}
+                            };
+                            for field in column {
+                                uninit[num_fields_written].write(field);
+                                num_fields_written += 1;
+                            }
+                        }
+                    
+                        if let Some(error) = error {
+                            unsafe {
+                                for i in 0..num_fields_written {
+                                    MaybeUninit::assume_init_drop(&mut uninit[i]);
+                                }
+                            }
+                            return Err(error);
+                        }
+                        unsafe { Ok(Self::assume_init(uninit)) }
+                    }
+                    MatrixReader::MatrixCoordinate(coord_reader) => {
+                        use matrix_merchant::Position;
+                    
+                        let MatrixSize {num_rows, num_cols} = coord_reader.size();
+                        if (num_rows != 1) & (num_cols != 1) {
+                            return Err(MTXError::NonVector);
+                        }
+                    
+                        let mut vector = self.new_zeroed();
+                        let MatrixCoordinateReader::$field_name(coord_reader) = coord_reader else {return Err(MTXError::WrongType)};
+                        for field_data in coord_reader {
+                            let (Position { row, col }, field) = field_data?;
+                            if num_rows == 1 {
+                                vector[col] = field;
+                            } else {
+                                vector[row] = field;
+                            }
+                        }
+                    
+                        Ok(vector)
+                    }
+                }
+            }
+        )*
+    };
+}
+
+pub trait FromFileVectorBuilder: VectorBuilder {
+    #[cfg(feature = "csv")]
+    /// top left corner == (row = 0, col = 0), vector is read top down
+    fn read_csv_column<T: AsText, P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<Self::Concrete<T>, CSVError<T::Error>> where 
+        Self: UninitVectorBuilder,
+    {
+        let mut csv = csv::Reader::from_path(path)?;
+        let mut records = csv.records();
+        for _ in 0..row_start {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
+        let mut uninit = self.new_uninit();
+        let mut num_fields_written = 0;
+        let mut error = None;
+
+        // Note: this section *must not return/crash* to avoid leaking
+        for _ in 0..uninit.size() {
+            let record = match records.next() {
+                None => {
+                    error = Some(CSVError::CellOutOfBounds);
+                    break;
+                }
+                Some(Err(e)) => {
+                    error = Some(CSVError::CSVError(e));
+                    break;
+                }
+                Some(Ok(record)) => record
+            };
+            if col >= record.len() {
+                error = Some(CSVError::CellOutOfBounds);
+                break;
+            }
+            let field = match T::from_text(&record[col]) {
+                Err(e) => {
+                    error = Some(CSVError::FieldError(e));
+                    break;
+                }
+                Ok(field) => field
+            };
+            uninit[num_fields_written].write(field);
+            num_fields_written += 1;
+        }
+
+        if let Some(error) = error {
+            unsafe {
+                for i in 0..num_fields_written {
+                    MaybeUninit::assume_init_drop(&mut uninit[i])
+                }
+            }
+            return Err(error);
+        }
+        unsafe { Ok(Self::assume_init(uninit)) }
+    }
+
+    #[cfg(feature = "csv")]
+    fn read_csv_row<T: AsText, P: AsRef<Path>>(&self, path: P, row: usize, col_start: usize) -> Result<Self::Concrete<T>, CSVError<T::Error>> where 
+        Self: UninitVectorBuilder,
+    {
+        let mut csv = csv::Reader::from_path(path)?;
+        let mut records = csv.records();
+        for _ in 0..row {let _ = records.next().ok_or(CSVError::CellOutOfBounds)?;} // don't care if these individual rows are malformed
+        let mut uninit = self.new_uninit();
+        let mut num_fields_written = 0;
+        let mut error = None;
+
+        // Note: this section *must not return/crash* to avoid leaking
+        match records.next() {
+            None => {
+                error = Some(CSVError::CellOutOfBounds);
+            }
+            Some(Err(e)) => {
+                error = Some(CSVError::CSVError(e));
+            }
+            Some(Ok(record)) => {
+                for field in record.into_iter().skip(col_start).take(uninit.size()) {
+                    let field = match T::from_text(field) {
+                        Err(e) => {
+                            error = Some(CSVError::FieldError(e));
+                            break;
+                        }
+                        Ok(field) => field
+                    };
+                    uninit[num_fields_written].write(field);
+                    num_fields_written += 1;
+                }
+            }
+        };
+
+        if let Some(error) = error {
+            unsafe {
+                for i in 0..num_fields_written {
+                    MaybeUninit::assume_init_drop(&mut uninit[i]);
+                }
+            }
+            return Err(error);
+        }
+        unsafe { Ok(Self::assume_init(uninit)) }
+    }
+
+    #[cfg(feature = "mtx")]
+    mtx_read_fns!(
+        read_mtx_real Real f64;
+        read_mtx_integer Integer i64;
+        read_mtx_complex Complex Complex<f64>;
+    );
+
+    #[cfg(feature = "hdf5")]
+    fn read_hdf5_dataset<T: hdf5::H5Type>(&self, dataset: &Dataset) -> Result<Self::Concrete<T>, HDF5Error> where Self: UninitVectorBuilder {
+        let data = dataset.read_1d()?;
+        if data.len() != self.size() {
+            return Err(HDF5Error::WrongSize)
+        }
+        let mut uninit = self.new_uninit();
+        let mut num_written = 0;
+        for field in data {
+            uninit[num_written].write(field);
+            num_written += 1;
+        }
+        // assuming that this ^^^ is infallible'
+        assert_eq!(num_written, self.size(), "math_vector error: hdf5 dataset size didn't match number of read fields");
+        
+        Ok(unsafe { Self::assume_init(uninit) })
+    }
+}
+
+impl<V: VectorBuilder> FromFileVectorBuilder for V {}
