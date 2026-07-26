@@ -36,6 +36,8 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        - impl rref & det for ConcreteMatrixExpr
+        - add eq / partial eq to concrete matrix exprs
         ? change MathMatrix Index impl to have Output = [T; D1] instead of MathVector<T, D1> (for consistency w/ RSMathMatrices) (see below)
         XX impl RSMathMatrix'ces Index to have Output = RSMathVector
         - output redirector which uses mpsc's to message out outputs and the neutralize the output field
@@ -57,6 +59,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - add eq / partial eq to concrete vector exprs
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
         ~? make the VectorExpr wrappers a singular type with a builder generic

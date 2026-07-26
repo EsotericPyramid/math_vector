@@ -1,3 +1,7 @@
+//! A collection of tests (who woulda guessed)
+//! 
+//! contains part basic tests for correctness as well as benchmarks (which are `#[ignored]` by default)
+
 use crate::prelude::*;
 use crate::vector::vector_builders::{HeapedVectorExprBuilder, InitializableVectorBuilder};
 use crate::{
@@ -12,6 +16,16 @@ use std::{hint::black_box, time::*};
 /// This number works at least for my system (2023 Macbook Pro; M2 Max, 32 GB)
 const UNSTACKABLE_SIZE: usize = 1000000;
 
+/// Checks that vectors display as expected:
+/// 
+/// ie. VectorExpr::from([1, 2, 3]) becomes
+/// ```text
+/// ┌ 1 ┐
+/// │ 2 │
+/// └ 3 ┘
+/// ```
+/// 
+/// (prints results to stdout (use `-- --no-capture` to see))
 #[test]
 fn vector_display() {
     let vec = MathVector::from([0; 0]);
@@ -36,6 +50,16 @@ fn vector_display() {
     assert_eq!("\n┌ 11  ┐\n│ 2   │\n└ 333 ┘", str);
 }
 
+/// Checks that matrices display as expected:
+/// 
+/// something like this is expected:
+/// ```text
+/// ┌ 1, 2, 3 ┐
+/// │ 4, 5, 6 │
+/// └ 7, 8, 9 ┘
+/// ```
+/// 
+/// (prints results to stdout (use `-- --no-capture` to see))
 #[test]
 fn matrix_display() {
     let mat = MathMatrix::from([[0; 0]; 0]).transpose().eval();
@@ -67,8 +91,20 @@ fn matrix_display() {
     println!("padded 3x3 mat: {}", string);
 }
 
-/// returns log of the error, higher is better
+/// returns the negative log of the error, higher is better
+/// 
 /// roughly speaking is the number of non-leading-zero digits correct
+/// 
+/// "edge" cases: (these are actually required for this to be as continuous as possible)
+/// - if `real = 0.0` and `experimental = 0.0`, then this returns +inf
+/// - if `real = 0.0` and `experimental != 0.0`, then this return -inf
+/// - if `real == experimental`, then this return +inf
+/// 
+/// ex: 
+/// - `f64_accuracy(1.0,  0.88888888888)` is between 0 and 1
+/// - `f64_accuracy(0.9,  0.88888888888)` is between 1 and 2
+/// - `f64_accuracy(0.89, 0.88888888888)` is between 2 and 3
+/// - etc.
 fn f64_accuracy(experimental: f64, real: f64) -> f64 {
     if real == 0.0 {
         if experimental == 0.0 {
@@ -80,6 +116,7 @@ fn f64_accuracy(experimental: f64, real: f64) -> f64 {
     -f64::log10(((experimental - real) / real).abs())
 }
 
+/// checks if [`f64_accuracy`] behaves as expected (see its def for details)
 #[test]
 fn f64_accuracy_check() {
     assert!(f64_accuracy(1.0, 1.0).is_infinite());
@@ -107,6 +144,9 @@ fn f64_accuracy_check() {
     assert!(f64_accuracy(1.0, 0.0) == -f64::INFINITY);
 }
 
+/// checks the correctness of basic binary operations on array vectors (`+`, `-`, `*`, `/`)
+/// 
+/// they are first checked individually and then a compound expression of them is checked
 #[test]
 fn vec_basic_arithmetic_ops_test() {
     let vec1 = MathVector::from([1, 2, 3]);
@@ -127,6 +167,9 @@ fn vec_basic_arithmetic_ops_test() {
     );
 }
 
+/// checks the correctness of basic binary operations on runtime sized vectors (`+`, `-`, `*`, `/`)
+/// 
+/// they are first checked individually and then a compound expression of them is checked
 #[test]
 fn rs_vec_basic_arithmetic_ops_test() {
     // NOTE: the type specification (specfically the `i32` bit) is needed to avoid a bounds checking infinite recursion error, idfk why
@@ -161,10 +204,14 @@ fn boxed_array_vector_test() {
     black_box(Box::new(VectorExprBuilder::<UNSTACKABLE_SIZE>.new_zeroed::<u64>())); 
 }
 
-/// uses the dot product of 2 vectors to find the cosine of the angle between them (x10000 times)
-/// meant to test stacking outputs
+/// vector benchmark: calculates the cosine of the angle between 2 10000 dimension vectors via their dot product (x10000 times)
+/// 
+/// the compilation of this w/o error also signifies that outputs can be stacked w/o issue
+/// 
 /// prints:
-///     the time elapsed in nanoseconds
+/// - the time elapsed in nanoseconds
+/// 
+/// note: can fail from stack overflow without `--release`
 #[test]
 #[ignore]
 fn vec_angle_cos() {
@@ -184,7 +231,18 @@ fn vec_angle_cos() {
     println!("Elapsed: {}", time.as_nanos());
 }
 
-
+/// a test whos primary purpose is to check that evaled in place vectors compile w/o issue
+/// 
+/// this test can't fail in runtime thus it is `#[ignore]`
+/// 
+/// generates 2 random vectors, component multiplies them, calculates the sum, evals in place, prefix sums it, then calculates the product
+/// 
+/// prints:
+/// - the 2 starting vectors
+/// - their component multiplication
+/// - a prefix sum of their multiplication
+/// - the sum before the prefix 
+/// - the product after the prefix
 #[test]
 #[ignore]
 fn eval_in_place_vectors_test() {
@@ -212,12 +270,18 @@ fn eval_in_place_vectors_test() {
     println!("sum: {}, product: {}", sum, product);
 }
 
+/// a test whos primary purpose is to check that repeatable vectors compile w/o issue
+/// 
+/// this test can't fail in runtime thus it is `#[ignore]`
+/// 
 /// component-wise multiplies 2 vectors and gets the sum and product of all the elements
 /// and grabs 200 random values from the multiplication of the 2 vectors
+/// 
 /// tests the ability to grab arbitrary values from a repeatable vector (obtained via evaling in place)
+/// 
 /// prints:
-///     200 random values from the multiplication of 2 vectors
-///     sum and product of all the elemements
+/// - 200 random values from the multiplication of 2 vectors
+/// - sum and product of all the elemements
 #[test]
 #[ignore]
 fn repeatable_vectors_test() {
@@ -236,7 +300,13 @@ fn repeatable_vectors_test() {
     println!("sum: {}, product: {}", sum, product);
 }
 
-/// checks Mat * Mat basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`)
+/// checks the correctness of matrix multiplication, tests for ~12 digits of accuracy (see ``f64_accuracy``)
+/// 
+/// multiplies 2 3x3 hardcoded matrices and compares the result against the hardcoded result
+/// 
+/// prints:
+/// - the input matrices
+/// - the resulting matrix
 #[test]
 fn mat_mat_mul_test() {
     let mat1 = MathMatrix::from([
@@ -271,7 +341,10 @@ fn mat_mat_mul_test() {
     println!("Multiplication: {}", out_mat);
 }
 
-/// preforms a multiplication between a matrix and a matrix
+/// preforms a multiplication between 2 1000x1000 matrices ()
+/// 
+/// I believe this is in total 2 billion floating point operations (2 GFLOP)
+/// 
 /// prints:
 ///     duration of the calculation in nanoseconds
 #[test]
@@ -380,7 +453,14 @@ fn vector_variation_test() {
     );
 }
 
-///tests rref basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`) (real values only given to 14)
+/// tests rref basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`) (real values only given to 14)
+/// 
+/// performs rref on a 3x4 matrix to simulate solving a system of 3 equations with 3 variables
+/// and on a 3x3 matrix augmented with the identity matrix to simulate calculating the inverse matrix
+/// 
+/// prints for each rref:
+/// - input matrix
+/// - resulting determinant value
 #[test]
 fn rref_test() {
     // solving a system of equations
@@ -430,7 +510,13 @@ fn rref_test() {
     println!("rref: {}", mat);
 }
 
-//tests det basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`)
+/// tests det basic correctness, tests for ~12 digits of accuracy (uses `f64_accuracy`)
+/// 
+/// performs det on a 3x3 matrix 
+/// 
+/// prints:
+/// - input matrix
+/// - resulting determinant value
 #[test]
 fn det_test() {
     let mat = MathMatrix::from([
@@ -446,7 +532,10 @@ fn det_test() {
     println!("det: {}", det);
 }
 
-// tests the performance of rref & det
+/// tests the performance of rref & det
+/// 
+/// rref is performed on a 1000x2000 matrix.
+/// det is performed on a 1500x1500 matrix.
 #[test]
 #[ignore]
 fn mat_math_performance_test() {
@@ -467,7 +556,9 @@ fn mat_math_performance_test() {
     println!("det: {}", det_elapsed.as_nanos());
 }
 
-// tests mat_vec_mul basic correctness
+/// tests mat_vec_mul basic correctness to ~12 digits (see [`f64_accuracy`])
+/// 
+/// uses a hardcoded 3x3 matrix and dim 3 vector to do so
 #[test]
 fn mat_vec_mul_test() {
     let mat = MathMatrix::from([
@@ -489,7 +580,12 @@ fn mat_vec_mul_test() {
     println!("mat * vec: {}", out_vec);
 }
 
-/// tests mat_vec_mul performance
+/// tests mat_vec_mul performance by multiplying a 10000x10000 matrix with a dim 10000 vector
+/// 
+/// this contains 200 million floating point operations (200 MFLOP)
+/// 
+/// prints:
+///     duration of the calculation in nanoseconds
 #[test]
 #[ignore]
 fn mat_vec_mul_performance_test() {
@@ -504,7 +600,7 @@ fn mat_vec_mul_performance_test() {
     println!("{}", elapsed.as_nanos());
 }
 
-// tests vec_mat_mul basic correctness
+/// same as [`mat_vec_mul_test`], just with a row vector on the other side
 #[test]
 fn vec_mat_mul_test() {
     let vec = MathVector::from([0.774, 0.969, 0.506]);
@@ -526,7 +622,7 @@ fn vec_mat_mul_test() {
     println!("vec * mat: \n{}", out_vec);
 }
 
-/// tests vec_mat_mul performance
+/// same as [`mat_vec_mul_performance_test`], just with a row vector on the other side
 #[test]
 #[ignore]
 fn vec_mat_mul_performance_test() {
