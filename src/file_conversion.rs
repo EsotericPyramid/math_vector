@@ -12,10 +12,7 @@ use num_complex::Complex;
 use hdf5::Dataset;
 
 use std::{
-    error::Error,
-    fs,
-    io,
-    hash::{Hash, Hasher, DefaultHasher},
+    error::Error, fs, hash::{DefaultHasher, Hash, Hasher}, io,
 };
 use crate::vector::vector_builders::{
     VectorBuilder,
@@ -23,6 +20,8 @@ use crate::vector::vector_builders::{
 };
 use std::path::{Path, PathBuf};
 use std::mem::MaybeUninit;
+use std::str::FromStr;
+use std::fmt::Display;
 
 
 use crate::vector::{
@@ -41,12 +40,153 @@ pub trait AsText: Sized {
     fn from_text(text: &str) -> Result<Self, Self::Error>;
 }
 
-pub trait AsData<E: Error>: Sized {
+macro_rules! impl_AsText_for_Display_n_FromStr {
+    ($($(#[cfg($($tt:tt)*)])? $ty:ty;)*) => {
+        $(
+            $(#[cfg($($tt)*)])?
+            impl AsText for $ty {
+                type Error = <Self as FromStr>::Err;
+    
+                fn as_text(&self) -> String {
+                    format!("{}", self)
+                }
+                fn from_text(text: &str) -> Result<Self, Self::Error> {
+                    text.parse::<$ty>()
+                }
+            }
+        )*
+    };
+}
+
+impl_AsText_for_Display_n_FromStr!(
+    u8;
+    u16;
+    u32;
+    u64;
+    u128;
+    usize;
+    i8;
+    i16;
+    i32;
+    i64;
+    i128;
+    isize;
+    String;
+    //f16;
+    f32;
+    f64;
+);
+
+#[cfg(feature = "mtx")]
+impl<T: AsText> AsText for Complex<T> where Complex<T>: Display + FromStr, <Complex<T> as FromStr>::Err: Error {
+    type Error = <Self as FromStr>::Err;
+    
+    fn as_text(&self) -> String {
+        format!("{}", self)
+    }
+    fn from_text(text: &str) -> Result<Self, Self::Error> {
+        text.parse::<Self>()
+    }
+}
+
+pub trait AsData: Sized {
     type Error: Error;
 
     fn as_data(&self) -> Vec<u8>;
     fn from_data(data: &[u8]) -> Result<Self, Self::Error>;
 }
+
+pub trait AsConstSizedData: AsData {
+    const DATA_SIZE: usize;
+}
+
+pub struct Infallible;
+
+impl std::fmt::Debug for Infallible {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "An \"Infallible\" error has been raised. This shouldn't be possible and indicates a faulty implementation")
+    }
+}
+
+impl Display for Infallible {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for Infallible {}
+
+pub enum IncorrectNumBytes{
+    SpecificSize{
+        expected: usize,
+        found: usize,
+    },
+    Insufficient,
+    Excess,
+}
+
+impl std::fmt::Debug for IncorrectNumBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SpecificSize { expected, found } => 
+                write!(f, "Expected {} bytes, found {} bytes", expected, found),
+            Self::Insufficient => 
+                write!(f, "Expected more bytes"),
+            Self::Excess =>
+                write!(f, "Expected fewer bytes than given"),
+        }
+    }
+}
+
+impl Display for IncorrectNumBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for IncorrectNumBytes {}
+
+macro_rules! impl_AsData_for_nums {
+    ($($ty:ty: $size:expr;)*) => {
+        $(
+            impl AsData for $ty {
+                type Error = IncorrectNumBytes;
+
+                fn as_data(&self) -> Vec<u8> {
+                    Vec::from(self.to_be_bytes())
+                }
+                fn from_data(data: &[u8]) -> Result<Self, Self::Error> {
+                    if data.len() != $size {
+                        return Err(IncorrectNumBytes::SpecificSize { expected: $size, found: data.len() })
+                    }
+                    Ok(Self::from_be_bytes(data.try_into().unwrap()))
+                }
+            }
+
+            impl AsConstSizedData for $ty {
+                const DATA_SIZE: usize = $size;
+            }
+        )*
+    };
+}
+
+impl_AsData_for_nums!(
+    u8: 1;
+    u16: 2;
+    u32: 4;
+    u64: 8;
+    u128: 16;
+    usize: std::mem::size_of::<usize>();
+    i8: 1;
+    i16: 2;
+    i32: 4;
+    i64: 8;
+    i128: 16;
+    isize: std::mem::size_of::<isize>();
+    //f16: 2;
+    f32: 4;
+    f64: 8;
+);
 
 #[derive(Debug)]
 #[cfg(feature = "csv")]

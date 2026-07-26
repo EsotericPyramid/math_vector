@@ -59,10 +59,8 @@ To Do's:
     + vector.rs:
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
-        ? add generate and index_generate equivalents to InitializableVectorBuilder
         ~? make the VectorExpr wrappers a singular type with a builder generic
             note: the only issue I see with this right now is that it would break VectorExpr being repr(transparent) which could cause soundness issues if I don't catch them all
-        - add buffer discarding
         - output redirector which uses mpsc's to message out outputs and the neutralize the output field
             note: thinking bout this, kinda think it may be more generally mapping Output
         ? provide default impl for VectorOps::size
@@ -82,7 +80,6 @@ To Do's:
         ? merge ArrayVectorOps into VectorOps using Builder bounds
 
         + vec_util_traits.rs:
-            X remove where bounds from `ConcreteVectorExpr`'s `borrow` and `borrow_mut` methods
         + vector_builders.rs:
             ? impl remaining VectorBuilderUnion's for VectorInnerProdExprBuilder
         + vector_exprs.rs:
