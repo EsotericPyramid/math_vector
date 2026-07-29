@@ -50,6 +50,28 @@ pub trait ConcreteVectorExpr: VectorOps + IndexMut<usize> where
     fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy;
 }
 
+macro_rules! impl_eq_for_expr_wrapper {
+    (
+        {$type:ident $(: $($vec_bounds:tt)+)? $(, $($generics:tt)+)?} $vectorexpr:path $(where $($where_bound:tt)+)?
+    ) => {
+        impl<$type: PartialEq<V::Output> $( + $($vec_bounds)+)?, V: ConcreteVectorExpr, $($($generics)+)?> PartialEq<V> for $vectorexpr where
+            V::Unwrapped: Get<Item = V::Output>,
+            V::Output: Sized,
+            $($($where_bound)+)?
+        {
+            fn eq(&self, other: &V) -> bool {
+                let size = self.size();
+                if other.size() != size {return false;}
+                for i in 0..size {
+                    if self[i] != other[i] {return false;}
+                }
+                true
+            }
+        }
+
+        impl<$type: Eq $( + $($vec_bounds)+)?, $($($generics)+)?> Eq for $vectorexpr $(where $($where_bound)+)?{}
+    };
+}
 
 /// A const sized vector wrapper
 /// 
@@ -352,6 +374,8 @@ impl<T, const D: usize> ConcreteVectorExpr for MathVector<T, D> {
     }
 }
 
+impl_eq_for_expr_wrapper!({T, const D: usize} MathVector<T, D>);
+
 // used for VectorInPlaceEval
 impl<T, I, USEDV: VectorLike, const D: usize> Index<I> for VectorExpr<VecAttachUsedVec<VectorArray<T, D>, USEDV>, D>
 where
@@ -451,6 +475,15 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for VectorExpr<Vec
         self.borrow().copied()
     }
 }
+
+impl_eq_for_expr_wrapper!({T, USEDV: VectorLike, const D: usize} VectorExpr<VecAttachUsedVec<VectorArray<T, D>, USEDV>, D> where
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+);
 
 
 impl<T: MulAssign<S>, S: Copy, const D: usize> MulAssign<S> for MathVector<T, D> {
@@ -698,6 +731,8 @@ impl<T, const D: usize> ConcreteVectorExpr for HeapedMathVector<T, D> {
     }
 }
 
+impl_eq_for_expr_wrapper!({T, const D: usize} HeapedMathVector<T, D>);
+
 impl<T, I, USEDV: VectorLike, const D: usize> Index<I> for HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D>
 where
     [T; D]: Index<I>,
@@ -732,7 +767,6 @@ where
     }
 }
 
-
 impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D> where
     (N, USEDV::OutputBool): FilterPair,
     (N, USEDV::FstOwnedBufferBool): SelectPair,
@@ -763,6 +797,16 @@ impl<T, USEDV: VectorLike, const D: usize> ConcreteVectorExpr for HeapedVectorEx
         self.borrow().copied()
     }
 }
+
+impl_eq_for_expr_wrapper!({T, USEDV: VectorLike, const D: usize} HeapedVectorExpr<VecAttachUsedVec<Box<VectorArray<T, D>>, USEDV>, D> where
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+);
+
 
 /// a **R**untime **S**ized vector wrapper
 /// 
@@ -983,6 +1027,8 @@ impl<T> ConcreteVectorExpr for RSMathVector<T> {
     }
 }
 
+impl_eq_for_expr_wrapper!({T} RSMathVector<T>);
+
 /// formats this vector as a column vector with stylized unicode brackets
 /// 
 /// example:
@@ -1170,6 +1216,15 @@ impl<T, USEDV: VectorLike> ConcreteVectorExpr for RSVectorExpr<VecAttachUsedVec<
         self.borrow().copied()
     }
 }
+
+impl_eq_for_expr_wrapper!({T, USEDV: VectorLike} RSVectorExpr<VecAttachUsedVec<VectorSlice<T>, USEDV>> where 
+    (N, USEDV::OutputBool): FilterPair,
+    (N, USEDV::FstOwnedBufferBool): SelectPair,
+    (N, USEDV::SndOwnedBufferBool): SelectPair,
+    (N, USEDV::FstHandleBool): SelectPair,
+    (N, USEDV::SndHandleBool): SelectPair,
+    (N, USEDV::BoundHandlesBool): FilterPair,
+);
 
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathVector<T> {
     #[inline]
@@ -1371,6 +1426,24 @@ where
         }
     }
 }
+
+impl<V1: ConcreteVectorExpr + PartialEq<V2>, V2: ConcreteVectorExpr, IP: GenericInnerProduct> PartialEq<V2> for VectorInnerProdExpr<V1, IP> where 
+    V1::Unwrapped: Get<Item = V1::Output>,
+    V1::Output: Sized,
+    V2::Unwrapped: Get<Item = V2::Output>,
+    V2::Output: Sized,
+{
+    fn eq(&self, other: &V2) -> bool {
+        &*self == other
+    }
+}
+
+
+// note: the PartialEq bound isn't preferable but it doesn't really hurt
+impl<V: ConcreteVectorExpr + Eq + PartialEq<VectorInnerProdExpr<V, IP>>, IP: GenericInnerProduct> Eq for VectorInnerProdExpr<V, IP> where 
+    V::Unwrapped: Get<Item = V::Output>,
+    V::Output: Sized,
+{}
 
 impl<V: VectorOps, IP: GenericInnerProduct> VectorInnerProdOps for VectorInnerProdExpr<V, IP> {
     type InnerProd = IP;
