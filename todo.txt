@@ -59,7 +59,6 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - add eq / partial eq to concrete vector exprs
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
         ~? make the VectorExpr wrappers a singular type with a builder generic
