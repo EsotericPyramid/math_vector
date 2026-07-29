@@ -1,4 +1,5 @@
 //! A Library for lazily evaluated (where possible) linear algebra
+#![warn(missing_docs)]
 
 /// provides utilities for helping with trait specialization
 ///
@@ -46,8 +47,11 @@ pub mod trait_specialization_utils {
     /// A pair (ie. tuple w/ 2 elements) of boolean types
     /// can preform binary operators via the And, Or, and Xor Assoc types
     pub trait TyBoolPair {
+        /// the result of the boolean operation and (`&`)
         type And: TyBool;
+        /// the result of the boolean operation or (`|`)
         type Or: TyBool;
+        /// the result of the boolean operation xor (`^`)
         type Xor: TyBool;
     }
 

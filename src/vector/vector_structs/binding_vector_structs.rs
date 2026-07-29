@@ -365,6 +365,9 @@ pub struct VecHalfBind<V: VectorLike<FstHandleBool = Y>> {
 }
 
 impl<V: VectorLike<FstHandleBool = Y>> VecHalfBind<V> {
+    /// extracts the privately bound buffer within this type
+    /// 
+    /// Safety: has the same semantics as [`HasOutput::output`]
     pub unsafe fn get_bound_buf(&mut self) -> V::FstOwnedBuffer {
         unsafe { self.vec.get_1st_buffer() }
     }

@@ -69,10 +69,17 @@ pub trait VectorBuilder: Copy {
     }
 }
 
+/// A way for [`VectorBuilder`]s to allocate and initialize [`ConcreteVectorExpr`]s 
+/// 
+/// this is useful over just [`VectorBuilder`] as it can simplify types in a parametrized setting and 
+/// because it may also be more performant than consuming generator 
 pub trait InitializableVectorBuilder: VectorBuilder {
     // source code reader note: wonder why ConcreteInner is needed?, so do I.
-    //.     Good luck trying to write this w/o it, every time I tried it results in E0275
+    //     Good luck trying to write this w/o it, every time I tried it results in E0275
+
+    /// The [`VectorLike`] contained within the [`ConcreteVectorExpr`] ultimately produced
     type ConcreteInner<T: Sized>: VectorLike<Item = T>;
+    /// the [`ConcreteVectorExpr`] which is ultimately produced by the other methods 
     type Concrete<T: Sized>: ConcreteVectorExpr<Unwrapped = Self::ConcreteInner<T>, Builder = Self, Output = T>;
 
     /// *allocate* a Vector of this builder's size filled with copies of the given `filler`
@@ -100,8 +107,15 @@ pub trait InitializableVectorBuilder: VectorBuilder {
     }
 }
 
+/// an extension of [`InitializableVectorBuilder`] which allows for the creation of uninitialized [`ConcreteVectorExpr`]s
+/// 
+/// Safety: requires that `Self::Concrete<MaybeUninit<T>>` impls [`std::ops::IndexMut`] as you'd expect a contiguous array to (and correctly obv)
 pub unsafe trait UninitVectorBuilder: InitializableVectorBuilder {
+    /// allocate a new Vector with uninitialized content
     fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>>;
+    /// assumes that the contents of the vector is initialized so that it can be worked with normally
+    /// 
+    /// Safety: each of the contained MaybeUninit<T> (guaranteed accessible via [`std::ops::Index`])
     unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T>;
 }
 
@@ -220,6 +234,7 @@ unsafe impl<const D: usize> UninitVectorBuilder for HeapedVectorExprBuilder<D> {
 /// this is the builder equivalent of [`RSVectorExpr`]
 #[derive(Clone, Copy)]
 pub struct RSVectorExprBuilder {
+    /// the size of vectors which this builder will wrap
     pub size: usize,
 }
 

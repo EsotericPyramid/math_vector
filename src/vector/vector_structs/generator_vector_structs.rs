@@ -126,6 +126,7 @@ impl<F: FnMut(usize) -> O, O> HasReuseBuf for VecIndexGenerator<F, O> {
     unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+/// Struct generating a vector's items by copying the contained value
 pub struct VecFilled<T: Copy>(pub(crate) T);
 
 unsafe impl<T: Copy> Get for VecFilled<T> {

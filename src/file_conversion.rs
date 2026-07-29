@@ -1,3 +1,12 @@
+//! this module contains the traits [`IntoFileVector`] and [`FromFileVectorBuilder`] for converting into and from files
+//! 
+//! the specfic methods are each behind their own respective feature flag named after the file extension in question
+//! 
+//! currently, the supported file types are:
+//! - mtx
+//! - csv
+//! - hdf5
+
 #[cfg(feature = "mtx")]
 use matrix_merchant::{
     reader::*, 
@@ -30,13 +39,18 @@ use crate::vector::{
     vector_exprs::ConcreteVectorExpr,
 };
 
+/// Indicates that a type can be converted into a [`String`] and out of a [`String`] reliably
 pub trait AsText: Sized {
+    /// An user defined Error that can emitted from parsing from a [`String`]
     type Error: Error;
 
+    /// convert this type into its [`String`] equivalent
     fn as_text(&self) -> String;
+    /// convert this type into the raw bytes of its [`String`] equivalent
     fn as_text_utf8_bytes(&self) -> Vec<u8> {
         self.as_text().into_bytes()
     }
+    /// try to parse a [`String`] as this type
     fn from_text(text: &str) -> Result<Self, Self::Error>;
 }
 
@@ -89,17 +103,24 @@ impl<T: AsText> AsText for Complex<T> where Complex<T>: Display + FromStr, <Comp
     }
 }
 
+/// Indicates that a type can be converted into raw data and out of raw data reliably
 pub trait AsData: Sized {
+    /// An user defined Error that can emitted from parsing from raw data
     type Error: Error;
 
+    /// convert this type into raw bytes
     fn as_data(&self) -> Vec<u8>;
+    /// try to parse this type from raw bytes
     fn from_data(data: &[u8]) -> Result<Self, Self::Error>;
 }
 
+/// Indicates that this type implements [`AsData`] such that the raw data is always of the same size
 pub trait AsConstSizedData: AsData {
+    /// the size of this type's raw data
     const DATA_SIZE: usize;
 }
 
+/// A simple struct which impl's [`Error`] for cases when it is impossible for an error to occur but an [`Error`] type is still needed for a [`Result`]
 pub struct Infallible;
 
 impl std::fmt::Debug for Infallible {
@@ -116,12 +137,20 @@ impl Display for Infallible {
 
 impl Error for Infallible {}
 
+/// A simple struct which impl's [`Error`] for failed parsing when the given amount of data is insufficient / excessive
 pub enum IncorrectNumBytes{
+    /// the given data has a known length that it should have been
     SpecificSize{
+        /// the length expected
         expected: usize,
+        /// the length actually given
         found: usize,
     },
+    /// more data was expected but no more was found (and a specific amount more needed is unknown)
     Insufficient,
+    /// there was additional data that wasn't expected (and a specific amount of excesss data is unknown)
+    /// 
+    /// note: there may be very few cases where it makes sense to emit this versus [`Self::SpecificSize`]
     Excess,
 }
 
@@ -190,10 +219,17 @@ impl_AsData_for_nums!(
 
 #[derive(Debug)]
 #[cfg(feature = "csv")]
+/// A error containing all errors that can occur from converting into / from a csv file
+/// 
+/// FieldError is a generic to enable different errors depending on what the type of field attempted to be read
 pub enum CSVError<FieldError: Error> {
+    /// an error from the underlying csv backend (the `csv` crate)
     CSVError(csv::Error),
+    /// attempted to access a cell which is outside the bounds of the given csv
     CellOutOfBounds,
+    /// a paramatrized error caused from faulty parsing of a field in a csv
     FieldError(FieldError),
+    /// an error occured while manipulating the file itself
     FileError(io::Error),
 }
 
@@ -224,10 +260,15 @@ impl<FieldError: Error> Error for CSVError<FieldError> {}
 
 #[derive(Debug)]
 #[cfg(feature = "mtx")]
+/// A error containing all errors that can occur from converting into / from a mtx (matrix market) file
 pub enum MTXError {
+    /// the object being read can't be interpretted as a vector (ie. it isn't a 1 row or 1 column matrix)
     NonVector,
+    /// the field attempted to be read doesn't match the one present
     WrongType,
+    /// an error from the underlying mtx backend (the `matrix_merchant` crate)
     MTXError(matrix_merchant::Error),
+    /// an error occured while manipulating the file itself
     FileError(io::Error),
 }
 
@@ -290,8 +331,11 @@ impl<I: Iterator> Iterator for IterInsert<I> where I::Item: Clone {
 
 #[derive(Debug)]
 #[cfg(feature = "hdf5")]
+/// A error containing all errors that can occur from converting into / from a mtx (matrix market) file
 pub enum HDF5Error {
+    /// the file indicates a different sized object than expected
     WrongSize,
+    /// an error from the underlying mtx backend (the `hdf5` crate)
     HDF5Error(hdf5::Error)
 }
 
@@ -301,11 +345,25 @@ impl From<hdf5::Error> for HDF5Error {
     }
 }
 
+/// An extension trait for ConcreteVectorExpr to additionally convert them into various files
+/// 
+/// the specfic methods are each behind their own respective feature flag named after the file extension in question
+/// 
+/// currently, the supported file types are:
+/// - mtx
+/// - csv
+/// - hdf5
 pub trait IntoFileVector: ConcreteVectorExpr 
 where 
     Self::Unwrapped: Get<Item = Self::Output>,
     Self::Output: Sized,
 {
+    /// write this vector as a column in the csv file at `path`
+    /// 
+    /// the vector is written in the column `col` starting in the row `row_start` and then continuing downwards.
+    /// (note: `top_left_corner == (row = 0, col = 0)`)
+    /// 
+    /// note: this method should never result in a malformed file, if it fails, the file shouldn't change
     #[cfg(feature = "csv")]
     fn write_csv_column<P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
     where 
@@ -350,6 +408,12 @@ where
         Ok(())
     }
 
+    /// write this vector as a row in the csv file at `path`
+    /// 
+    /// the vector is written in the row `row` starting in the column `col_start` and then continuing downwards
+    /// (note: `top_left_corner == (row = 0, col = 0)`)
+    /// 
+    /// note: this method should never result in a malformed file, if it fails, the file shouldn't change
     #[cfg(feature = "csv")]
     fn write_csv_row<P: AsRef<Path>>(&self, path: P, row: usize, col_start: usize) -> Result<(), CSVError<<Self::Output as AsText>::Error>> 
     where 
@@ -399,6 +463,13 @@ where
         todo!()
     }
 
+    /// write this vector to the mtx (matrix market) file at `path`
+    /// 
+    /// additionally a comment can be added to file via the `comment` argument 
+    /// 
+    /// note: this method should never result in a malformed file, if it fails, the file shouldn't change
+    /// 
+    /// note: this method actually writes a nx1 matrix object to the file since the base mtx format supported by `matrix_merchant` doesn't support a separate vector object 
     #[cfg(feature = "mtx")]
     fn write_mtx<P: AsRef<Path>, C: AsRef<str>>(&self, path: P, comment: Option<C>) -> Result<(), MTXError> where Self::Output: matrix_merchant::Field {
         let temp_path = generate_tmp_file_path(&path);
@@ -412,6 +483,7 @@ where
         Ok(())
     }
 
+    /// write this vector to a hdf5 dataset
     #[cfg(feature = "hdf5")]
     fn write_hdf5_dataset(&self, dataset: &Dataset) -> Result<(), HDF5Error> where Self::Output: hdf5::H5Type + Clone {
         Ok(dataset.as_writer().write(&(0..self.size()).into_iter().map(|x| self[x].clone()).collect::<Vec<_>>())?)
@@ -429,6 +501,9 @@ where
 macro_rules! mtx_read_fns {
     ($($read_fn_name:ident $field_name:ident $ty:ty;)*) => {
         $(
+            /// read a vector from the mtx (matrix market) file at `path` with the correct field type
+            /// 
+            /// note: this method actually reads a nx1 matrix object to the file since the base mtx format supported by `matrix_merchant` doesn't support a separate vector object 
             fn $read_fn_name<P: AsRef<Path>>(&self, path: P) -> Result<Self::Concrete<$ty>, MTXError> where Self: UninitVectorBuilder {
                 let reader = MtxReader::new_reader(fs::File::open(path)?)?;
                 match reader.matrix().unwrap() {
@@ -491,9 +566,20 @@ macro_rules! mtx_read_fns {
     };
 }
 
+/// An extension trait for VectorBuilder to additionally build vectors from files
+/// 
+/// the specfic methods are each behind their own respective feature flag named after the file extension in question
+/// 
+/// currently, the supported file types are:
+/// - mtx
+/// - csv
+/// - hdf5
 pub trait FromFileVectorBuilder: VectorBuilder {
     #[cfg(feature = "csv")]
-    /// top left corner == (row = 0, col = 0), vector is read top down
+    /// read a column vector from the csv file at `path`
+    /// 
+    /// the vector is read from the column `col` starting from the row `row_start` and then continuing downwards.
+    /// (note: `top_left_corner == (row = 0, col = 0)`)
     fn read_csv_column<T: AsText, P: AsRef<Path>>(&self, path: P, row_start: usize, col: usize) -> Result<Self::Concrete<T>, CSVError<T::Error>> where 
         Self: UninitVectorBuilder,
     {
@@ -544,6 +630,10 @@ pub trait FromFileVectorBuilder: VectorBuilder {
     }
 
     #[cfg(feature = "csv")]
+    /// read a row vector from the csv file at `path`
+    /// 
+    /// the vector is read from the row `row` starting from the column `col_start` and then continuing downwards.
+    /// (note: `top_left_corner == (row = 0, col = 0)`)
     fn read_csv_row<T: AsText, P: AsRef<Path>>(&self, path: P, row: usize, col_start: usize) -> Result<Self::Concrete<T>, CSVError<T::Error>> where 
         Self: UninitVectorBuilder,
     {
@@ -596,6 +686,7 @@ pub trait FromFileVectorBuilder: VectorBuilder {
     );
 
     #[cfg(feature = "hdf5")]
+    /// read a vector from the given hdf5 dataset
     fn read_hdf5_dataset<T: hdf5::H5Type>(&self, dataset: &Dataset) -> Result<Self::Concrete<T>, HDF5Error> where Self: UninitVectorBuilder {
         let data = dataset.read_1d()?;
         if data.len() != self.size() {

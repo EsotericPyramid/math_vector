@@ -59,6 +59,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - check the naming of euclidean inner product
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
         ~? make the VectorExpr wrappers a singular type with a builder generic
@@ -88,6 +89,7 @@ To Do's:
             ? change the Display impl to a Debug (Pretty Print) impl
         + vector_structs.rs:
         + vector_math.rs:
+            ? remove eager_inner_product
             ~X add type defaults to ConcreteVectorExpr::{Referenced, ReferencedMut, Copied}
             X let InnerProduct take in Item = &F or &mut F
             X move the InnerProduct's vector generics out of the trait def and into the fn def
@@ -98,6 +100,11 @@ To Do's:
             - add eigenvalue / eigenvector algorithms (+ diagonalizing)
     + tests.rs:
         - improve test suite, needs more *unit* tests, most currently just test that everything works on compile or benchmark performance
+    + file_conversion.rs:
+        ? change IntoFileVector to only require VectorOps
+        - add matrix conversions
+        X turn the FromFileVectorBuilder methods into assoc fns
+            - requires a VectorBuilder size request fn
 
 Fix Me's:
 + lib.rs:

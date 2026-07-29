@@ -29,6 +29,7 @@ pub use slice_vector_structs::*;
 pub struct VectorArray<T, const D: usize>(pub(crate) ManuallyDrop<[T; D]>);
 
 impl<T, const D: usize> VectorArray<T, D> {
+    /// unwraps this into raw array it contains
     #[inline]
     pub fn unwrap(self) -> [T; D] {
         ManuallyDrop::into_inner(self.0)
@@ -295,6 +296,7 @@ impl<T, const D: usize> HasReuseBuf for &mut [T; D] {
 }
 
 #[repr(transparent)]
+/// an owned slice rigged up to manually drop via the VectorLike traits
 pub struct VectorSlice<T>(pub(crate) Box<ManuallyDrop<[T]>>);
 
 impl<T: Clone> Clone for VectorSlice<T> {
@@ -308,6 +310,7 @@ impl<T: Clone> Clone for VectorSlice<T> {
 }
 
 impl<T> VectorSlice<T> {
+    /// unwraps this into raw `Box<[T]>` it contains
     #[inline]
     pub fn unwrap(self) -> Box<[T]> {
         unsafe { std::mem::transmute::<Box<ManuallyDrop<[T]>>, Box<[T]>>(self.0) }

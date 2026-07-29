@@ -17,6 +17,7 @@ use crate::{
     },
 };
 
+/// A struct representing the multiplication of a matrix by a vector
 pub struct MatVecMul<M: MatrixLike, V: VectorLike + IsRepeatable, B: VectorBuilder, O> {
     pub(crate) mat: MatRowVectorExprs<M>,
     pub(crate) vec: V,
@@ -154,6 +155,7 @@ impl<M: MatrixLike, V: VectorLike + IsRepeatable, B: VectorBuilder, O> HasReuseB
     }
 }
 
+/// A struct representing the multiplication of a vector by a matrix
 pub struct VecMatMul<V: VectorLike + IsRepeatable, M: MatrixLike, B: VectorBuilder, O> {
     pub(crate) vec: V,
     pub(crate) mat: MatColVectorExprs<M>,

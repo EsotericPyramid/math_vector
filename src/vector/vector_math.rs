@@ -1,3 +1,8 @@
+//! A collection of more in depth mathematical methods
+//! 
+//! These methods are relegated to here either because they aren't commonly needed
+//! or because they aren't implemented fully lazily
+
 use crate::{
     trait_specialization_utils::*, 
     util_traits::HasOutput, 
@@ -15,13 +20,16 @@ use crate::{
 use std::ops::Index;
 use alga::general::{ComplexField, RealField};
 
-/// implies that the implementor implements InnerProduct<F> for some F
+/// a helper trait that implies that the implementor implements InnerProduct<F> for some F
 pub trait GenericInnerProduct: Copy {}
 
-/// really implementors of this should be ZSTs
+/// A trait defining a [inner product](https://en.wikipedia.org/wiki/Inner_product_space) between 2 vectors
+/// 
+/// note: many of these methods involve evaluation
 pub trait InnerProduct<F: ComplexField>: GenericInnerProduct
 where 
 {
+    /// the inner [`VectorLike`] which preforms the inner product between `V1` and `V2`
     type InnerProductInner<V1: VectorOps, V2: VectorOps>: VectorLike where 
         V1::Unwrapped: Get<Item = F>,
         V2::Unwrapped: Get<Item = F>,
@@ -34,6 +42,7 @@ where
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
     ;
 
+    /// calculate the inner product bewteen `lhs_vector` and `rhs_vector`
     fn inner_prod<V1: VectorOps, V2: VectorOps>(lhs_vector: V1, rhs_vector: V2) -> 
         <<V1::Builder as VectorBuilderUnion<V2::Builder>>::Union as VectorBuilder>::Wrapped<Self::InnerProductInner<V1, V2>>
     where
@@ -49,6 +58,7 @@ where
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y): FilterPair,
     ;
 
+    /// eagerly calculate the inner product bewteen `lhs_vector` and `rhs_vector`
     #[inline]
     fn eager_inner_prod<V1: VectorOps, V2: VectorOps>(lhs_vector: V1, rhs_vector: V2) -> <
         (<(<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
@@ -88,6 +98,9 @@ where
         Self::inner_prod(lhs_vector, rhs_vector).consume()
     }
 
+    /// eagerly calculate the inner product bewteen `lhs_vector` and `rhs_vector` while cleanly keeping the outputs and result of the inner product separate
+    /// 
+    /// That makes it much better suited for parametrized situations
     #[inline]
     fn raw_eager_inner_prod<V1: VectorOps, V2: VectorOps>(lhs_vector: V1, rhs_vector: V2) -> (<
         (<V1::Unwrapped as HasOutput>::OutputBool, <V2::Unwrapped as HasOutput>::OutputBool) as FilterPair
@@ -123,6 +136,7 @@ where
     }    
 }
 
+/// an struct implementing [`InnerProduct`] for the typical dot product
 #[derive(Clone, Copy)]
 pub struct DotProduct;
 
@@ -160,6 +174,7 @@ impl<F: ComplexField + RealField> InnerProduct<F> for DotProduct {
     }
 }
 
+/// an struct implementing [`InnerProduct`] in the typical way for [complex vectors](https://en.wikipedia.org/wiki/Dot_product#Complex_vectors)
 #[derive(Clone, Copy)]
 pub struct EuclideanInnerProduct;
 
@@ -197,9 +212,12 @@ impl<F: ComplexField> InnerProduct<F> for EuclideanInnerProduct {
     }
 }
 
+/// an extension of [`VectorOps`] for vector exprs which have inner products
 pub trait VectorInnerProdOps: VectorOps {
+    /// the inner product type of the implementor
     type InnerProd: GenericInnerProduct;
 
+    /// perform the inner product between `self` and another vector
     #[inline]
     fn inner_prod<V: VectorInnerProdOps<InnerProd = Self::InnerProd>, F: ComplexField>(self, other: V) -> 
         <<Self::Builder as VectorBuilderUnion<V::Builder>>::Union as VectorBuilder>::Wrapped<<Self::InnerProd as InnerProduct<F>>::InnerProductInner<Self, V>>
@@ -219,6 +237,7 @@ pub trait VectorInnerProdOps: VectorOps {
         <Self::InnerProd as InnerProduct<F>>::inner_prod(self, other)
     } 
 
+    /// eagerly performs the inner product between `self` and another vector
     #[inline]
     fn eager_inner_prod<V: VectorInnerProdOps<InnerProd = Self::InnerProd>, F: ComplexField>(self, other: V) -> <
         (<(<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool) as TyBoolPair>::Or, Y) as FilterPair
@@ -259,6 +278,9 @@ pub trait VectorInnerProdOps: VectorOps {
         <Self::InnerProd as InnerProduct<F>>::eager_inner_prod(self, other)
     } 
 
+    /// eagerly performs the inner product between `self` and another vector while cleanly keeping the outputs and result of the inner product separate
+    /// 
+    /// That makes it much better suited for parametrized situations
     #[inline]
     fn raw_eager_inner_prod<V: VectorInnerProdOps<InnerProd = Self::InnerProd>, F: ComplexField>(self, other: V) -> (<
         (<Self::Unwrapped as HasOutput>::OutputBool, <V::Unwrapped as HasOutput>::OutputBool) as FilterPair
@@ -294,6 +316,9 @@ pub trait VectorInnerProdOps: VectorOps {
         <Self::InnerProd as InnerProduct<F>>::raw_eager_inner_prod(self, other)
     }
      
+    /// projects this vector onto `onto`
+    /// 
+    /// note: this eagerly evaluates this vector
     #[inline]
     fn proj<'a, V: VectorInnerProdOps<InnerProd = Self::InnerProd> + ConcreteVectorExpr + 'a, F: ComplexField + 'a>(self, onto: &'a V) -> <
         <V::Copied<'a> as VectorOps>::Builder as VectorBuilder
@@ -351,6 +376,9 @@ pub trait VectorInnerProdOps: VectorOps {
         onto.copy().mul_r(proj_mag).maybe_attach_output(output)
     }
 
+    /// gets the orthogonal part of this vector with `with`
+    /// 
+    /// note: this eagerly evaluates this vector
     #[inline]
     fn orthogonal_part<'a, V: VectorInnerProdOps<InnerProd = Self::InnerProd> + ConcreteVectorExpr + 'a, F: ComplexField + 'a>(&'a self, with: &'a V) -> <
         <<Self::Copied<'a> as VectorOps>::Builder as VectorBuilderUnion<<V::Copied<'a> as VectorOps>::Builder>>::Union as VectorBuilder

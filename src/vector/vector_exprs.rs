@@ -1,3 +1,5 @@
+//! a module containing all the VectorExpr wrappers which turn [`VectorLike`]s into proper VectorExprs which impl [`VectorOps`] and associated traits
+
 use crate::{
     trait_specialization_utils::*,
     util_traits::HasOutput,
@@ -82,6 +84,8 @@ pub struct VectorExpr<V: VectorLike, const D: usize>(pub(crate) V); // note: Vec
 
 impl<V: VectorLike, const D: usize> VectorExpr<V, D> {
     #[inline]
+
+    /// convert back to a [`HeapedVectorExpr`] which auto allocates buffers on the heap
     pub fn heaped(self) -> HeapedVectorExpr<V, D> {
         HeapedVectorExpr(self)
     }    
@@ -163,7 +167,9 @@ where
 }
 
 
-/// a simple type alias for a VectorExpr created from an array of type [T; D]
+/// a simple type alias for a [`VectorExpr`] created from an array of type `[T; D]`
+/// 
+/// note: for unsafe purposes, this has the same memory layout as `[T; D]`
 pub type MathVector<T, const D: usize> = VectorExpr<VectorArray<T, D>, D>;
 
 impl<T, const D: usize> MathVector<T, D> {
@@ -584,9 +590,11 @@ impl<T: std::fmt::Display, const D: usize> std::fmt::Display for MathVector<T, D
 }
 
 #[repr(transparent)]
+/// a modification of [`VectorExpr`] which hints that new buffers should be allocated on the heap and not the stack
 pub struct HeapedVectorExpr<V: VectorLike, const D: usize>(pub(crate) VectorExpr<V, D>);
 
 impl<V: VectorLike, const D: usize> HeapedVectorExpr<V, D> {
+    /// convert back to a [`VectorExpr`] which doesn't auto allocate buffers on the heap
     #[inline]
     pub fn unheaped(self) -> VectorExpr<V, D> {
         self.0
@@ -634,9 +642,15 @@ where
     }
 }
 
+/// a simple type alias for a [`VectorExpr`] created from an array of type `Box<[T; D]>`
+/// 
+/// note: for unsafe purposes, this has the same memory layout as `Box<[T; D]>`
 pub type HeapedMathVector<T, const D: usize> = HeapedVectorExpr<Box<VectorArray<T, D>>, D>;
 
 impl<T, const D: usize> HeapedMathVector<T, D> {
+    /// marks this [`HeapedMathVector`] to have its buffer reused
+    /// 
+    /// buffer placed on the first buffer
     #[inline]
     pub fn reuse(self) -> HeapedVectorExpr<HeapedReplaceArray<T, D>, D> {
         HeapedVectorExpr(VectorExpr(
@@ -877,6 +891,9 @@ where
     }
 }
 
+/// a simple type alias for a [`RSVectorExpr`] created from an array of type `Box<[T]>`
+/// 
+/// note: for unsafe purposes, this **DOESN'T** have a memory layout equivalent to `Box<[T]>` unlike [`VectorExpr`]
 pub type RSMathVector<T> = RSVectorExpr<VectorSlice<T>>;
 
 impl<T> RSMathVector<T> {
@@ -1043,6 +1060,11 @@ impl<T: std::fmt::Display> std::fmt::Display for RSMathVector<T> {
     }
 }
 
+/// a simple type alias for a [`RSVectorExpr`] created from an array of type `&[T]`
+/// 
+/// note: this is very similar to a `&RSMathVector`
+/// 
+/// note: for unsafe purposes, this **DOESN'T** have a memory layout equivalent to `&[T]` unlike [`VectorExpr`]
 pub type RefRSMathVector<'a, T> = RSVectorExpr<&'a [T]>;
 
 impl<'a, T> From<&'a [T]> for RefRSMathVector<'a, T> {
@@ -1106,10 +1128,16 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefRSMathVector<'a, T> {
     }
 }
 
+/// a simple type alias for a [`RSVectorExpr`] created from an array of type `&mut [T]`
+/// 
+/// note: this is very similar to a `&mut RSMathVector`
+/// 
+/// note: for unsafe purposes, this **DOESN'T** have a memory layout equivalent to `&mut [T]` unlike [`VectorExpr`]
 pub type RefMutRSMathVector<'a, T> = RSVectorExpr<&'a mut [T]>;
 
 impl<'a, T> RefMutRSMathVector<'a, T> {
-    pub fn deref<'b: 'a>(&'b self) -> RefRSMathVector<'a, T> {
+    /// converts this [`RefMutRSMathVector`] into a [`RefRSMathVector`]
+    pub fn as_ref<'b: 'a>(&'b self) -> RefRSMathVector<'a, T> {
         RSVectorExpr {
             vec: self.vec,
             size: self.size,
@@ -1287,7 +1315,7 @@ impl<T: SubAssign<<V::Unwrapped as Get>::Item>, V: VectorOps> SubAssign<V> for R
 /// ```
 impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.deref().fmt(f)
+        self.as_ref().fmt(f)
     }
 }
 
