@@ -42,6 +42,11 @@ pub struct MatrixEntryIter<M: MatrixLike> {
 }
 
 impl<M: MatrixLike> MatrixEntryIter<M> {
+    /// constructs a new [`MatrixEntryIter`] from its raw parts: an inner [`MatrixLike`] and a [`MatrixBuilder`] (for the wrapper)
+    /// 
+    /// SAFETY:
+    /// the inner [`MatrixLike`] must have the same size as indicated by the builder
+    /// (or in the case of [`MatEntryMap`] simply be compatible with it)
     #[inline]
     pub unsafe fn new_from_parts<B: MatrixBuilder>(mat: M, builder: B) -> Self {
         let (num_rows, num_cols) = builder.dimensions();
@@ -1579,7 +1584,9 @@ pub trait RepeatableMatrixOps: MatrixOps {
         ) as TyBoolPair>::Or: IsTrue;
 }
 
+/// a trait enabling a matrix to be evaluated
 pub trait MatrixEvalOps: MatrixOps {
+    /// a [`MatrixLike`] which generates a buffer as needed to capture the matrix's items
     type MaybeCreateBuffer<M: MatrixLike>: MatrixLike<FstHandleBool = Y>
     where
         <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
@@ -1592,6 +1599,8 @@ pub trait MatrixEvalOps: MatrixOps {
             <<M as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
         ): TyBoolPair;
 
+    
+    /// create a buffer as needed to capture the matrix's items
     fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
     where
         <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,

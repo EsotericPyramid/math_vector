@@ -1,3 +1,6 @@
+//! a module containing all the MatrixExpr wrappers which turn [`MatrixLike`]s into proper matrix exprs which impl [`MatrixOps`] and associated traits
+
+
 use crate::{
     trait_specialization_utils::*,
     util_traits::HasOutput,
@@ -51,6 +54,7 @@ pub trait ConcreteMatrixExpr: MatrixOps + IndexMut<usize> where
 }
 
 /// A const sized matrix wrapper
+/// 
 /// D1: # rows (dimension of vectors), D2: # columns (# of vectors)
 // MatrixExpr assumes that the stored MatrixLike is fully unused
 #[repr(transparent)]
@@ -244,6 +248,8 @@ impl<T, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
 }
 
 impl<T: alga::general::Field + Copy, const D1: usize, const D2: usize> MathMatrix<T, D1, D2> {
+    // todo: add wikipedia link
+    /// converts this matrix into reduced row echelon form in place
     pub fn rref(&mut self) {
         use std::cmp::min;
         use std::collections::HashMap;
@@ -347,11 +353,18 @@ impl<T: alga::general::Field + Copy, const D1: usize, const D2: usize> MathMatri
         out
     }
 
+    // FIXME?: is using #[inline(always)] a good idea here
+    /// calculates the determinant of this matrix
+    /// 
+    /// note: see [`Self::det_heap`] if this is causing stack overflows
     #[inline(always)]
     pub fn det(mut self) -> T {
         self.det_inner()
     }
 
+    /// calculates the determinant of this matrix
+    /// 
+    /// note: equivalent to [`Self::det`], it just has a different signature
     #[inline(always)]
     #[allow(clippy::boxed_local)] //the box is needed to keep it on the heap
     pub fn det_heap(mut self: Box<Self>) -> T {
@@ -689,6 +702,9 @@ impl<T: std::fmt::Display, const D1: usize, const D2: usize> std::fmt::Display
 
 
 #[derive(Clone)]
+/// A const sized matrix wrapper
+/// 
+/// D1: # rows (dimension of vectors), D2: # columns (# of vectors)
 pub struct RSMatrixExpr<M: MatrixLike> {
     pub(crate) mat: M,
     pub(crate) num_rows: usize,
@@ -696,6 +712,9 @@ pub struct RSMatrixExpr<M: MatrixLike> {
 }
 
 impl<M: MatrixLike> RSMatrixExpr<M> {
+    /// attempts to convert this matrix into a const sized [`MatrixExpr`]
+    /// 
+    /// this will panic if this matrix isn't the const size requested
     #[inline]
     pub fn const_sized<const D1: usize, const D2: usize>(self) -> MatrixExpr<M, D1, D2> {
         todo!()
@@ -733,11 +752,13 @@ impl<M: MatrixLike> Drop for RSMatrixExpr<M> {
     }
 }
 
+/// A simple type alias for a RSMatrixExpr created from a dope slice
 pub type RSMathDopeMatrix<T> = RSMatrixExpr<MatrixDopeSlice<T>>;
 
 impl<T> RSMathDopeMatrix<T> {
     //TODO: add missing fns
 
+    #[allow(missing_docs)]
     #[inline]
     pub fn borrow(&self) -> RefRSMathDopeMatrix<'_, T> {
         let num_rows = self.num_rows;
@@ -752,6 +773,7 @@ impl<T> RSMathDopeMatrix<T> {
         }
     }
 
+    #[allow(missing_docs)]
     #[inline]
     pub fn borrow_mut(&mut self) -> RefMutRSMathDopeMatrix<'_, T> {
         let num_rows = self.num_rows;
@@ -900,6 +922,9 @@ where
     }
 }
 
+/// A simple type alias for a RSMatrixExpr created from a referenced dope slice
+/// 
+/// this can be created from a `&RSMathDopeMatrix` via [`RSMatrixExpr::borrow`] but not vice versa
 pub type RefRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMatrixDopeSlice<'a, T>>;
 
 // TODO if possible: `From` impl's (bc any normal 2d structure like Vec<Vec<T>> just doesn't have such a contiguous slice to use)
@@ -914,6 +939,9 @@ impl<'a, T> Index<usize> for RefRSMathDopeMatrix<'a, T> {
     }
 } 
 
+/// A simple type alias for a RSMatrixExpr created from a mutably referenced dope slice
+/// 
+/// this can be created from a `&mut RSMathDopeMatrix` via [`RSMatrixExpr::borrow_mut`] but not vice versa
 pub type RefMutRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMutMatrixDopeSlice<'a, T>>;
 
 // TODO if possible: `From` impl's
@@ -936,15 +964,21 @@ impl<'a, T> IndexMut<usize> for RefMutRSMathDopeMatrix<'a, T> {
     }
 }
 
+/// A simple type alias for a RSMatrixExpr created from an iliffe slice (ie. `Box<[Box<[T]>]>`)
 pub type RSMathIliffeMatrix<T> = RSMatrixExpr<MatrixIliffeSlice<T>>;
+/// A simple type alias for a RSMatrixExpr created from an douby referenced iliffe slice (ie. `&[&[T]]`)
 pub type RefRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a [&'a [T]]>;
+/// A simple type alias for a RSMatrixExpr created from an referenced and inner boxed iliffe slice (ie. `&[Box<[T]>]`)
 pub type RefBoxRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a [Box<[T]>]>;
+/// A simple type alias for a RSMatrixExpr created from an doubly mutably referenced iliffe slice (ie. `&mut [&mut [T]]`)
 pub type RefMutRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a mut [&'a mut [T]]>;
+/// A simple type alias for a RSMatrixExpr created from an mutably referenced and inner boxed iliffe slice (ie. `&mut [Box<[T]>]`)
 pub type RefMutBoxRSMathIliffeMatrix<'a, T> = RSMatrixExpr<&'a mut [Box<[T]>]>;
 
 impl<T> RSMathIliffeMatrix<T> {
     //TODO: add missing fns
 
+    #[allow(missing_docs)]
     #[inline]
     pub fn borrow(&self) -> RefBoxRSMathIliffeMatrix<'_, T> {
         let num_rows = self.num_rows;
@@ -956,6 +990,7 @@ impl<T> RSMathIliffeMatrix<T> {
         }
     }
 
+    #[allow(missing_docs)]
     #[inline]
     pub fn borrow_mut(&mut self) -> RefMutBoxRSMathIliffeMatrix<'_, T> {
         let num_rows = self.num_rows;

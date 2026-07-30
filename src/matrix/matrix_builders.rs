@@ -15,8 +15,9 @@ use crate::{
 
 
 /// A way for a type to "build" wrappers around MatrixLikes which encode sizing information
+/// 
 /// or in other words, implementors carry minimal sizing information which can be applied to MatrixLikes
-pub trait MatrixBuilder: Clone {
+pub trait MatrixBuilder: Copy{
     /// wrapper directly indicated by this builder
     type MatrixWrapped<T: MatrixLike>: MatrixOps<Unwrapped = T, Builder = Self>;
     /// transposition of the wrapper indicated
@@ -99,10 +100,16 @@ pub trait MatrixBuilderCompose<T: VectorBuilder>: VectorBuilder {
 
 
 /// a simple const sized MatrixBuilder
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct MatrixExprBuilder<const D1: usize, const D2: usize>;
 
 impl<const D1: usize, const D2: usize> MatrixExprBuilder<D1, D2> {
+    /// Create a new [`MatrixExprBuilder`]
+    /// 
+    /// the sizing isn't expressed in this function but rather in the type calling it or in the type returned.
+    /// so, to generate a dimension 10x20 builder, use `MatrixExprBuilder::<10, 20>::new()`
+    /// 
+    /// note: since this struct has no fields, it is equivalent to simply use `MatrixExprBuilder::<10, 20>`
     pub fn new() -> Self {MatrixExprBuilder}
 }
 
@@ -153,13 +160,17 @@ impl<const D1: usize, const D2: usize> MatrixBuilderCompose<VectorExprBuilder<D2
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
+/// a simple runtime sized [`MatrixBuilder`]
 pub struct RSMatrixExprBuilder{
+    /// the number of rows in built matrices
     pub num_rows: usize,
+    /// the number of columnss in built matrices
     pub num_cols: usize,
 }
 
 impl RSMatrixExprBuilder {
+    /// Create a new [`RSMatrixExprBuilder`] with the given size
     pub fn new(num_rows: usize, num_cols: usize) -> Self {
         RSMatrixExprBuilder { num_rows, num_cols }
     }

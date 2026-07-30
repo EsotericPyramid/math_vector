@@ -139,6 +139,7 @@ impl<F: FnMut(usize, usize) -> O, O> Has2DReuseBuf for MatIndexGenerator<F, O> {
     unsafe fn drop_bound_bufs_index(&mut self, _: usize, _: usize) {}
 }
 
+/// a generator for the identity matrix
 pub struct MatIdentityGenerator<T: Copy> {
     pub(crate) zero: T,
     pub(crate) one: T,

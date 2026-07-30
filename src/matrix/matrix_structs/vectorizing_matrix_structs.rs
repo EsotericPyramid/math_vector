@@ -8,6 +8,7 @@ use crate::{
     vector::vec_util_traits::*,
 };
 
+/// a helper struct which wraps its items with the column wrappers of the given [`MatrixBuilder`]
 pub struct MatColWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> {
     pub(crate) mat: M,
     pub(crate) builder: Wrap,
@@ -117,6 +118,7 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf
     }
 }
 
+/// a helper struct which wraps its items with the row wrappers of the given [`MatrixBuilder`]
 pub struct MatRowWrapper<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> {
     pub(crate) mat: M,
     pub(crate) builder: Wrap,
@@ -226,6 +228,7 @@ impl<M: VectorLike<Item = V>, V: VectorLike, Wrap: MatrixBuilder> HasReuseBuf
     }
 }
 
+/// a [`VectorLike`] created from a column of a [`MatrixLike`]
 pub struct MatrixColumn<M: MatrixLike> {
     pub(crate) mat: *mut M,
     pub(crate) column_num: usize,
@@ -303,6 +306,7 @@ impl<M: MatrixLike> HasReuseBuf for MatrixColumn<M> {
     }
 }
 
+/// a struct which takes a [`MatrixLike`] and breaks it into [`VectorLike`]s of its columns
 pub struct MatColVectorExprs<M: MatrixLike> {
     pub(crate) mat: M,
 }
@@ -377,6 +381,8 @@ impl<M: MatrixLike> HasReuseBuf for MatColVectorExprs<M> {
     unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+
+/// a [`VectorLike`] created from a row of a [`MatrixLike`]
 pub struct MatrixRow<M: MatrixLike> {
     pub(crate) mat: *mut M,
     pub(crate) row_num: usize,
@@ -454,6 +460,7 @@ impl<M: MatrixLike> HasReuseBuf for MatrixRow<M> {
     }
 }
 
+/// a struct which takes a [`MatrixLike`] and breaks it into [`VectorLike`]s of its rows
 pub struct MatRowVectorExprs<M: MatrixLike> {
     pub(crate) mat: M,
 }

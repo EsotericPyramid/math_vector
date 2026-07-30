@@ -20,6 +20,14 @@ use crate::{
 pub unsafe trait Get2D {
     /// can you actually get something from this type (ie. is Item not a ZST?)
     type GetBool: TyBool;
+    /// is it preferential for the inputs to be read in a "transposed" manner
+    /// 
+    /// since this library is based on column majored matrices, this is the same
+    /// as asking if the matrix is preferential to be read in a row majored order
+    /// 
+    /// note: this is just preference, it is always legal to get inputs in any order, if ineficient
+    /// 
+    /// note: as far as I'm aware this isn't currently used anywhere (as of 7/30/26)
     type AreInputsTransposed: TyBool; // used to optimize access order
     /// the inputs for `process` retrieved via `get_inputs`
     type Inputs;
@@ -92,8 +100,32 @@ pub trait Has2DReuseBuf {
     type FstOwnedBufferBool: TyBool;
     /// is the second buffer owned by this type
     type SndOwnedBufferBool: TyBool;
+    /// is it preferential for the first buffer's indices to be read in a "transposed" manner
+    /// 
+    /// since this library is based on column majored matrices, this is the same
+    /// as asking if the matrix is preferential to be read in a row majored order
+    /// 
+    /// note: this is just preference, it is always legal to read them in any order, if ineficient
+    /// 
+    /// note: as far as I'm aware this isn't currently used anywhere (as of 7/30/26)
     type IsFstBufferTransposed: TyBool;
+    /// is it preferential for the second buffer's indices to be read in a "transposed" manner
+    /// 
+    /// since this library is based on column majored matrices, this is the same
+    /// as asking if the matrix is preferential to be read in a row majored order
+    /// 
+    /// note: this is just preference, it is always legal to read them in any order, if ineficient
+    /// 
+    /// note: as far as I'm aware this isn't currently used anywhere (as of 7/30/26)
     type IsSndBufferTransposed: TyBool;
+    /// is it preferential for the bound buffer's indices to be read in a "transposed" manner
+    /// 
+    /// since this library is based on column majored matrices, this is the same
+    /// as asking if the matrix is preferential to be read in a row majored order
+    /// 
+    /// note: this is just preference, it is always legal to read them in any order, if ineficient
+    /// 
+    /// note: as far as I'm aware this isn't currently used anywhere (as of 7/30/26)
     type AreBoundBuffersTransposed: TyBool;
     /// the type of the buffer in the first slot (should be a ZST if no buffer or not owned)
     type FstOwnedBuffer;

@@ -87,6 +87,7 @@ pub struct MatrixArray<T, const D1: usize, const D2: usize>(
 );
 
 impl<T, const D1: usize, const D2: usize> MatrixArray<T, D1, D2> {
+    /// convert this [`MatrixArray`] into the underlying array
     #[inline]
     pub fn unwrap(self) -> [[T; D1]; D2] {
         ManuallyDrop::into_inner(self.0)
@@ -245,19 +246,29 @@ Has2DReuseBuf_non_impl!(impl<{T, const D1: usize, const D2: usize}> &mut [[T; D1
 
 
 #[repr(transparent)]
+/// an owned 2d iliffe slice rigged up to manually drop via the MatrixLike traits
 pub struct MatrixIliffeSlice<T>(pub(crate) Box<[Box<[ManuallyDrop<T>]>]>);
 
 impl<T> MatrixIliffeSlice<T> {
+    /// borrow the underlying slice
+    /// 
+    /// note: this is different from just borrowing the deref since it avoids a inner ManuallyDrop thats annoying to deal with
     #[inline]
     pub fn borrow<'a>(&'a self) -> &'a [Box<[T]>] {
         unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&*self.0) }
     }
 
+    /// mutably borrow the underlying slice
+    /// 
+    /// note: this is different from just borrowing the deref since it avoids a inner ManuallyDrop thats annoying to deal with
     #[inline]
     pub fn borrow_mut<'a>(&'a mut self) -> &'a mut [Box<[T]>] {
         unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut *self.0) }
     }
 
+    /// extract the underlying slice
+    /// 
+    /// note: this is different from just dereffing since it avoids a inner ManuallyDrop thats annoying to deal with
     #[inline]
     pub fn unwrap(self) -> Box<[Box<[T]>]> {
         unsafe { std::mem::transmute::<Box<[Box<[ManuallyDrop<T>]>]>, Box<[Box<[T]>]>>(self.0)}
@@ -318,6 +329,7 @@ unsafe impl<T: Copy> Is2DRepeatable for MatrixIliffeSlice<T> {}
 HasOutput_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
 Has2DReuseBuf_non_impl!(impl<{T}> MatrixIliffeSlice<T>);
 
+/// an owned 2d iliffe slice returning references to its items and which is rigged up to manually drop via the MatrixLike traits
 pub struct ReferringMatrixIliffeSlice<'a, T>(
     pub(crate) Box<[Box<[T]>]>,
     pub(crate) PhantomData<&'a T>,
@@ -402,9 +414,11 @@ unsafe impl<'a, T: 'a, S: DerefMut<Target = [T]>> Get2D for &'a mut [S] {
 Has2DReuseBuf_non_impl!(impl<{'a, T: 'a, S: DerefMut<Target = [T]>}> &'a mut [S]);
 
 
+/// an owned 2d dope slice rigged up to manually drop via the MatrixLike traits
 pub struct MatrixDopeSlice<T>{pub(crate) mat: Box<[ManuallyDrop<T>]>, pub(crate) height: usize}
 
 impl<T> MatrixDopeSlice<T> {
+    /// borrow the underlying slice
     pub fn borrow<'a>(&'a self) -> RefMatrixDopeSlice<'a, T> {
         RefMatrixDopeSlice { 
             mat: unsafe { std::mem::transmute::<&'a [ManuallyDrop<T>], &'a [T]>(&*self.mat) }, 
@@ -412,6 +426,7 @@ impl<T> MatrixDopeSlice<T> {
         }
     }
 
+    /// mutably borrow the underlying slice
     pub fn borrow_mut<'a>(&'a mut self) -> RefMutMatrixDopeSlice<'a, T> {
         RefMutMatrixDopeSlice{
             mat: unsafe { transmute::<&mut [ManuallyDrop<T>], &mut [T]>(&mut *self.mat) },
@@ -451,6 +466,7 @@ unsafe impl<T: Copy> Is2DRepeatable for MatrixDopeSlice<T> {}
 HasOutput_non_impl!(impl<{T}> MatrixDopeSlice<T>);
 Has2DReuseBuf_non_impl!(impl<{T}> MatrixDopeSlice<T>);
 
+/// an owned 2d dope slice returning references to its items and which is rigged up to manually drop via the MatrixLike traits
 pub struct ReferringMatrixDopeSlice<'a, T>{
     pub(crate) mat: Box<[T]>, 
     pub(crate) height: usize,
@@ -480,6 +496,7 @@ unsafe impl<'a, T> Get2D for ReferringMatrixDopeSlice<'a, T> {
 HasOutput_non_impl!(impl<{'a, T}> ReferringMatrixDopeSlice<'a, T>);
 Has2DReuseBuf_non_impl!(impl<{'a, T}> ReferringMatrixDopeSlice<'a, T>);
 
+/// an internally borrowed 2d dope slice
 pub struct RefMatrixDopeSlice<'a, T>{pub(crate) mat: &'a [T], pub(crate) height: usize}
 
 unsafe impl<'a, T> Get2D for RefMatrixDopeSlice<'a, T> {
@@ -511,6 +528,7 @@ unsafe impl<'a, T> Is2DRepeatable for RefMatrixDopeSlice<'a, T> {}
 HasOutput_non_impl!(impl<{'a, T}> RefMatrixDopeSlice<'a, T>);
 Has2DReuseBuf_non_impl!(impl<{'a, T}> RefMatrixDopeSlice<'a, T>);
 
+/// an internally mutably borrowed 2d dope slice
 pub struct RefMutMatrixDopeSlice<'a, T>{pub(crate) mat: &'a mut [T], pub(crate) height: usize}
 
 unsafe impl<'a, T> Get2D for RefMutMatrixDopeSlice<'a, T> {

@@ -36,6 +36,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        X swap out the RefRSMathIliffes with just 2 with parametrized inner slices
         - impl rref & det for ConcreteMatrixExpr
         - add eq / partial eq to concrete matrix exprs
         ? change MathMatrix Index impl to have Output = [T; D1] instead of MathVector<T, D1> (for consistency w/ RSMathMatrices) (see below)
