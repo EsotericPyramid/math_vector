@@ -36,6 +36,8 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        ~X rejigger the Index impl for RSMathDopeMatrix (requires externally referenced RSVectorExpr)
+        - add Concrete impls for Attach<Box>
         X swap out the RefRSMathIliffes with just 2 with parametrized inner slices
         - impl rref & det for ConcreteMatrixExpr
         - add eq / partial eq to concrete matrix exprs
@@ -60,6 +62,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - add Concrete impls for Attach<Box>
         - check the naming of euclidean inner product
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)

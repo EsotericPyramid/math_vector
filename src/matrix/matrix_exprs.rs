@@ -2,9 +2,7 @@
 
 
 use crate::{
-    trait_specialization_utils::*,
-    util_traits::HasOutput,
-    vector::vector_exprs::MathVector, 
+    trait_specialization_utils::*, util_traits::HasOutput, vector::vector_exprs::MathVector, 
 };
 use super::{
     mat_util_traits::*,
@@ -459,6 +457,9 @@ impl<'a, T, const D1: usize, const D2: usize> From<&'a mut MathMatrix<T, D1, D2>
     }
 }
 
+type MathVectoredMatrix<T, const D1: usize, const D2: usize> = 
+    MathVector<MathVector<T, D1>, D2>;
+
 impl<T, const D1: usize, const D2: usize> From<MathVectoredMatrix<T, D1, D2>>
     for MathMatrix<T, D1, D2>
 {
@@ -500,9 +501,6 @@ impl<T, const D1: usize, const D2: usize> From<MathMatrix<T, D1, D2>>
         }
     }
 }
-
-type MathVectoredMatrix<T, const D1: usize, const D2: usize> = 
-    MathVector<MathVector<T, D1>, D2>;
 
 impl<T, I, const D1: usize, const D2: usize> Index<I> for MathMatrix<T, D1, D2>
 where
@@ -586,6 +584,125 @@ impl<T, const D1: usize, const D2: usize> ConcreteMatrixExpr for MathMatrix<T, D
         self.borrow().copied()
     }
 }
+
+impl<T, I, USEDM: MatrixLike, const D1: usize, const D2: usize> Index<I> for MatrixExpr<MatAttachUsedMat<MatrixArray<T, D1, D2>, USEDM>, D1, D2>
+where 
+    [[T; D1]; D2]: Index<I, Output = [T; D1]>,
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type Output = MathVector<T, D1>;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        (&self.0.mat[index]).into()
+    }
+}
+
+impl<T, I, USEDM: MatrixLike, const D1: usize, const D2: usize> IndexMut<I> for MatrixExpr<MatAttachUsedMat<MatrixArray<T, D1, D2>, USEDM>, D1, D2>
+where 
+    [[T; D1]; D2]: IndexMut<I, Output = [T; D1]>,
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        (&mut self.0.mat[index]).into()
+    }
+}
+
+impl<T, I, USEDM: MatrixLike, const D1: usize, const D2: usize> Index<I> for MatrixExpr<MatAttachUsedMat<Box<MatrixArray<T, D1, D2>>, USEDM>, D1, D2>
+where 
+    [[T; D1]; D2]: Index<I, Output = [T; D1]>,
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type Output = MathVector<T, D1>;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        (&self.0.mat[index]).into()
+    }
+}
+
+impl<T, I, USEDM: MatrixLike, const D1: usize, const D2: usize> IndexMut<I> for MatrixExpr<MatAttachUsedMat<Box<MatrixArray<T, D1, D2>>, USEDM>, D1, D2>
+where 
+    [[T; D1]; D2]: IndexMut<I, Output = [T; D1]>,
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        (&mut self.0.mat[index]).into()
+    }
+}
+
+impl<T, USEDM: MatrixLike, const D1: usize, const D2: usize> ConcreteMatrixExpr for MatrixExpr<MatAttachUsedMat<MatrixArray<T, D1, D2>, USEDM>, D1, D2> 
+where 
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type ReferencedInner<'a> = &'a [[T; D1]; D2]
+        where Self: 'a;
+    type Referenced<'a> = MatrixExpr<Self::ReferencedInner<'a>, D1, D2>
+        where Self: 'a;
+    type Copied<'a> = MatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>, D1, D2>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> =  &'a mut [[T; D1]; D2]
+        where Self: 'a;
+    type ReferencedMut<'a> = MatrixExpr<Self::ReferencedMutInner<'a>, D1, D2>
+        where Self: 'a;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        MatrixExpr(&**self.0.mat)
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        MatrixExpr(&mut **self.0.mat)
+    }
+
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
+
 
 impl<T: MulAssign<S>, S: Copy, const D1: usize, const D2: usize> MulAssign<S> for MathMatrix<T, D1, D2> {
     #[inline]
@@ -861,6 +978,91 @@ impl<T> ConcreteMatrixExpr for RSMathDopeMatrix<T> {
     }
 }
 
+impl<T, USEDM: MatrixLike> Index<usize> for RSMatrixExpr<MatAttachUsedMat<MatrixDopeSlice<T>, USEDM>> 
+where 
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type Output = [T];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let slice_start = index * self.mat.mat.height;
+        let raw = &self.mat.mat.mat[slice_start..slice_start + self.mat.mat.height];
+        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }
+    }
+}
+
+impl<T, USEDM: MatrixLike> IndexMut<usize> for RSMatrixExpr<MatAttachUsedMat<MatrixDopeSlice<T>, USEDM>> 
+where 
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let slice_start = index * self.mat.mat.height;
+        let raw = &mut self.mat.mat.mat[slice_start..slice_start + self.mat.mat.height];
+        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }
+    }
+}
+
+impl<T, USEDM: MatrixLike> ConcreteMatrixExpr for RSMatrixExpr<MatAttachUsedMat<MatrixDopeSlice<T>, USEDM>>
+where 
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type ReferencedInner<'a> = RefMatrixDopeSlice<'a, T>
+        where Self: 'a;
+    type Referenced<'a> = RSMatrixExpr<Self::ReferencedInner<'a>>
+        where Self: 'a;
+    type Copied<'a> = RSMatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> =  RefMutMatrixDopeSlice<'a, T>
+        where Self: 'a;
+    type ReferencedMut<'a> = RSMatrixExpr<Self::ReferencedMutInner<'a>>
+        where Self: 'a;
+
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        RSMatrixExpr{
+            mat: self.mat.mat.borrow(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        RSMatrixExpr{
+            mat: self.mat.mat.borrow_mut(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
+
+
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathDopeMatrix<T> {
     #[inline]
     fn mul_assign(&mut self, rhs: S) {
@@ -1066,14 +1268,13 @@ impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I, Output 
     }
 }
 
-impl<T> IndexMut<usize> for RSMathIliffeMatrix<T> {
+impl<T, I> IndexMut<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: IndexMut<I, Output = Box<[T]>> {
     #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
         // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
         &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.0) })[index]
     }
 }
-
 
 impl<T> ConcreteMatrixExpr for RSMathIliffeMatrix<T> {
     type ReferencedInner<'a> = &'a [Box<[T]>]
@@ -1098,6 +1299,91 @@ impl<T> ConcreteMatrixExpr for RSMathIliffeMatrix<T> {
     fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
         RSMatrixExpr{
             mat: self.mat.borrow_mut(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+    
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where 
+        <Self::Output as Index<usize>>::Output: Copy,
+    {
+        self.borrow().copied()
+    }
+}
+
+impl<T, I, USEDM: MatrixLike> Index<I> for RSMatrixExpr<MatAttachUsedMat<MatrixIliffeSlice<T>, USEDM>> where 
+    [Box<[T]>]: Index<I, Output = Box<[T]>>, 
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type Output = [T];
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
+        &(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.mat.0) })[index]
+    }
+}
+
+impl<T, I, USEDM: MatrixLike> IndexMut<I> for RSMatrixExpr<MatAttachUsedMat<MatrixIliffeSlice<T>, USEDM>> where 
+    [Box<[T]>]: IndexMut<I, Output = Box<[T]>>,
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
+        &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.mat.0) })[index]
+    }
+}
+
+impl<T, USEDM: MatrixLike> ConcreteMatrixExpr for RSMatrixExpr<MatAttachUsedMat<MatrixIliffeSlice<T>, USEDM>> where
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type ReferencedInner<'a> = &'a [Box<[T]>]
+        where Self: 'a;
+    type Referenced<'a> = RSMatrixExpr<Self::ReferencedInner<'a>>
+        where Self: 'a;
+    type Copied<'a> = RSMatrixExpr<MatCopy<'a, Self::ReferencedInner<'a>, T>>
+        where <Self::Output as Index<usize>>::Output: Copy, Self: 'a;
+    type ReferencedMutInner<'a> = &'a mut [Box<[T]>]
+        where Self: 'a;
+    type ReferencedMut<'a> = RSMatrixExpr<Self::ReferencedMutInner<'a>>
+        where Self: 'a;
+    
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        RSMatrixExpr{
+            mat: self.mat.mat.borrow(),
+            num_rows: self.num_rows,
+            num_cols: self.num_cols,
+        }
+    }
+
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        RSMatrixExpr{
+            mat: self.mat.mat.borrow_mut(),
             num_rows: self.num_rows,
             num_cols: self.num_cols,
         }
