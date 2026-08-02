@@ -50,7 +50,7 @@ macro_rules! select {
 macro_rules! vec_structs {
     (
         $(
-            $comment:literal;
+            $(#[$($attribute:tt)*])+
             $struct:ident<$($($lifetime:lifetime),+, )? {$vec_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$vec:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
@@ -58,7 +58,7 @@ macro_rules! vec_structs {
         )*
     ) => {
         $(
-            #[doc=$comment]
+            $(#[$($attribute)*])+
             pub struct $struct<$($($lifetime),+, )? $vec_generic: VectorLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $vec: $vec_generic $(, $(pub(crate) $field: $field_ty),+)?}
 
             unsafe impl<$($($lifetime),+, )? $vec_generic: VectorLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+, )? $vec_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
@@ -148,7 +148,7 @@ macro_rules! vec_structs {
     };
     (
         $(
-            $comment:literal;
+            $(#[$($attribute:tt)*])+
             $struct:ident<$($($lifetime:lifetime),+, )? {$l_vec_generic:ident, $r_vec_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_vec:ident, $r_vec:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
@@ -156,7 +156,7 @@ macro_rules! vec_structs {
         )*
     ) => {
         $(
-            #[doc=$comment]
+            $(#[$($attribute)*])+
             pub struct $struct<$($($lifetime),+, )? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_vec: $l_vec_generic, pub(crate) $r_vec: $r_vec_generic $(, $(pub(crate) $field: $field_ty),+)?}
 
             unsafe impl<$($($lifetime),+, )? $l_vec_generic: VectorLike, $r_vec_generic: VectorLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get for $struct<$($($lifetime),+, )? $l_vec_generic, $r_vec_generic $(, $($generic),+)?> where ($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool): FilterPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
@@ -293,106 +293,114 @@ macro_rules! vec_structs {
 }
 
 vec_structs!(
-    "Struct mapping a vector's items using its closure (FnMut)";
+    /// Struct mapping a vector's items using its closure (FnMut)
     VecMap<{V}, F: FnMut(V::Item) -> O, O>{vec, f: F}; get: O, |self, input| (self.f)(input);
-    "Struct folding a vector's items using its closure";
+    /// Struct folding a vector's items using its closure
+    /// 
+    /// note: it is preferrable to use [`VecFoldRef`]
     VecFold<{V}, F: FnMut(O, V::Item) -> O, O>{vec, f: F, cell: Option<O>}; output: cell: O, get: (), |self, input| self.cell = Some((self.f)(self.cell.take().unwrap(), input));
-    "Struct folding a vector's items using its closure";
-    VecFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>}; output: cell: O, get: (), |self, input| (self.f)(&mut self.cell, input); // note: use of this is preferred to VecFold
+    /// Struct folding a vector's items using its closure
+    /// 
+    /// note: use of this is preferred to [`VecFold`]
+    VecFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>}; output: cell: O, get: (), |self, input| (self.f)(&mut self.cell, input); 
 
-    "Struct folding a vector's items using its closure while preserving the items";
+    /// Struct folding a vector's items using its closure while preserving the items
+    /// 
+    /// note: it is preferrable to use [`VecCopiedFoldRef`]
     VecCopiedFold<{V}, F: FnMut(O, V::Item) -> O, O>{vec, f: F, cell: Option<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
-    "Struct folding a vector's items using its closure while preserving the items";
+    /// Struct folding a vector's items using its closure while preserving the items
+    /// 
+    /// note: use of this is preferred to [`VecCopiedFold`]
     VecCopiedFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {(self.f)(&mut self.cell, input); input}; // note: use of this is preferred to VecFold
 
-    "Struct adding indices to a vector's items";
+    /// Struct adding indices to a vector's items
     VecEnumerate<{V}>{vec}; get: (usize, V::Item), |self, input, index| (index, input); 
 
-    "Struct copying a vector's items, useful for &T -> T";
+    /// Struct copying a vector's items, useful for &T -> T
     VecCopy<'a, {V}, I: 'a | Copy>{vec} where V: Get<Item = &'a I>; get: I, |self, input| *input, Y;
-    "Struct cloning a vector's items, useful for &T -> T";
+    /// Struct cloning a vector's items, useful for &T -> T
     VecClone<'a, {V}, I: 'a | Clone>{vec} where V: Get<Item = &'a I>; get: I, |self, input| input.clone();
 
-    "Struct negating (-) a vector's items";
+    /// Struct negating (-) a vector's items
     VecNeg<{V}>{vec} where V::Item: Neg; get: <V::Item as Neg>::Output, |self, input| -input;
 
-    "Struct multiplying a scalar by a vector (vector is rhs)";
+    /// Struct multiplying a scalar by a vector (vector is rhs)
     VecMulR<{V}, S: Copy>{vec, scalar: S} where S: Mul<V::Item>; get: <S as Mul<V::Item>>::Output, |self, input| self.scalar * input;
-    "Struct dividing a scalar by a vector";
+    /// Struct dividing a scalar by a vector
     VecDivR<{V}, S: Copy>{vec, scalar: S} where S: Div<V::Item>; get: <S as Div<V::Item>>::Output, |self, input| self.scalar / input;
-    "Struct getting remainer (%) of a scalar by a vector";
+    /// Struct getting remainer (%) of a scalar by a vector
     VecRemR<{V}, S: Copy>{vec, scalar: S} where S: Rem<V::Item>; get: <S as Rem<V::Item>>::Output, |self, input| self.scalar % input;
-    "Struct multiplying a vector by a scalar (vector is lhs)";
+    /// Struct multiplying a vector by a scalar (vector is lhs)
     VecMulL<{V}, S: Copy>{vec, scalar: S} where V::Item: Mul<S>; get: <V::Item as Mul<S>>::Output, |self, input| input * self.scalar;
-    "Struct dividing a vector by a scalar";
+    /// Struct dividing a vector by a scalar
     VecDivL<{V}, S: Copy>{vec, scalar: S} where V::Item: Div<S>; get: <V::Item as Div<S>>::Output, |self, input| input / self.scalar;
-    "Struct getting remainer (%) of a vector by a scalar";
+    /// Struct getting remainer (%) of a vector by a scalar
     VecRemL<{V}, S: Copy>{vec, scalar: S} where V::Item: Rem<S>; get: <V::Item as Rem<S>>::Output, |self, input| input % self.scalar;
 
-    "Struct mul assigning (*=) a vector's item (&mut T) by a scalar";
+    /// Struct mul assigning (*=) a vector's item (&mut T) by a scalar
     VecMulAssign<'a, {V}, I: 'a | MulAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input *= self.scalar; input};
-    "Struct div assigning (/=) a vector's item (&mut T) by a scalar";
+    /// Struct div assigning (/=) a vector's item (&mut T) by a scalar
     VecDivAssign<'a, {V}, I: 'a | DivAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input /= self.scalar; input};
-    "Struct rem assigning (%=) a vector's item (&mut T) by a scalar";
+    /// Struct rem assigning (%=) a vector's item (&mut T) by a scalar
     VecRemAssign<'a, {V}, I: 'a | RemAssign<S>, S: Copy>{vec, scalar: S} where V: Get<Item = &'a mut I>; get: &'a mut I, |self, input| {*input %= self.scalar; input};
 
-    "Struct summing up a vector's items, adding it to Output";
+    /// Struct summing up a vector's items, adding it to Output
     VecSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: AddAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar += input;
-    "Struct multiplying together a vector's items, adding it to Output";
+    /// Struct multiplying together a vector's items, adding it to Output
     VecProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where S: MulAssign<V::Item>; output: scalar: S, get: (), |self, input| *self.scalar *= input;
-    "Struct calculating the square magnitude of a vector, adding it to Output";
+    /// Struct calculating the square magnitude of a vector, adding it to Output
     VecSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: (), |self, input| *self.scalar += input * input;
-    "Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output";
+    /// Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output
     VecSqrEuclidMag<{V}, F: ComplexField>{vec, scalar: ManuallyDrop<F>} where V: Get<Item = F>; output: scalar: F, get: (), |self, input| *self.scalar += input * input.conjugate(); 
 
 
-    "Struct summing up a vector's items, adding it to Output while preserving the item";
+    /// Struct summing up a vector's items, adding it to Output while preserving the item
     VecCopiedSum<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: AddAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input; input};
-    "Struct multiplying together a vector's items, adding it to Output while preserving the item";
+    /// Struct multiplying together a vector's items, adding it to Output while preserving the item
     VecCopiedProduct<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy, S: MulAssign<V::Item>; output: scalar: S, get: V::Item, |self, input| {*self.scalar *= input; input};
-    "Struct calculating the square magnitude of a vector, adding it to Output while preserving the item";
+    /// Struct calculating the square magnitude of a vector, adding it to Output while preserving the item
     VecCopiedSqrMag<{V}, S>{vec, scalar: ManuallyDrop<S>} where V::Item: Copy | Mul, S: AddAssign<<V::Item as Mul>::Output>; output: scalar: S, get: V::Item, |self, input| {*self.scalar += input * input; input};
-    "Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output while preserving the item";
+    /// Struct calculating the square magnitue of a vector using the euclidean inner product, adding it to Output while preserving the item
     VecCopiedSqrEuclidMag<{V}, F: ComplexField>{vec, scalar: ManuallyDrop<F>} where V: Get<Item = F>; output: scalar: F, get: F, |self, input| {*self.scalar += input * input.conjugate(); input}; 
 
-    "UHOH, I forgor to write this documentation (FIXME)";
+    /// UHOH, I forgor to write this documentation (FIXME)
     VecConjugate<{V}>{vec} where V::Item: ComplexField; get: V::Item, |self, input| {input.conjugate()};
 );
 
 vec_structs!(
-    "Struct zipping together the items of 2 vectors into a 2 element tuple";
+    /// Struct zipping together the items of 2 vectors into a 2 element tuple
     VecZip<{V1, V2}>{l_vec, r_vec}; get: (V1::Item, V2::Item), |self, l_input, r_input| (l_input, r_input), Y;
 
-    "Struct adding 2 vectors";
+    /// Struct adding 2 vectors
     VecAdd<{V1, V2}>{l_vec, r_vec} where V1::Item: Add<V2::Item>; get: <V1::Item as Add<V2::Item>>::Output, |self, l_input, r_input| l_input + r_input;
-    "Struct subtracting a vector from another";
+    /// Struct subtracting a vector from another
     VecSub<{V1, V2}>{l_vec, r_vec} where V1::Item: Sub<V2::Item>; get: <V1::Item as Sub<V2::Item>>::Output, |self, l_input, r_input| l_input - r_input;
-    "Struct component-wise multiplying 2 vectors";
+    /// Struct component-wise multiplying 2 vectors
     VecCompMul<{V1, V2}>{l_vec, r_vec} where V1::Item: Mul<V2::Item>; get: <V1::Item as Mul<V2::Item>>::Output, |self, l_input, r_input| l_input * r_input;
-    "Struct component-wise dividing a vector by another";
+    /// Struct component-wise dividing a vector by another
     VecCompDiv<{V1, V2}>{l_vec, r_vec} where V1::Item: Div<V2::Item>; get: <V1::Item as Div<V2::Item>>::Output, |self, l_input, r_input| l_input / r_input;
-    "Struct component-wise getting remainder (%) of a vector by another";
+    /// Struct component-wise getting remainder (%) of a vector by another
     VecCompRem<{V1, V2}>{l_vec, r_vec} where V1::Item: Rem<V2::Item>; get: <V1::Item as Rem<V2::Item>>::Output, |self, l_input, r_input| l_input % r_input;
 
-    "Struct add assigning (+=) a vector (of item &mut T) with another";
+    /// Struct add assigning (+=) a vector (of item &mut T) with another
     VecAddAssign<'a, {V1, V2}, I: 'a | AddAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input += r_input;
-    "Struct sub assigning (-=) a vector (of item &mut T) with another";
+    /// Struct sub assigning (-=) a vector (of item &mut T) with another
     VecSubAssign<'a, {V1, V2}, I: 'a | SubAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input -= r_input;
-    "Struct component-wise mul assigning (*=) a vector (of item &mut T) with another";
+    /// Struct component-wise mul assigning (*=) a vector (of item &mut T) with another
     VecCompMulAssign<'a, {V1, V2}, I: 'a | MulAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input *= r_input;
-    "Struct component-wise div assigning (/=) a vector (of item &mut T) with another";
+    /// Struct component-wise div assigning (/=) a vector (of item &mut T) with another
     VecCompDivAssign<'a, {V1, V2}, I: 'a | DivAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input /= r_input;
-    "Struct component-wise rem assigning (%=) a vector (of item &mut T) with another";
+    /// Struct component-wise rem assigning (%=) a vector (of item &mut T) with another
     VecCompRemAssign<'a, {V1, V2}, I: 'a | RemAssign<V2::Item>>{l_vec, r_vec} where V1: Get<Item = &'a mut I>; get: (), |self, l_input, r_input| *l_input %= r_input;
 
-    "Struct calculating the dot product between 2 vectors, adding it to Output";
+    /// Struct calculating the dot product between 2 vectors, adding it to Output
     VecDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item>, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input;
-    "UHOH, I forgor to write this documentation (FIXME)";
+    /// UHOH, I forgor to write this documentation (FIXME)
     VecEuclidInnerProd<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: ComplexField | Mul<V2::Item>, V2::Item: ComplexField, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (), |self, l_input, r_input| *self.scalar += l_input * r_input.conjugate();
 
 
-    "Struct calculating the dot product between 2 vectors, adding it to Output, while preserving the items by zipping them in 2 element tuples";
+    /// Struct calculating the dot product between 2 vectors, adding it to Output, while preserving the items by zipping them in 2 element tuples
     VecCopiedDot<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: Mul<V2::Item> | Copy, V2::Item: Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input; (l_input, r_input)};
-    "UHOH, I forgor to write this documentation (FIXME)";
+    /// UHOH, I forgor to write this documentation (FIXME)
     VecCopiedEuclidInnerProd<{V1, V2}, S>{l_vec, r_vec, scalar: ManuallyDrop<S>} where V1::Item: ComplexField | Mul<V2::Item> | Copy, V2::Item: ComplexField | Copy, S: AddAssign<<V1::Item as Mul<V2::Item>>::Output>; output: scalar: S, get: (V1::Item, V2::Item), |self, l_input, r_input| {*self.scalar += l_input * r_input.conjugate(); (l_input, r_input)};
 );

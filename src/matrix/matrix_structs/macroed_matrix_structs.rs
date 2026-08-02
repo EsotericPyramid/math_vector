@@ -59,7 +59,7 @@ macro_rules! present_or {
 macro_rules! mat_structs {
     ( // Get2D (+ non-lazy)* -> Get2D
         $(
-            $comment:literal;
+            $(#[$($attribute:tt)*])+
             $struct:ident<$($($lifetime:lifetime),+, )? {$mat_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$mat:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
@@ -67,7 +67,7 @@ macro_rules! mat_structs {
         )*
     ) => {
         $(
-            #[doc=$comment]
+            $(#[$($attribute)*])+
             pub struct $struct<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $mat: $mat_generic $(, $(pub(crate) $field: $field_ty),+)?}
 
             unsafe impl<$($($lifetime),+, )? $mat_generic: MatrixLike $(, $($generic $(: $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+, )? $mat_generic $(, $($generic),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
@@ -161,7 +161,7 @@ macro_rules! mat_structs {
     };
     ( // Get2D + Get2D (+ non-lazy)* -> Get2D
         $(
-            $comment:literal;
+            $(#[$($attribute:tt)*])+
             $struct:ident<$($($lifetime:lifetime),+, )? {$l_mat_generic:ident, $r_mat_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_mat:ident, $r_mat:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
@@ -169,7 +169,7 @@ macro_rules! mat_structs {
         )*
     ) => {
         $(
-            #[doc=$comment]
+            $(#[$($attribute)*])+
             pub struct $struct<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> $(where $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {pub(crate) $l_mat: $l_mat_generic, pub(crate) $r_mat: $r_mat_generic $(, $(pub(crate) $field: $field_ty),+)?}
 
             unsafe impl<$($($lifetime),+, )? $l_mat_generic: MatrixLike, $r_mat_generic: MatrixLike $(, $($generic $(: $($generic_lifetime +)? $fst_generic_bound $(+ $generic_bound)*)?),+)?> Get2D for $struct<$($($lifetime),+, )? $l_mat_generic, $r_mat_generic $(, $($generic),+)?> where ($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool): FilterPair, (<$l_mat_generic as Get2D>::AreInputsTransposed, <$r_mat_generic as Get2D>::AreInputsTransposed): TyBoolPair $(, $($bound_ty: $fst_where_bound $(+ $where_bound)*),+)? {
@@ -314,86 +314,94 @@ macro_rules! mat_structs {
 }
 
 mat_structs!(
-    "Struct mapping each entry of a Matrix with its closure (FnMut)";
+    /// Struct mapping each entry of a Matrix with its closure (FnMut)
     MatEntryMap<{M}, F: FnMut(M::Item) -> O, O>{mat, f: F}; get2D: O, |self, input| (self.f)(input);
-    "Struct folding together the entries of a Matrix with its closure (FnMut)";
+    /// Struct folding together the entries of a Matrix with its closure (FnMut)
+    /// 
+    /// note it is preferrable to use [`MatEntryFoldRef`]
     MatEntryFold<{M}, F: FnMut(O, M::Item) -> O, O>{mat, f: F, cell: Option<O>}; output: cell: O, get2D: (), |self, input| self.cell = Some((self.f)(self.cell.take().unwrap(), input));
-    "Struct folding together the entries of a Matrix with its closure (FnMut)";
-    MatEntryFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>}; output: cell: O, get2D: (), |self, input| (self.f)(&mut self.cell, input); // note: use of this is preferred to MatEntryFold
+    /// Struct folding together the entries of a Matrix with its closure (FnMut)
+    /// 
+    /// note: use of this is preferred to [`MatEntryFold`]
+    MatEntryFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>}; output: cell: O, get2D: (), |self, input| (self.f)(&mut self.cell, input); 
 
-    "Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item";
+    /// Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item
+    /// 
+    /// note: it is preferrable to use [`MatEntryCopiedFoldRef`]
     MatEntryCopiedFold<{M}, F: FnMut(O, M::Item) -> O, O>{mat, f: F, cell: Option<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
-    "Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item";
+    /// Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item
+    /// 
+    /// note: use of this is preferred to [`MatEntryCopiedFold`]
     MatEntryCopiedFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {(self.f)(&mut self.cell, input); input};
 
-    "Struct adding indices to the matrice's entries (indices are in the form `(col_index, row_index)` (ie. (x, y)) (NOTE: this is the **opposite** of the standard in math)";
+    /// Struct adding indices to the matrice's entries (indices are in the form `(col_index, row_index)` (ie. (x, y)) (NOTE: this is the **opposite** of the standard in math)
     MatEnumerate<{M}>{mat}; get2D: ((usize, usize), M::Item), |self, input, col_index, row_index| ((col_index, row_index), input);
 
-    "Struct copying a Matrix's items, useful for &T -> T";
+    /// Struct copying a Matrix's items, useful for &T -> T
     MatCopy<'a, {M}, I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self, input| *input, Y;
-    "Struct cloning a Matrix's items, useful for &T -> T";
+    /// Struct cloning a Matrix's items, useful for &T -> T
     MatClone<'a, {M}, I: 'a | Clone>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self, input| input.clone();
 
-    "Struct negating (-) a Matrix";
+    /// Struct negating (-) a Matrix
     MatNeg<{M}>{mat} where M::Item: Neg; get2D: <M::Item as Neg>::Output, |self, input| -input;
 
-    "Struct multiplying a scalar with a Matrix (matrix is rhs)";
+    /// Struct multiplying a scalar with a Matrix (matrix is rhs)
     MatMulR<{M}, S: Copy>{mat, scalar: S} where S: Mul<M::Item>; get2D: <S as Mul<M::Item>>::Output, |self, input| self.scalar * input;
-    "Struct dividing a scalar by a Matrix";
+    /// Struct dividing a scalar by a Matrix
     MatDivR<{M}, S: Copy>{mat, scalar: S} where S: Div<M::Item>; get2D: <S as Div<M::Item>>::Output, |self, input| self.scalar / input;
-    "Struct getting remainder (%) of a scalar by a Matrix";
+    /// Struct getting remainder (%) of a scalar by a Matrix
     MatRemR<{M}, S: Copy>{mat, scalar: S} where S: Rem<M::Item>; get2D: <S as Rem<M::Item>>::Output, |self, input| self.scalar % input;
-    "Struct multiplying a Matrix with a scalar (matrix is lhs)";
+    /// Struct multiplying a Matrix with a scalar (matrix is lhs)
     MatMulL<{M}, S: Copy>{mat, scalar: S} where M::Item: Mul<S>; get2D: <M::Item as Mul<S>>::Output, |self, input| input * self.scalar;
-    "Struct dividing a Matrix by a scalar";
+    /// Struct dividing a Matrix by a scalar
     MatDivL<{M}, S: Copy>{mat, scalar: S} where M::Item: Div<S>; get2D: <M::Item as Div<S>>::Output, |self, input| input / self.scalar;
-    "Struct getting remainder (%) of a Matrix by a scalar";
+    /// Struct getting remainder (%) of a Matrix by a scalar
     MatRemL<{M}, S: Copy>{mat, scalar: S} where M::Item: Rem<S>; get2D: <M::Item as Rem<S>>::Output, |self, input| input % self.scalar;
 
-    "Struct mul assigning (*=) a matrix (item = &mut T) by a scalar";
+    /// Struct mul assigning (*=) a matrix (item = &mut T) by a scalar
     MatMulAssign<'a, {M}, I: 'a | MulAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input *= self.scalar;
-    "Struct div assigning (/=) a matrix (item = &mut T) by a scalar";
+    /// Struct div assigning (/=) a matrix (item = &mut T) by a scalar
     MatDivAssign<'a, {M}, I: 'a | DivAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input /= self.scalar;
-    "Struct rem assigning (%=) a matrix (item = &mut T) by a scalar";
+    /// Struct rem assigning (%=) a matrix (item = &mut T) by a scalar
     MatRemAssign<'a, {M}, I: 'a | RemAssign<S>, S: Copy>{mat, scalar: S} where M: Get2D<Item = &'a mut I>; get2D: (), |self, input| *input %= self.scalar;
 
-    "Struct summing up the entries of a Matrix";
+    /// Struct summing up the entries of a Matrix
     MatEntrySum<{M}, S>{mat, scalar: ManuallyDrop<S>} where S: AddAssign<M::Item>; output: scalar: S, get2D: (), |self, input| *self.scalar += input;
-    "Struct multiplying together the entries of a Matrix";
+    /// Struct multiplying together the entries of a Matrix
     MatEntryProd<{M}, S>{mat, scalar: ManuallyDrop<S>} where S: MulAssign<M::Item>; output: scalar: S, get2D: (), |self, input| *self.scalar *= input;
 
-    "Struct summing up the entries of a Matrix while preserving the item";
+    /// Struct summing up the entries of a Matrix while preserving the item
     MatCopiedEntrySum<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: AddAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar += input; input};
-    "Struct multiplying together the entries of a Matrix while preserving the item";
+    /// Struct multiplying together the entries of a Matrix while preserving the item
     MatCopiedEntryProd<{M}, S>{mat, scalar: ManuallyDrop<S>} where M::Item: Copy, S: MulAssign<M::Item>; output: scalar: S, get2D: M::Item, |self, input| {*self.scalar *= input; input};
 
-    "UHOH, I forgor to write this documentation (FIXME)";
+    /// UHOH, I forgor to write this documentation (FIXME)
     MatConjugate<{M}>{mat} where M::Item: ComplexField; get2D: M::Item, |self, input| input.conjugate();
 );
 
 mat_structs!(
-    "Struct zipping together the items of 2 matrices into 2 element tuples";
+    /// Struct zipping together the items of 2 matrices into 2 element tuples
     MatZip<{M1, M2}>{l_mat, r_mat}; get2D: (M1::Item, M2::Item), |self, l_input, r_input| (l_input, r_input), Y;
 
-    "Struct adding 2 matrices";
+    /// Struct adding 2 matrices
     MatAdd<{M1, M2}>{l_mat, r_mat} where M1::Item: Add<M2::Item>; get2D: <M1::Item as Add<M2::Item>>::Output, |self, l_input, r_input| l_input + r_input;
-    "Struct subtracting a matrix from another";
+    /// Struct subtracting a matrix from another
     MatSub<{M1, M2}>{l_mat, r_mat} where M1::Item: Sub<M2::Item>; get2D: <M1::Item as Sub<M2::Item>>::Output, |self, l_input, r_input| l_input - r_input;
-    "Struct component-wise multiplying 2 matrices";
+    /// Struct component-wise multiplying 2 matrices
     MatCompMul<{M1, M2}>{l_mat, r_mat} where M1::Item: Mul<M2::Item>; get2D: <M1::Item as Mul<M2::Item>>::Output, |self, l_input, r_input| l_input * r_input;
-    "Struct component-wise dividing a matrix by another";
+    /// Struct component-wise dividing a matrix by another
     MatCompDiv<{M1, M2}>{l_mat, r_mat} where M1::Item: Div<M2::Item>; get2D: <M1::Item as Div<M2::Item>>::Output, |self, l_input, r_input| l_input / r_input;
-    "Struct component-wise getting remainder (%) of a matrix by another";
+    /// Struct component-wise getting remainder (%) of a matrix by another
     MatCompRem<{M1, M2}>{l_mat, r_mat} where M1::Item: Rem<M2::Item>; get2D: <M1::Item as Rem<M2::Item>>::Output, |self, l_input, r_input| l_input % r_input;
 
-    "Struct add assigning (+=) a matrix (item = &mut T) with another";
+    /// Struct add assigning (+=) a matrix (item = &mut T) with another
     MatAddAssign<'a, {M1, M2}, I: 'a | AddAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input += r_input;
-    "Struct sub assigning (-=) a matrix (item = &mut T) with another";
+    /// Struct sub assigning (-=) a matrix (item = &mut T) with another
     MatSubAssign<'a, {M1, M2}, I: 'a | SubAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input -= r_input;
-    "Struct component-wise mul assigning (*=) a matrix (item = &mut T) with another";
+    /// Struct component-wise mul assigning (*=) a matrix (item = &mut T) with another
     MatCompMulAssign<'a, {M1, M2}, I: 'a | MulAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input *= r_input;
-    "Struct component-wise div assigning (/=) a matrix (item = &mut T) with another";
+    /// Struct component-wise div assigning (/=) a matrix (item = &mut T) with another
     MatCompDivAssign<'a, {M1, M2}, I: 'a | DivAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input /= r_input;
-    "Struct component-wise rem assigning (%=) a matrix (item = &mut T) with another";
+    /// Struct component-wise rem assigning (%=) a matrix (item = &mut T) with another
     MatCompRemAssign<'a, {M1, M2}, I: 'a | RemAssign<M2::Item>>{l_mat, r_mat} where M1: Get2D<Item = &'a mut I>; get2D: (), |self, l_input, r_input| *l_input %= r_input;
 );
