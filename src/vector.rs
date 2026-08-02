@@ -762,6 +762,12 @@ pub unsafe trait VectorOps: Sized {
             }
         }
     
+        /// adds indices to each of the vector's items (analogous with [`std::iter::Iterator::enumerate`])
+        fn enumerate(self) -> VecEnumerate<Self::Unwrapped> {
+            let builder = self.get_builder();
+            unsafe { builder.wrap(VecEnumerate { vec: self.unwrap() }) }
+        }
+
         /// copies each of the vector's items, useful for turning `&T` -> `T`
         /// 
         /// Also see [`Self::cloned`] if the vector's items are [`Clone`] but not [`Copy`]

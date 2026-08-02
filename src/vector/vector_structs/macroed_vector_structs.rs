@@ -54,7 +54,7 @@ macro_rules! vec_structs {
             $struct:ident<$($($lifetime:lifetime),+, )? {$vec_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$vec:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
-            get: $item:ty, |$self:ident, $(($is_mut:tt))? $input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
+            get: $item:ty, |$self:ident, $(($is_mut:tt))? $input:ident $(, $index:ident)?| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
         )*
     ) => {
         $(
@@ -74,8 +74,8 @@ macro_rules! vec_structs {
                 unsafe fn drop_inputs(&mut self, index: usize) { unsafe {self.$vec.drop_inputs(index)}}
 
                 #[inline]
-                fn process($self: &mut Self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                    let ($($is_mut)? $input, bound_items) = $self.$vec.process(index, inputs);
+                fn process($self: &mut Self, select!($($index)? {$($index)?} {index}): usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                    let ($($is_mut)? $input, bound_items) = $self.$vec.process(select!($($index)? {$($index)?} {index}), inputs);
                     ($get_expr, bound_items)
                 }
             }
@@ -152,7 +152,7 @@ macro_rules! vec_structs {
             $struct:ident<$($($lifetime:lifetime),+, )? {$l_vec_generic:ident, $r_vec_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_vec:ident, $r_vec:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
-            get: $item:ty, |$self:ident, $(($l_is_mut:tt))? $l_input:ident, $(($r_is_mut:tt))? $r_input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
+            get: $item:ty, |$self:ident, $(($l_is_mut:tt))? $l_input:ident, $(($r_is_mut:tt))? $r_input:ident $(, $index:ident)?| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
         )*
     ) => {
         $(
@@ -175,9 +175,9 @@ macro_rules! vec_structs {
                 }}
 
                 #[inline]
-                fn process($self: &mut Self, index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                    let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_vec.process(index, inputs.0);
-                    let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_vec.process(index, inputs.1);
+                fn process($self: &mut Self, select!($($index)? {$($index)?} {index}): usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                    let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_vec.process(select!($($index)? {$($index)?} {index}), inputs.0);
+                    let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_vec.process(select!($($index)? {$($index)?} {index}), inputs.1);
                     ($get_expr, <($l_vec_generic::BoundHandlesBool, $r_vec_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items, r_bound_items))
                 }
             }
@@ -304,6 +304,9 @@ vec_structs!(
     VecCopiedFold<{V}, F: FnMut(O, V::Item) -> O, O>{vec, f: F, cell: Option<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
     "Struct folding a vector's items using its closure while preserving the items";
     VecCopiedFoldRef<{V}, F: FnMut(&mut O, V::Item), O>{vec, f: F, cell: ManuallyDrop<O>} where V::Item: Copy; output: cell: O, get: V::Item, |self, input| {(self.f)(&mut self.cell, input); input}; // note: use of this is preferred to VecFold
+
+    "Struct adding indices to a vector's items";
+    VecEnumerate<{V}>{vec}; get: (usize, V::Item), |self, input, index| (index, input); 
 
     "Struct copying a vector's items, useful for &T -> T";
     VecCopy<'a, {V}, I: 'a | Copy>{vec} where V: Get<Item = &'a I>; get: I, |self, input| *input, Y;

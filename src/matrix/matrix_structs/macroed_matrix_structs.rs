@@ -47,6 +47,15 @@ macro_rules! select {
     }
 }
 
+macro_rules! present_or {
+    ({} {$($default:tt)*}) => {
+        $($default)*
+    };
+    ({$($present:tt)+} {$($default:tt)*}) => {
+        $($present)+
+    };
+}
+
 macro_rules! mat_structs {
     ( // Get2D (+ non-lazy)* -> Get2D
         $(
@@ -54,7 +63,7 @@ macro_rules! mat_structs {
             $struct:ident<$($($lifetime:lifetime),+, )? {$mat_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$mat:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
-            get2D: $item:ty, |$self:ident, $(($is_mut:tt))? $input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
+            get2D: $item:ty, |$self:ident, $(($is_mut:tt))? $input:ident $(, $col_index:ident, $row_index:ident)?| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
         )*
     ) => {
         $(
@@ -75,8 +84,8 @@ macro_rules! mat_structs {
                 unsafe fn drop_inputs(&mut self, col_index: usize, row_index: usize) { unsafe {self.$mat.drop_inputs(col_index, row_index)}}
 
                 #[inline]
-                fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                    let ($($is_mut)? $input, bound_items) = $self.$mat.process(col_index, row_index,  inputs);
+                fn process($self: &mut Self, present_or!({$($col_index)?} {col_index}): usize, present_or!({$($row_index)?} {row_index}): usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                    let ($($is_mut)? $input, bound_items) = $self.$mat.process(present_or!({$($col_index)?} {col_index}), present_or!({$($row_index)?} {row_index}),  inputs);
                     ($get_expr, bound_items)
                 }
             }
@@ -156,7 +165,7 @@ macro_rules! mat_structs {
             $struct:ident<$($($lifetime:lifetime),+, )? {$l_mat_generic:ident, $r_mat_generic:ident} $(, $($generic:ident $(: $($generic_lifetime:lifetime |)? $fst_generic_bound:path $(| $generic_bound:path)*)?),+)?>{$l_mat:ident, $r_mat:ident $(, $($field:ident: $field_ty:ty),+)?}
             $(where $($bound_ty:ty: $fst_where_bound:path $(| $where_bound:path)*),+)?;
             $(output: $outputted_field:ident: $output_ty:ty, )?
-            get2D: $item:ty, |$self:ident, $(($l_is_mut:tt))? $l_input:ident, $(($r_is_mut:tt))? $r_input:ident| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
+            get2D: $item:ty, |$self:ident, $(($l_is_mut:tt))? $l_input:ident, $(($r_is_mut:tt))? $r_input:ident $(, $col_index:ident, $row_index:ident)?| $get_expr:expr_2021 $(, $is_repeatable:ty)?;
         )*
     ) => {
         $(
@@ -180,9 +189,9 @@ macro_rules! mat_structs {
                 }}
 
                 #[inline]
-                fn process($self: &mut Self, col_index: usize, row_index: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
-                    let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_mat.process(col_index, row_index,  inputs.0);
-                    let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_mat.process(col_index, row_index,  inputs.1);
+                fn process($self: &mut Self, present_or!({$($col_index)?} {col_index}): usize, present_or!({$($row_index)?} {row_index}): usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+                    let ($($l_is_mut)? $l_input, l_bound_items) = $self.$l_mat.process(present_or!({$($col_index)?} {col_index}), present_or!({$($row_index)?} {row_index}),  inputs.0);
+                    let ($($r_is_mut)? $r_input, r_bound_items) = $self.$r_mat.process(present_or!({$($col_index)?} {col_index}), present_or!({$($row_index)?} {row_index}),  inputs.1);
                     ($get_expr, <($l_mat_generic::BoundHandlesBool, $r_mat_generic::BoundHandlesBool) as FilterPair>::filter(l_bound_items, r_bound_items))
                 }
             }
@@ -316,6 +325,9 @@ mat_structs!(
     MatEntryCopiedFold<{M}, F: FnMut(O, M::Item) -> O, O>{mat, f: F, cell: Option<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {self.cell = Some((self.f)(self.cell.take().unwrap(), input)); input};
     "Struct folding together the entries of a Matrix with its closure (FnMut) whiling preserving the item";
     MatEntryCopiedFoldRef<{M}, F: FnMut(&mut O, M::Item), O>{mat, f: F, cell: ManuallyDrop<O>} where M::Item: Copy; output: cell: O, get2D: M::Item, |self, input| {(self.f)(&mut self.cell, input); input};
+
+    "Struct adding indices to the matrice's entries (indices are in the form `(col_index, row_index)` (ie. (x, y)) (NOTE: this is the **opposite** of the standard in math)";
+    MatEnumerate<{M}>{mat}; get2D: ((usize, usize), M::Item), |self, input, col_index, row_index| ((col_index, row_index), input);
 
     "Struct copying a Matrix's items, useful for &T -> T";
     MatCopy<'a, {M}, I: 'a | Copy>{mat} where M: Get2D<Item = &'a I>; get2D: I, |self, input| *input, Y;

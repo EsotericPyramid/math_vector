@@ -733,6 +733,16 @@ pub trait MatrixOps: Sized {
             }
         }
     
+        /// adds indices to the matrice's entries (analogous to [`std::iter::Iterator::enumerate`])
+        /// 
+        /// indices are in the form `(col_index, row_index)` (ie. (x, y))
+        /// 
+        /// NOTE: this is the **opposite** of the standard in math
+        fn enumerate(self) -> MatEnumerate<Self::Unwrapped> {
+            let builder = self.get_builder();
+            unsafe { builder.wrap_mat(MatEnumerate{mat: self.unwrap()}) }
+        }
+
         /// copies each of the matrix's items, useful for turing &T -> T
         fn copied<'a, I: 'a | Copy>(self) -> MatCopy<'a, Self::Unwrapped, I>
         where
