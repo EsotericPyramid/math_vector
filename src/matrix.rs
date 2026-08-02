@@ -1594,6 +1594,85 @@ pub trait RepeatableMatrixOps: MatrixOps {
         ) as TyBoolPair>::Or: IsTrue;
 }
 
+/// a trait enabling a matrix to be evaluated inplace (without offloading its outputs and buffers)
+pub trait MatrixInPlaceEvalOps: MatrixOps {
+    /// the inner [`MatrixLike`] for the the concrete matrix expr returned by [`Self::eval_in_place`]
+    type ConcreteMatrixLike: MatrixLike;
+    /// the leftover [`MatrixLike`] after evaluating this matrix expr
+    type UsedMatrix: MatrixLike;
+
+    /// turns this vector into a concrete one by evaluating and storing it
+    fn eval_in_place(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>> where 
+        <Self::Builder as MatrixBuilder>::MatrixWrapped<
+            MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>,
+        >: ConcreteMatrixExpr,
+
+        <<Self::Builder as MatrixBuilder>::MatrixWrapped<
+            MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>,
+        > as MatrixOps>::Unwrapped: Get2D<Item = 
+            <
+                <
+                    <Self::Builder as MatrixBuilder>::MatrixWrapped<
+                        MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>,
+                    > as Index<usize>
+                >::Output as Index<usize>
+            >::Output
+        >,
+
+        <
+            <Self::Builder as MatrixBuilder>::MatrixWrapped<
+                MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>,
+            > as Index<usize>
+        >::Output: IndexMut<usize>,
+
+        (
+            <Self::ConcreteMatrixLike as HasOutput>::OutputBool,
+            <Self::UsedMatrix as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::BoundHandlesBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsFstBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsSndBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::AreBoundBuffersTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed,
+        ): TyBoolPair,
+        (
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+        Self: Sized,
+    ;
+}
+
 /// a trait enabling a matrix to be evaluated
 pub trait MatrixEvalOps: MatrixOps {
     /// a [`MatrixLike`] which generates a buffer as needed to capture the matrix's items
