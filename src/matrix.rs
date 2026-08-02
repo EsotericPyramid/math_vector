@@ -1,15 +1,22 @@
 //! Module containing all to do with Matrices and basic operations to do on them
 
 use crate::{
-    trait_specialization_utils::*,
-    util_traits::HasOutput,
+    Scalar, 
+    trait_specialization_utils::*, 
+    util_traits::HasOutput, 
     vector::{
-        VectorOps,
-        vec_util_traits::{Get, HasReuseBuf, IsRepeatable},
+        VectorOps, 
+        vec_util_traits::{
+            Get, 
+            HasReuseBuf, 
+            IsRepeatable
+        }, 
+        vector_builders::{
+            VectorBuilder, 
+            VectorBuilderUnion
+        }, 
         vector_structs::MatVecMul,
-        vector_builders::{VectorBuilder, VectorBuilderUnion},
     },
-    Scalar,
 };
 use std::{
     marker::PhantomData,
@@ -1855,6 +1862,87 @@ impl<M: MatrixLike, const D1: usize, const D2: usize> RepeatableMatrixOps for Ma
     }
 }
 
+impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixInPlaceEvalOps for MatrixExpr<M, D1, D2> where 
+    <M::FstHandleBool as TyBool>::Neg: Filter,
+    (M::BoundHandlesBool, Y): FilterPair,
+    (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair<
+        Selected<M::FstOwnedBuffer, MathMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<M::Item>, D1, D2>> = MathMatrix<M::Item, D1, D2>
+    >,
+    (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<M::FstHandleBool as TyBool>::Neg, M::FstOwnedBufferBool): TyBoolPair,
+    (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>,
+    (N, <(M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or) as TyBoolPair>::Or): FilterPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>> as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type ConcreteMatrixLike = MatrixArray<M::Item, D1, D2>;
+    type UsedMatrix = MatHalfBind<MatMaybeCreate2DArray<M, M::Item, D1, D2>>;
+
+    fn eval_in_place(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>> where 
+        (
+            <Self::ConcreteMatrixLike as HasOutput>::OutputBool,
+            <Self::UsedMatrix as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::BoundHandlesBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsFstBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsSndBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::AreBoundBuffersTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed,
+        ): TyBoolPair,
+        (
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        let mut mat_iter = self.maybe_create_2d_array().half_bind().into_entry_iter();
+        let (num_rows, num_cols) = builder.dimensions();
+        unsafe {
+            mat_iter.no_output_consume();
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols, num_rows})
+        }
+    }
+}
+
 impl<M: MatrixLike, const D1: usize, const D2: usize> MatrixEvalOps for MatrixExpr<M, D1, D2> {
     type MaybeCreateBuffer<T: MatrixLike>
         = MatMaybeCreate2DArray<T, T::Item, D1, D2>
@@ -2282,6 +2370,87 @@ impl<M: MatrixLike> MatrixOps for RSMatrixExpr<M> {
         unsafe { ptr::read(&ManuallyDrop::new(self).mat) }
     }
     RSMatrixExpr_get_builder_and_dimensions!();
+}
+
+impl<M: MatrixLike> MatrixInPlaceEvalOps for RSMatrixExpr<M> where 
+    <M::FstHandleBool as TyBool>::Neg: Filter,
+    (M::BoundHandlesBool, Y): FilterPair,
+    (M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg): SelectPair<
+        Selected<M::FstOwnedBuffer, RSMathIliffeMatrix<<<M::FstHandleBool as TyBool>::Neg as Filter>::Filtered<M::Item>>> = RSMathIliffeMatrix<M::Item>
+    >,
+    (M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg): TyBoolPair,
+    (<M::FstHandleBool as TyBool>::Neg, M::FstOwnedBufferBool): TyBoolPair,
+    (M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or): FilterPair,
+    MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>>: Has2DReuseBuf<BoundTypes = <(M::BoundHandlesBool, Y) as FilterPair>::Filtered<M::BoundItems, M::Item>>,
+    (N, <(M::OutputBool, <(M::FstOwnedBufferBool, <M::FstHandleBool as TyBool>::Neg) as TyBoolPair>::Or) as TyBoolPair>::Or): FilterPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::FstOwnedBufferBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::SndOwnedBufferBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::FstHandleBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::SndHandleBool): SelectPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::BoundHandlesBool): FilterPair,
+
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::IsFstBufferTransposed): TyBoolPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::IsSndBufferTransposed): TyBoolPair,
+    (N, <MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>> as Has2DReuseBuf>::AreBoundBuffersTransposed): TyBoolPair,
+{
+    type ConcreteMatrixLike = MatrixIliffeSlice<M::Item>;
+    type UsedMatrix = MatHalfBind<MatMaybeCreateIliffeSlice<M, M::Item>>;
+
+    fn eval_in_place(self) -> <Self::Builder as MatrixBuilder>::MatrixWrapped<MatAttachUsedMat<Self::ConcreteMatrixLike, Self::UsedMatrix>> where 
+        (
+            <Self::ConcreteMatrixLike as HasOutput>::OutputBool,
+            <Self::UsedMatrix as HasOutput>::OutputBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndHandleBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndHandleBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::BoundHandlesBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::BoundHandlesBool,
+        ): FilterPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::FstOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::SndOwnedBufferBool,
+            <Self::UsedMatrix as Has2DReuseBuf>::SndOwnedBufferBool,
+        ): SelectPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsFstBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsFstBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::IsSndBufferTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::IsSndBufferTransposed,
+        ): TyBoolPair,
+        (
+            <Self::ConcreteMatrixLike as Has2DReuseBuf>::AreBoundBuffersTransposed,
+            <Self::UsedMatrix as Has2DReuseBuf>::AreBoundBuffersTransposed,
+        ): TyBoolPair,
+        (
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ): TyBoolPair,
+        <(
+            <<Self::Unwrapped as Has2DReuseBuf>::FstHandleBool as TyBool>::Neg,
+            <Self::Unwrapped as Has2DReuseBuf>::FstOwnedBufferBool,
+        ) as TyBoolPair>::Or: IsTrue,
+        Self: Sized,
+    {
+        let builder = self.get_builder();
+        let mut mat_iter = self.maybe_create_iliffe_slice().half_bind().into_entry_iter();
+        let (num_rows, num_cols) = builder.dimensions();
+        unsafe {
+            mat_iter.no_output_consume();
+            builder.wrap_mat(MatAttachUsedMat{mat: mat_iter.mat.get_bound_buf().unwrap(), used_mat: ptr::read(&mat_iter.mat), num_cols, num_rows})
+        }
+    }
 }
 
 impl<M: MatrixLike> MatrixEvalOps for RSMatrixExpr<M> {
