@@ -137,7 +137,7 @@ pub trait ConcreteMatrixExpr: MatrixOps + IndexMut<usize> where
     }
 }
 
-
+// used to simplify det impls in [`ConcreteMatrixExpr`]
 fn det_inner<M: ConcreteMatrixExpr>(mat: &mut M) -> <M::Output as Index<usize>>::Output where 
     M::Output: IndexMut<usize>,
     M::Unwrapped: Get2D<Item = <M::Output as Index<usize>>::Output>,
@@ -186,6 +186,30 @@ fn det_inner<M: ConcreteMatrixExpr>(mat: &mut M) -> <M::Output as Index<usize>>:
     out
 }
 
+macro_rules! impl_eq_for_expr_wrapper {
+    (
+        {$type:ident $(: $($mat_bounds:tt)+)? $(, $($generics:tt)+)?} $matrixexpr:path $(where $($where_bound:tt)+)?
+    ) => {
+        impl<$type: PartialEq<<M::Output as Index<usize>>::Output> $( + $($mat_bounds)+)?, M: ConcreteMatrixExpr, $($($generics)+)?> PartialEq<M> for $matrixexpr where
+            M::Output: IndexMut<usize>,
+            M::Unwrapped: Get2D<Item = <M::Output as Index<usize>>::Output>,
+            $($($where_bound)+)?
+        {
+            fn eq(&self, other: &M) -> bool {
+                let (num_rows, num_cols) = self.dimensions();
+                if other.dimensions() != (num_rows, num_cols) {return false;}
+                for col in 0..num_cols {
+                    for row in 0..num_rows {
+                        if self[col][row] != other[col][row] {return false;}
+                    }
+                }
+                true
+            }
+        }
+
+        impl<$type: Eq $( + $($mat_bounds)+)?, $($($generics)+)?> Eq for $matrixexpr $(where $($where_bound)+)? {}
+    };
+}
 
 /// A const sized matrix wrapper
 /// 
@@ -659,6 +683,8 @@ impl<T, const D1: usize, const D2: usize> ConcreteMatrixExpr for MathMatrix<T, D
     }
 }
 
+impl_eq_for_expr_wrapper!({T, const D1: usize, const D2: usize} MathMatrix<T, D1, D2>);
+
 impl<T, I, USEDM: MatrixLike, const D1: usize, const D2: usize> Index<I> for MatrixExpr<MatAttachUsedMat<MatrixArray<T, D1, D2>, USEDM>, D1, D2>
 where 
     [[T; D1]; D2]: Index<I, Output = [T; D1]>,
@@ -777,6 +803,17 @@ where
     }
 }
 
+impl_eq_for_expr_wrapper!({T, USEDM: MatrixLike, const D1: usize, const D2: usize} MatrixExpr<MatAttachUsedMat<MatrixArray<T, D1, D2>, USEDM>, D1, D2> where
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+);
 
 impl<T: MulAssign<S>, S: Copy, const D1: usize, const D2: usize> MulAssign<S> for MathMatrix<T, D1, D2> {
     #[inline]
@@ -1052,6 +1089,8 @@ impl<T> ConcreteMatrixExpr for RSMathDopeMatrix<T> {
     }
 }
 
+impl_eq_for_expr_wrapper!({T} RSMathDopeMatrix<T>);
+
 impl<T, USEDM: MatrixLike> Index<usize> for RSMatrixExpr<MatAttachUsedMat<MatrixDopeSlice<T>, USEDM>> 
 where 
     (N, USEDM::OutputBool): FilterPair,
@@ -1136,6 +1175,17 @@ where
     }
 }
 
+impl_eq_for_expr_wrapper!({T, USEDM: MatrixLike} RSMatrixExpr<MatAttachUsedMat<MatrixDopeSlice<T>, USEDM>> where
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+);
 
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathDopeMatrix<T> {
     #[inline]
@@ -1385,6 +1435,8 @@ impl<T> ConcreteMatrixExpr for RSMathIliffeMatrix<T> {
     }
 }
 
+impl_eq_for_expr_wrapper!({T} RSMathIliffeMatrix<T>);
+
 impl<T, I, USEDM: MatrixLike> Index<I> for RSMatrixExpr<MatAttachUsedMat<MatrixIliffeSlice<T>, USEDM>> where 
     [Box<[T]>]: Index<I, Output = Box<[T]>>, 
     (N, USEDM::OutputBool): FilterPair,
@@ -1470,6 +1522,17 @@ impl<T, USEDM: MatrixLike> ConcreteMatrixExpr for RSMatrixExpr<MatAttachUsedMat<
     }
 }
 
+impl_eq_for_expr_wrapper!({T, USEDM: MatrixLike} RSMatrixExpr<MatAttachUsedMat<MatrixIliffeSlice<T>, USEDM>> where
+    (N, USEDM::OutputBool): FilterPair,
+    (N, USEDM::FstOwnedBufferBool): SelectPair,
+    (N, USEDM::SndOwnedBufferBool): SelectPair,
+    (N, USEDM::FstHandleBool): SelectPair,
+    (N, USEDM::SndHandleBool): SelectPair,
+    (N, USEDM::BoundHandlesBool): FilterPair,
+    (N, USEDM::IsFstBufferTransposed): TyBoolPair,
+    (N, USEDM::IsSndBufferTransposed): TyBoolPair,
+    (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
+);
 
 impl<T: MulAssign<S>, S: Copy> MulAssign<S> for RSMathIliffeMatrix<T> {
     #[inline]
