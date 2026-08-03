@@ -15,6 +15,7 @@ use std::{
     mem::{self, transmute, ManuallyDrop},
     ops::*,
 };
+use num_traits::{Zero, One};
 
 /// a trait expressing that an implementor's data from [`Get`] is stored and accessible, allowing it to be indexed and borrowed
 /// 
@@ -49,7 +50,142 @@ pub trait ConcreteMatrixExpr: MatrixOps + IndexMut<usize> where
     fn copy<'a>(&'a self) -> Self::Copied<'a> where 
         <Self::Output as Index<usize>>::Output: Copy,
     ;
+
+    // todo: add wikipedia link
+    /// converts this matrix into reduced row echelon form in place
+    fn rref(&mut self) where <Self::Output as Index<usize>>::Output: alga::general::Field + Copy {
+        use std::cmp::min;
+        use std::collections::HashMap;
+
+        let (num_rows, num_cols) = self.dimensions();
+
+        let mut pivots = Vec::with_capacity(num_rows);
+        for row_idx in 0..num_rows {
+            let mut pivot = 0;
+            while (pivot < num_cols) && (self[pivot][row_idx].is_zero()) {
+                pivot += 1;
+            }
+            pivots.push(pivot);
+            if pivot == num_cols {
+                continue;
+            }
+            let base_val = self[pivot][row_idx];
+
+            for j in pivot..num_cols {
+                self[j][row_idx] /= base_val;
+            }
+
+            let mut multipliers = Vec::with_capacity(num_rows - 1);
+            for i in 0..num_rows {
+                multipliers.push(self[pivot][i]);
+                self[pivot][i] = <Self::Output as Index<usize>>::Output::zero();
+            }
+            self[pivot][row_idx] = <Self::Output as Index<usize>>::Output::one();
+            multipliers[row_idx] = <Self::Output as Index<usize>>::Output::zero();
+            for j in pivot + 1..num_cols {
+                let target_row_col_val = self[j][row_idx];
+                for i in 0..num_rows {
+                    self[j][i] -= multipliers[i] * target_row_col_val;
+                }
+            }
+        }
+        let mut sorted_pivots = pivots.clone();
+        sorted_pivots.sort_unstable();
+        let mut pivot_idx_map = HashMap::with_capacity(num_rows);
+        for (idx, pivot) in sorted_pivots.into_iter().enumerate() {
+            if pivot == num_cols {
+                break;
+            }
+            pivot_idx_map.insert(pivot, idx);
+        }
+        for src in 0..num_rows {
+            if let Some(dst) = pivot_idx_map.get(&pivots[src]) {
+                let dst = *dst;
+
+                if src != dst {
+                    for i in min(pivots[src], pivots[dst])..num_cols {
+                        let temp = self[i][src];
+                        self[i][src] = self[i][dst];
+                        self[i][dst] = temp;
+                    }
+                    pivots.swap(src, dst);
+                }
+            }
+        }
+    }
+
+    // FIXME?: is using #[inline(always)] a good idea here
+    /// calculates the determinant of this matrix
+    /// 
+    /// note: see [`Self::det_heap`] if this is causing stack overflows
+    #[inline(always)]
+    fn det(mut self) -> <Self::Output as Index<usize>>::Output where 
+        <Self::Output as Index<usize>>::Output: alga::general::Field + Copy,
+    {
+        det_inner(&mut self)
+    }
+
+    /// calculates the determinant of this matrix
+    /// 
+    /// note: equivalent to [`Self::det`], it just has a different signature
+    #[inline(always)]
+    #[allow(clippy::boxed_local)] //the box is needed to keep it on the heap
+    fn det_heap(mut self: Box<Self>) -> <Self::Output as Index<usize>>::Output where 
+        <Self::Output as Index<usize>>::Output: alga::general::Field + Copy,
+    {
+        det_inner(&mut *self)
+    }
 }
+
+
+fn det_inner<M: ConcreteMatrixExpr>(mat: &mut M) -> <M::Output as Index<usize>>::Output where 
+    M::Output: IndexMut<usize>,
+    M::Unwrapped: Get2D<Item = <M::Output as Index<usize>>::Output>,
+    <M::Output as Index<usize>>::Output: alga::general::Field + Copy,
+{
+    let (num_rows, num_cols) = mat.dimensions();
+    assert_eq!(
+        num_rows, num_cols,
+        "math_vector error: can't get the determinant of a {}x{} matrix (not square)",
+        num_rows, num_cols
+    );
+    let mut out = <M::Output as Index<usize>>::Output::one();
+    let mut pivots = Vec::with_capacity(num_cols);
+    for col_idx in 0..num_cols {
+        let mut pivot = 0;
+        while (pivot < num_rows) && (mat[col_idx][pivot].is_zero()) {
+            pivot += 1;
+        }
+        pivots.push(pivot);
+        if pivot == num_rows {
+            return <M::Output as Index<usize>>::Output::zero();
+        }
+        let base_val = mat[col_idx][pivot];
+        out *= base_val;
+
+        for j in pivot..num_rows {
+            mat[col_idx][j] /= base_val;
+        }
+        for i in col_idx + 1..num_cols {
+            let multiplier = mat[i][pivot];
+            mat[i][pivot] = <M::Output as Index<usize>>::Output::zero();
+            for j in pivot + 1..num_rows {
+                let sub = multiplier * mat[col_idx][j];
+                mat[i][j] -= sub;
+            }
+        }
+    }
+    
+    for src in 0..num_cols {
+        if pivots[src] != src {
+            out = <M::Output as Index<usize>>::Output::zero() - out; //scuff math moment
+            let dst = pivots[src];
+            pivots.swap(dst, src);
+        }
+    }
+    out
+}
+
 
 /// A const sized matrix wrapper
 /// 
@@ -305,68 +441,6 @@ impl<T: alga::general::Field + Copy, const D1: usize, const D2: usize> MathMatri
                 }
             }
         }
-    }
-
-    fn det_inner(&mut self) -> T {
-        assert_eq!(
-            D1, D2,
-            "math_vector error: can't get the determinant of a {}x{} matrix (not square)",
-            D1, D2
-        );
-
-        let mut out = T::one();
-        let mut pivots = Vec::with_capacity(D2);
-        for col_idx in 0..D2 {
-            let mut pivot = 0;
-            while (pivot < D1) && (self[col_idx][pivot].is_zero()) {
-                pivot += 1;
-            }
-            pivots.push(pivot);
-            if pivot == D1 {
-                return T::zero();
-            }
-            let base_val = self[col_idx][pivot];
-            out *= base_val;
-
-            for j in pivot..D1 {
-                self[col_idx][j] /= base_val;
-            }
-            for i in col_idx + 1..D2 {
-                let multiplier = self[i][pivot];
-                self[i][pivot] = T::zero();
-                for j in pivot + 1..D1 {
-                    let sub = multiplier * self[col_idx][j];
-                    self[i][j] -= sub;
-                }
-            }
-        }
-
-        for src in 0..D2 {
-            if pivots[src] != src {
-                out = T::zero() - out; //scuff math moment
-                let dst = pivots[src];
-                pivots.swap(dst, src);
-            }
-        }
-        out
-    }
-
-    // FIXME?: is using #[inline(always)] a good idea here
-    /// calculates the determinant of this matrix
-    /// 
-    /// note: see [`Self::det_heap`] if this is causing stack overflows
-    #[inline(always)]
-    pub fn det(mut self) -> T {
-        self.det_inner()
-    }
-
-    /// calculates the determinant of this matrix
-    /// 
-    /// note: equivalent to [`Self::det`], it just has a different signature
-    #[inline(always)]
-    #[allow(clippy::boxed_local)] //the box is needed to keep it on the heap
-    pub fn det_heap(mut self: Box<Self>) -> T {
-        self.det_inner()
     }
 }
 

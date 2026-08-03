@@ -5,7 +5,8 @@
 use crate::prelude::*;
 use crate::vector::vector_builders::{HeapedVectorExprBuilder, InitializableVectorBuilder};
 use crate::{
-    vector::{VectorInPlaceEvalOps},
+    vector::VectorInPlaceEvalOps,
+    matrix::matrix_exprs::ConcreteMatrixExpr,
 };
 use rand::Rng;
 use std::{hint::black_box, time::*};

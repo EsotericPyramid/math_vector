@@ -19,6 +19,7 @@ To Do's:
 ~ clean up types to make them more readable
 ? rename things to make more sense
 + lib.rs:
+    ? change the names of the Ops and Expr traits to be more "consistent"
     - impl ops for scalar
     ~ clean up redundant where bounds
     ~? revamp the output system to use futures (?)
@@ -36,10 +37,10 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        - impl MatrixOps for a pointed-to unsized matrix expr
         ~ decide between dope vs iliffe slice defaults
         ~X rejigger the Index impl for RSMathDopeMatrix (requires externally referenced RSVectorExpr)
         X swap out the RefRSMathIliffes with just 2 with parametrized inner slices
-        - impl rref & det for ConcreteMatrixExpr
         - add eq / partial eq to concrete matrix exprs
         ? change MathMatrix Index impl to have Output = [T; D1] instead of MathVector<T, D1> (for consistency w/ RSMathMatrices) (see below)
         XX impl RSMathMatrix'ces Index to have Output = RSMathVector
@@ -62,6 +63,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        - impl MatrixOps for a pointed-to unsized vector expr
         - check the naming of euclidean inner product
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)
