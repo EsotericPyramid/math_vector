@@ -2279,7 +2279,6 @@ impl<V: VectorLike> VectorEvalOps for RSVectorExpr<V> {
     }
 }
 
-
 unsafe impl<'a, T> VectorOps for &'a RSMathVector<T> {
     type Unwrapped = &'a [T];
     type Builder = RSVectorExprBuilder;
@@ -2298,38 +2297,6 @@ unsafe impl<'a, T> VectorOps for &'a RSMathVector<T> {
     }
 }
 
-impl<T> VectorEvalOps for &RSMathVector<T> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateSlice<V, <V as Get>::Item>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_slice().unwrap()
-    }
-}
-
-
 unsafe impl<'a, T> VectorOps for &'a mut RSMathVector<T> {
     type Unwrapped = &'a mut [T];
     type Builder = RSVectorExprBuilder;
@@ -2345,37 +2312,6 @@ unsafe impl<'a, T> VectorOps for &'a mut RSMathVector<T> {
     #[inline]
     fn size(&self) -> usize {
         self.size
-    }
-}
-
-impl<T> VectorEvalOps for &mut RSMathVector<T> {
-    type MaybeCreateBuffer<V: VectorLike>
-        = VecMaybeCreateSlice<V, <V as Get>::Item>
-    where
-        <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <V as HasReuseBuf>::FstHandleBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <V as HasReuseBuf>::FstOwnedBufferBool,
-            <<V as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair;
-
-    fn maybe_create_buffer(self) -> Self::MaybeCreateBuffer<Self::Unwrapped>
-    where
-        <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg: Filter,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstHandleBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): SelectPair,
-        (
-            <Self::Unwrapped as HasReuseBuf>::FstOwnedBufferBool,
-            <<Self::Unwrapped as HasReuseBuf>::FstHandleBool as TyBool>::Neg,
-        ): TyBoolPair,
-        Self: Sized,
-    {
-        self.maybe_create_slice().unwrap()
     }
 }
 
