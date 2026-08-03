@@ -1320,6 +1320,13 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
 }
 
 
+/// an unsized version of [`RSMathVector`]
+/// 
+/// this is only a small helper struct, it'll quickly get turned into a [`RSVectorExpr`]
+#[repr(transparent)]
+pub struct UnsizedRSMathVector<T>(pub(crate) UnsizedVectorSlice<T>);
+
+
 /// a vector wrapper which adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) onto another vector wrapper
 // monad lol
 pub struct VectorInnerProdExpr<V: VectorOps, IP: GenericInnerProduct> {

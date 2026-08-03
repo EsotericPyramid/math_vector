@@ -62,7 +62,10 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
-        - impl MatrixOps for a pointed-to unsized vector expr
+        ? rework the Deref::Target from ManuallyDrop<...> to just ...
+        ? fully replace VectorSlice with UnsizedVectorSlice
+            - or maybe just make VectorSlice a type alias
+            - otherwise, impl From between the 2
         - check the naming of euclidean inner product
         ? remove heap_eval (or depracate)
         ? impl From<HeapedVectorExpr> for VectorExpr (could lead to accidental stack overflows)

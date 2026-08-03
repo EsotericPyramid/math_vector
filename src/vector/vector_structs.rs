@@ -2,7 +2,7 @@
 
 use super::vec_util_traits::*;
 use crate::{trait_specialization_utils::*, util_traits::*};
-use std::{mem::ManuallyDrop, ops::*, ptr};
+use std::{mem::{ManuallyDrop, transmute}, ops::*, ptr};
 
 // NOTE: vector_structs internally split across multiple files to keep them small and navigable
 mod array_vector_structs;
@@ -303,9 +303,9 @@ impl<T: Clone> Clone for VectorSlice<T> {
     #[inline]
     fn clone(&self) -> Self {
         let to_be_cloned =
-            unsafe { std::mem::transmute::<&Box<ManuallyDrop<[T]>>, &Box<[T]>>(&self.0) };
+            unsafe { transmute::<&Box<ManuallyDrop<[T]>>, &Box<[T]>>(&self.0) };
         let cloned = to_be_cloned.clone();
-        VectorSlice(unsafe { std::mem::transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(cloned) })
+        VectorSlice(unsafe { transmute::<Box<[T]>, Box<ManuallyDrop<[T]>>>(cloned) })
     }
 }
 
@@ -313,7 +313,7 @@ impl<T> VectorSlice<T> {
     /// unwraps this into raw `Box<[T]>` it contains
     #[inline]
     pub fn unwrap(self) -> Box<[T]> {
-        unsafe { std::mem::transmute::<Box<ManuallyDrop<[T]>>, Box<[T]>>(self.0) }
+        unsafe { transmute::<Box<ManuallyDrop<[T]>>, Box<[T]>>(self.0) }
     }
 }
 
@@ -398,6 +398,110 @@ impl<T> HasReuseBuf for VectorSlice<T> {
     #[inline]
     unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
+
+#[repr(transparent)]
+/// an owned slice (not internally pointed to) rigged up to manually drop via the VectorLike traits
+/// 
+/// also see [`VectorSlice`]
+pub struct UnsizedVectorSlice<T>(pub(crate) ManuallyDrop<[T]>);
+
+impl<T: Clone> Clone for Box<UnsizedVectorSlice<T>> {
+    fn clone(&self) -> Self {
+        let to_be_cloned = unsafe { transmute::<&Box<UnsizedVectorSlice<T>>, &Box<[T]>>(self) };
+        let cloned = to_be_cloned.clone();
+        unsafe { transmute::<Box<[T]>, Box<UnsizedVectorSlice<T>>>(cloned) }
+    }
+}
+
+impl<T> UnsizedVectorSlice<T> {
+    /// unwraps this into raw `[T]` it contains (while preserving the outer `box`)
+    pub fn unwrap(self: Box<Self>) -> Box<[T]> {
+        unsafe { transmute::<Box<UnsizedVectorSlice<T>>, Box<[T]>>(self) }
+    }
+}
+
+impl<T> Deref for UnsizedVectorSlice<T> {
+    type Target = ManuallyDrop<[T]>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for UnsizedVectorSlice<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+// note: this is the same impl as [`VectorSlice`]
+unsafe impl<T> Get for UnsizedVectorSlice<T> {
+    type GetBool = Y;
+    type Inputs = T;
+    type Item = T;
+    type BoundItems = ();
+
+    #[inline]
+    unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+        unsafe { ptr::read(self.0.get_unchecked(index)) }
+    }
+    #[inline]
+    fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+        (inputs, ())
+    }
+    #[inline]
+    unsafe fn drop_inputs(&mut self, index: usize) {
+        unsafe { ptr::drop_in_place(self.0.get_unchecked_mut(index)) }
+    }
+}
+
+// Safety: requires copy --> implies that items aren't invalidated after outputting --> Get can be repeated
+unsafe impl<T: Copy> IsRepeatable for UnsizedVectorSlice<T> {}
+
+impl<T> HasOutput for UnsizedVectorSlice<T> {
+    type OutputBool = N;
+    type Output = ();
+
+    #[inline]
+    unsafe fn output(&mut self) -> Self::Output {}
+    #[inline]
+    unsafe fn drop_output(&mut self) {}
+}
+
+impl<T> HasReuseBuf for UnsizedVectorSlice<T> {
+    type FstHandleBool = N;
+    type SndHandleBool = N;
+    type BoundHandlesBool = N;
+    type FstOwnedBufferBool = N;
+    type SndOwnedBufferBool = N;
+    type FstOwnedBuffer = ();
+    type SndOwnedBuffer = ();
+    type FstType = ();
+    type SndType = ();
+    type BoundTypes = ();
+
+    #[inline]
+    unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+    #[inline]
+    unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+    #[inline]
+    unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+    #[inline]
+    unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline]
+    unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+    #[inline]
+    unsafe fn drop_1st_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_2nd_buffer(&mut self) {}
+    #[inline]
+    unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+    #[inline]
+    unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+    #[inline]
+    unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+}
+
 
 /// an owned slice rigged up to repeatable return references to its elements via Get
 pub struct ReferringVectorSlice<'a, T: 'a>(

@@ -192,7 +192,7 @@ pub trait HasReuseBuf {
 /// automatically implemented for all types implementing all of the individual traits
 pub trait VectorLike: Get + HasOutput + HasReuseBuf {}
 
-impl<T: Get + HasOutput + HasReuseBuf> VectorLike for T {}
+impl<T: Get + HasOutput + HasReuseBuf + ?Sized> VectorLike for T {}
 
 /// Implies that the struct's impl of Get is repeatable and can be called multiple times at a given idx
 ///

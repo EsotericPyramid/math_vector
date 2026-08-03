@@ -2380,6 +2380,57 @@ impl<T> VectorEvalOps for &mut RSMathVector<T> {
 }
 
 
+unsafe impl<T> VectorOps for Box<UnsizedRSMathVector<T>> {
+    type Unwrapped = Box<UnsizedVectorSlice<T>>;
+    type Builder = RSVectorExprBuilder;
+
+    fn unwrap(self) -> Self::Unwrapped {
+        unsafe { std::mem::transmute::<Box<UnsizedRSMathVector<T>>, Box<UnsizedVectorSlice<T>>>(self) }
+    }
+
+    fn get_builder(&self) -> Self::Builder {
+        RSVectorExprBuilder::new(self.size())
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+}
+
+unsafe impl<'a, T> VectorOps for &'a UnsizedRSMathVector<T> {
+    type Unwrapped = &'a [T];
+    type Builder = RSVectorExprBuilder;
+
+    fn unwrap(self) -> Self::Unwrapped {
+        &self.0
+    }
+
+    fn get_builder(&self) -> Self::Builder {
+        RSVectorExprBuilder::new(self.size())
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+}
+
+unsafe impl<'a, T> VectorOps for &'a mut UnsizedRSMathVector<T> {
+    type Unwrapped = &'a [T];
+    type Builder = RSVectorExprBuilder;
+
+    fn unwrap(self) -> Self::Unwrapped {
+        &self.0
+    }
+
+    fn get_builder(&self) -> Self::Builder {
+        RSVectorExprBuilder::new(self.size())
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+}
+
 
 
 macro_rules! not_conditional_syntax {
