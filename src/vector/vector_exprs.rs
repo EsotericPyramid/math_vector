@@ -971,11 +971,9 @@ impl<T> From<Box<[T]>> for RSMathVector<T> {
     #[inline]
     fn from(value: Box<[T]>) -> Self {
         let size = value.len();
-        unsafe {
-            RSVectorExpr {
-                vec: mem::transmute::<Box<[T]>, VectorSlice<T>>(value),
-                size,
-            }
+        RSVectorExpr {
+            vec: value.into(),
+            size,
         }
     }
 }
@@ -990,7 +988,7 @@ impl<T> From<RSMathVector<T>> for Vec<T> {
 impl<T> From<RSMathVector<T>> for Box<[T]> {
     #[inline]
     fn from(value: RSMathVector<T>) -> Self {
-        unsafe { mem::transmute_copy::<VectorSlice<T>, Box<[T]>>(&ManuallyDrop::new(value).vec) }
+        value.unwrap().into()
     }
 }
 
@@ -1325,6 +1323,108 @@ impl<'a, T: std::fmt::Display> std::fmt::Display for RefMutRSMathVector<'a, T> {
 /// this is only a small helper struct, it'll quickly get turned into a [`RSVectorExpr`]
 #[repr(transparent)]
 pub struct UnsizedRSMathVector<T>(pub(crate) UnsizedVectorSlice<T>);
+
+impl<T> Deref for UnsizedRSMathVector<T> {
+    type Target = UnsizedVectorSlice<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for UnsizedRSMathVector<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T> From<Box<UnsizedRSMathVector<T>>> for Box<[T]> {
+    fn from(value: Box<UnsizedRSMathVector<T>>) -> Self {
+        unsafe { std::mem::transmute::<Box<UnsizedRSMathVector<T>>, Box<UnsizedVectorSlice<T>>>(value) }.into()
+    }
+}
+
+impl<T> From<Box<[T]>> for Box<UnsizedRSMathVector<T>> {
+    fn from(value: Box<[T]>) -> Self {
+        let slice: Box<UnsizedVectorSlice<T>> = value.into();
+        unsafe { std::mem::transmute::<Box<UnsizedVectorSlice<T>>, Box<UnsizedRSMathVector<T>>>(slice) }
+    }
+}
+
+impl<T> From<Box<UnsizedRSMathVector<T>>> for RSMathVector<T> {
+    fn from(value: Box<UnsizedRSMathVector<T>>) -> Self {
+        let size = value.size();
+        let vec = unsafe { std::mem::transmute::<Box<UnsizedRSMathVector<T>>, Box<UnsizedVectorSlice<T>>>(value) };
+        RSMathVector{
+            vec: vec.into(),
+            size
+        }
+    }
+}
+
+impl<T> From<RSMathVector<T>> for Box<UnsizedRSMathVector<T>> {
+    fn from(value: RSMathVector<T>) -> Self {
+        value.unwrap().unwrap().into()
+    }
+}
+
+impl<'a, T> From<&'a UnsizedRSMathVector<T>> for &'a [T] {
+    fn from(value: &'a UnsizedRSMathVector<T>) -> Self {
+        &****value
+    }
+}
+
+impl<'a, T> From<&'a [T]> for &'a UnsizedRSMathVector<T> {
+    fn from(value: &'a [T]) -> Self {
+        unsafe { std::mem::transmute::<&UnsizedVectorSlice<T>, &UnsizedRSMathVector<T>>(value.into()) }
+    }
+}
+
+impl<'a, T> From<&'a UnsizedRSMathVector<T>> for RefRSMathVector<'a, T> {
+    fn from(value: &'a UnsizedRSMathVector<T>) -> Self {
+        let size = value.size();
+        RSVectorExpr{
+            vec: value.into(),
+            size
+        }
+    }
+}
+
+impl<'a, T> From<RefRSMathVector<'a, T>> for &'a UnsizedRSMathVector<T> {
+    fn from(value: RefRSMathVector<'a, T>) -> Self {
+        let slice: &[T] = value.unwrap().into();
+        slice.into()
+    }
+}
+
+impl<'a, T> From<&'a mut UnsizedRSMathVector<T>> for &'a mut [T] {
+    fn from(value: &'a mut UnsizedRSMathVector<T>) -> Self {
+        &mut ****value
+    }
+}
+
+impl<'a, T> From<&'a mut [T]> for &'a mut UnsizedRSMathVector<T> {
+    fn from(value: &'a mut [T]) -> Self {
+        unsafe { std::mem::transmute::<&mut UnsizedVectorSlice<T>, &mut UnsizedRSMathVector<T>>(value.into()) }
+    }
+}
+
+impl<'a, T> From<&'a mut UnsizedRSMathVector<T>> for RefMutRSMathVector<'a, T> {
+    fn from(value: &'a mut UnsizedRSMathVector<T>) -> Self {
+        let size = value.size();
+        RSVectorExpr{
+            vec: value.into(),
+            size
+        }
+    }
+}
+
+impl<'a, T> From<RefMutRSMathVector<'a, T>> for &'a mut UnsizedRSMathVector<T> {
+    fn from(value: RefMutRSMathVector<'a, T>) -> Self {
+        let slice: &mut [T] = value.unwrap().into();
+        slice.into()
+    }
+}
 
 
 /// a vector wrapper which adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) onto another vector wrapper

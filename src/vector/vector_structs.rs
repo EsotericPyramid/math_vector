@@ -399,6 +399,18 @@ impl<T> HasReuseBuf for VectorSlice<T> {
     unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
 }
 
+impl<T> From<Box<[T]>> for VectorSlice<T> {
+    fn from(value: Box<[T]>) -> Self {
+        unsafe { transmute::<Box<[T]>, VectorSlice<T>>(value) }
+    }
+}
+
+impl<T> From<VectorSlice<T>> for Box<[T]> {
+    fn from(value: VectorSlice<T>) -> Self {
+        unsafe { transmute::<VectorSlice<T>, Box<[T]>>(value) }
+    }
+}
+
 #[repr(transparent)]
 /// an owned slice (not internally pointed to) rigged up to manually drop via the VectorLike traits
 /// 
@@ -431,6 +443,60 @@ impl<T> Deref for UnsizedVectorSlice<T> {
 impl<T> DerefMut for UnsizedVectorSlice<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<T> From<Box<[T]>> for Box<UnsizedVectorSlice<T>> {
+    fn from(value: Box<[T]>) -> Self {
+        // Box<[T]> --> Box<ManuallyDrop<[T]>> --> Box<UnsizedVectorSlice<T>>
+        unsafe { transmute::<Box<[T]>, Box<UnsizedVectorSlice<T>>>(value) }
+    }
+}
+
+impl<T> From<Box<UnsizedVectorSlice<T>>> for Box<[T]> {
+    fn from(value: Box<UnsizedVectorSlice<T>>) -> Self {
+        // Box<UnsizedVectorSlice<T>> --> Box<ManuallyDrop<[T]>> --> Box<[T]>
+        unsafe { transmute::<Box<UnsizedVectorSlice<T>>, Box<[T]>>(value) }
+    }
+}
+
+impl<T> From<Box<UnsizedVectorSlice<T>>> for VectorSlice<T> {
+    fn from(value: Box<UnsizedVectorSlice<T>>) -> Self {
+        VectorSlice(unsafe { transmute::<Box<UnsizedVectorSlice<T>>, Box<ManuallyDrop<[T]>>>(value) })
+    }
+}
+
+impl<T> From<VectorSlice<T>> for Box<UnsizedVectorSlice<T>> {
+    fn from(value: VectorSlice<T>) -> Self {
+        unsafe { transmute::<Box<ManuallyDrop<[T]>>, Box<UnsizedVectorSlice<T>>>(value.0) }
+    }
+}
+
+impl<'a, T> From<&'a UnsizedVectorSlice<T>> for &'a [T] {
+    fn from(value: &'a UnsizedVectorSlice<T>) -> Self {
+        &*value.0
+    }
+}
+
+impl<'a, T> From<&'a [T]> for &'a UnsizedVectorSlice<T> {
+    fn from(value: &'a [T]) -> Self {
+        // list of individual transmutes:
+        // &[T] --> &ManuallyDrop<[T]> --> &UnsizedVectorSlice<T>
+        unsafe { transmute::<&[T], &UnsizedVectorSlice<T>>(value) }
+    }
+}
+
+impl<'a, T> From<&'a mut UnsizedVectorSlice<T>> for &'a mut [T] {
+    fn from(value: &'a mut UnsizedVectorSlice<T>) -> Self {
+        &mut *value.0
+    }
+}
+
+impl<'a, T> From<&'a mut [T]> for &'a mut UnsizedVectorSlice<T> {
+    fn from(value: &'a mut [T]) -> Self {
+        // list of individual transmutes:
+        // &mut [T] --> &mut ManuallyDrop<[T]> --> &mut UnsizedVectorSlice<T>
+        unsafe { transmute::<&mut [T], &mut UnsizedVectorSlice<T>>(value) }
     }
 }
 
