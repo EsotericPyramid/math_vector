@@ -2,7 +2,7 @@
 
 
 use crate::{
-    trait_specialization_utils::*, util_traits::HasOutput, vector::vector_exprs::MathVector, 
+    trait_specialization_utils::*, util_traits::HasOutput, vector::vector_exprs::{MathVector, UnsizedRSMathVector}, 
 };
 use super::{
     mat_util_traits::*,
@@ -1037,13 +1037,13 @@ impl<T, U> From<U> for RSMathDopeMatrix<T> where RSMathIliffeMatrix<T>: From<U> 
 }
 
 impl<T> Index<usize> for RSMathDopeMatrix<T> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         let slice_start = index * self.mat.height;
         let raw = &self.mat.mat[slice_start..slice_start + self.mat.height];
-        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }
+        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }.into()
     }
 }
 
@@ -1052,7 +1052,7 @@ impl<T> IndexMut<usize> for RSMathDopeMatrix<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let slice_start = index * self.mat.height;
         let raw = &mut self.mat.mat[slice_start..slice_start + self.mat.height];
-        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }
+        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }.into()
     }
 }
 
@@ -1103,12 +1103,12 @@ where
     (N, USEDM::IsSndBufferTransposed): TyBoolPair,
     (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
 {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     fn index(&self, index: usize) -> &Self::Output {
         let slice_start = index * self.mat.mat.height;
         let raw = &self.mat.mat.mat[slice_start..slice_start + self.mat.mat.height];
-        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }
+        unsafe{ transmute::<&[ManuallyDrop<T>], &[T]>(raw) }.into()
     }
 }
 
@@ -1127,7 +1127,7 @@ where
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let slice_start = index * self.mat.mat.height;
         let raw = &mut self.mat.mat.mat[slice_start..slice_start + self.mat.mat.height];
-        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }
+        unsafe{ transmute::<&mut [ManuallyDrop<T>], &mut [T]>(raw) }.into()
     }
 }
 
@@ -1256,12 +1256,12 @@ pub type RefRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMatrixDopeSlice<'a, T>>;
 // TODO if possible: `From` impl's (bc any normal 2d structure like Vec<Vec<T>> just doesn't have such a contiguous slice to use)
 
 impl<'a, T> Index<usize> for RefRSMathDopeMatrix<'a, T> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         let slice_start = index * self.mat.height;
-        &self.mat.mat[slice_start..slice_start + self.mat.height]
+        (&self.mat.mat[slice_start..slice_start + self.mat.height]).into()
     }
 } 
 
@@ -1273,12 +1273,12 @@ pub type RefMutRSMathDopeMatrix<'a, T> = RSMatrixExpr<RefMutMatrixDopeSlice<'a, 
 // TODO if possible: `From` impl's
 
 impl<'a, T> Index<usize> for RefMutRSMathDopeMatrix<'a, T> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         let slice_start = index * self.mat.height;
-        &self.mat.mat[slice_start..slice_start + self.mat.height]
+        (&self.mat.mat[slice_start..slice_start + self.mat.height]).into()
     }
 }
 
@@ -1286,7 +1286,7 @@ impl<'a, T> IndexMut<usize> for RefMutRSMathDopeMatrix<'a, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let slice_start = index * self.mat.height;
-        &mut self.mat.mat[slice_start..slice_start + self.mat.height]
+        (&mut self.mat.mat[slice_start..slice_start + self.mat.height]).into()
     }
 }
 
@@ -1383,12 +1383,12 @@ impl<T> From<Vec<Vec<T>>> for RSMathIliffeMatrix<T> {
 }
 
 impl<T, I> Index<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: Index<I, Output = Box<[T]>> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
         // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
-        &(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.0) })[index]
+        (&*(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.0) })[index]).into()
     }
 }
 
@@ -1396,7 +1396,7 @@ impl<T, I> IndexMut<I> for RSMathIliffeMatrix<T> where [Box<[T]>]: IndexMut<I, O
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
-        &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.0) })[index]
+        (&mut *(unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.0) })[index]).into()
     }
 }
 
@@ -1449,12 +1449,12 @@ impl<T, I, USEDM: MatrixLike> Index<I> for RSMatrixExpr<MatAttachUsedMat<MatrixI
     (N, USEDM::IsSndBufferTransposed): TyBoolPair,
     (N, USEDM::AreBoundBuffersTransposed): TyBoolPair,
 {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
         // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
-        &(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.mat.0) })[index]
+        (&*(unsafe { transmute::<&[Box<[ManuallyDrop<T>]>], &[Box<[T]>]>(&self.mat.mat.0) })[index]).into()
     }
 }
 
@@ -1473,7 +1473,7 @@ impl<T, I, USEDM: MatrixLike> IndexMut<I> for RSMatrixExpr<MatAttachUsedMat<Matr
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         // SAFETY: this transmute isn't *strictly* needed but it allows for a cleaner where bound, safe bc `ManuallyDrop` is `repr(transparent)`
-        &mut (unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.mat.0) })[index]
+        (&mut *(unsafe { transmute::<&mut [Box<[ManuallyDrop<T>]>], &mut [Box<[T]>]>(&mut self.mat.mat.0) })[index]).into()
     }
 }
 
@@ -1609,11 +1609,11 @@ impl<'a, T: 'a, S: Deref<Target = [T]>> From<&'a [S]> for RSMatrixExpr<&'a [S]> 
 }
 
 impl<'a, T: 'a, S: Deref<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a [S]> where [S]: Index<I, Output = S> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        &self.mat[index]
+        (&*self.mat[index]).into()
     }
 }
 
@@ -1630,17 +1630,17 @@ impl<'a, T: 'a, S: DerefMut<Target = [T]>> From<&'a mut [S]> for RSMatrixExpr<&'
 }
 
 impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> Index<I> for RSMatrixExpr<&'a mut [S]> where [S]: Index<I, Output = S> {
-    type Output = [T];
+    type Output = UnsizedRSMathVector<T>;
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        &self.mat[index]
+        (&*self.mat[index]).into()
     }
 }
 
 impl<'a, T: 'a, S: DerefMut<Target = [T]>, I> IndexMut<I> for RSMatrixExpr<&'a mut [S]> where [S]: IndexMut<I, Output = S> {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.mat[index]
+        (&mut *self.mat[index]).into()
     }
 }

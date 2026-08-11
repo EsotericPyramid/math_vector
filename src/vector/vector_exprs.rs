@@ -1427,6 +1427,68 @@ impl<'a, T> From<RefMutRSMathVector<'a, T>> for &'a mut UnsizedRSMathVector<T> {
 }
 
 
+impl<T, I> Index<I> for UnsizedRSMathVector<T> where [T]: Index<I> {
+    type Output = <[T] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.0[index]
+    }
+}
+
+impl<T, I> IndexMut<I> for UnsizedRSMathVector<T> where [T]: IndexMut<I> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0.0[index]
+    }
+}
+
+impl<T, I> Index<I> for Box<UnsizedRSMathVector<T>> where [T]: Index<I> {
+    type Output = <[T] as Index<I>>::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0.0[index]
+    }
+}
+
+impl<T, I> IndexMut<I> for Box<UnsizedRSMathVector<T>> where [T]: IndexMut<I> {
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0.0[index]
+    }
+}
+
+
+impl<T> ConcreteVectorExpr for Box<UnsizedRSMathVector<T>> {
+    type ReferencedInner<'a> = &'a [T] where Self: 'a;
+    type Referenced<'a> = RefRSMathVector<'a, T> where Self: 'a;
+    type Copied<'a> = RSVectorExpr<VecCopy<'a, &'a [T], T>> where
+        Self::Output: Copy,
+        Self: 'a,
+    ;
+    type ReferencedMutInner<'a> = &'a mut [T] where Self: 'a;
+    type ReferencedMut<'a> = RefMutRSMathVector<'a, T>where Self: 'a;
+
+    #[inline]
+    fn borrow<'a>(&'a self) -> Self::Referenced<'a> {
+        let size = self.size();
+        RSVectorExpr { vec: &**self, size }
+    }
+
+    #[inline]
+    fn borrow_mut<'a>(&'a mut self) -> Self::ReferencedMut<'a> {
+        let size = self.size();
+        RSVectorExpr { vec: &mut **self, size }
+    }
+
+    #[inline]
+    fn copy<'a>(&'a self) -> Self::Copied<'a> where Self::Output: Copy {
+        self.borrow().copied()
+    }
+}
+
+
 /// a vector wrapper which adds an [inner product](https://en.wikipedia.org/wiki/Inner_product_space) onto another vector wrapper
 // monad lol
 pub struct VectorInnerProdExpr<V: VectorOps, IP: GenericInnerProduct> {
