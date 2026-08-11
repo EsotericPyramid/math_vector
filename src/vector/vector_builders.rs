@@ -7,10 +7,13 @@ use super::vector_structs::{VectorArray, VectorSlice, VecGenerator, VecIndexGene
 use super::vec_util_traits::VectorLike;
 use super::{RSVectorExpr, VectorExpr, VectorInnerProdExpr, VectorOps};
 use std::mem::{ManuallyDrop, MaybeUninit, transmute, transmute_copy};
+use std::ops::Deref;
 
 /// A way for a type to "build" wrappers around VectorLikes which encode sizing information
 /// 
 /// or in other words, implementors carry minimal sizing information which can be applied to VectorLikes
+/// 
+/// note: there does exist one generic auto impl of this
 pub trait VectorBuilder: Copy {
     /// The parametrized wrapper generated around VectorLikes which this builder generates
     type Wrapped<T: VectorLike>: VectorOps<Unwrapped = T, Builder = Self>;
@@ -69,6 +72,8 @@ pub trait VectorBuilder: Copy {
     }
 }
 
+
+
 /// A way for [`VectorBuilder`]s to allocate and initialize [`ConcreteVectorExpr`]s 
 /// 
 /// this is useful over just [`VectorBuilder`] as it can simplify types in a parametrized setting and 
@@ -120,6 +125,8 @@ pub unsafe trait UninitVectorBuilder: InitializableVectorBuilder {
 }
 
 /// Enables an union operation between 2 VectorBuilders into a single [`VectorBuilder`]
+/// 
+/// note: there does exist a generic impl for this of the form: `VectorBuilderUnion<B2> for B1` where `B2` derefs into some other builder with prexisting impls 
 pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
     /// the resulting type of the Union
     type Union: VectorBuilder;
@@ -128,6 +135,14 @@ pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
     /// 
     /// additionally checks that the sizing information of each VectorBuilder is equal
     fn union(self, other: T) -> Self::Union;
+}
+
+impl<B1: VectorBuilder + VectorBuilderUnion<B2Inner>, B2: VectorBuilder + Deref<Target = B2Inner>, B2Inner: VectorBuilder> VectorBuilderUnion<B2> for B1 {
+    type Union = B1::Union;
+
+    fn union(self, other: B2) -> Self::Union {
+        self.union(*other)
+    }
 }
 
 /// a simple const sized [`VectorBuilder`]
@@ -453,4 +468,5 @@ impl VectorBuilderUnion<RSVectorExprBuilder> for RSVectorExprBuilder {
         self
     }
 }
+
 

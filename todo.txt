@@ -63,6 +63,7 @@ To Do's:
         + matrix_builders.rs:
         + matrix_structs.rs:
     + vector.rs:
+        ? remove VectorBuilderUnion deref auto impl
         ? rework the Deref::Target from ManuallyDrop<...> to just ...
         ? fully replace VectorSlice with UnsizedVectorSlice
             - or maybe just make VectorSlice a type alias
