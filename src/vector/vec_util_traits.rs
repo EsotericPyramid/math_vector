@@ -8,7 +8,7 @@ use crate::{trait_specialization_utils::*, util_traits::HasOutput};
 /// Can output owned values
 ///
 /// Get has 2 parts: `get_inputs` and `process`
-/// `get_inputs`: "gets the inputs" for process, is infallible and implicitly invalidates that index
+/// `get_inputs`: "gets the inputs" for process, implicitly invalidating that index
 /// `process`: "processes" inputs from `get_inputs` into the Item and BoundItems, can be fallible (can panic) but doesn't effect the validity of an index
 ///
 /// thus, the flow to get the actual item (and BoundItems), you run `process(get_inputs(index))`, which is shortcutted w/ `get`
@@ -25,22 +25,26 @@ pub unsafe trait Get {
     /// Additional values which are "bound" to a specific place, generally within HasReuseBuf
     type BoundItems;
 
-    /// "gets the inputs" for process, is infallible and implicitly invalidates that index
+    /// "gets the inputs" for [`Self::process`], implicitly invalidating this index
     ///
+    /// note:
+    /// this method, although allowed to fail, should be implemented infalibly if at all possible
+    /// as the ultimate consumers of VectorLikes may rely on infalibility to avoid memory leaking.
+    /// 
     /// Safety:
     /// - index must be in bounds (not determinable via this trait)
     /// - called at most once at each index*
-    /// - mutually exclusive with `drop_inputs` for each index
+    /// - mutually exclusive with [`Self::drop_inputs`] for each index
     ///
     /// *:  if IsRepeatable = Y, indices aren't actually invalidated so it is legal to call `get_index` and `drop_inputs` at an index twice or more
     unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs;
 
-    /// drops the memory that would be invalidated by `get_inputs` at the given index, is infallible
+    /// drops the memory that would be invalidated by `get_inputs` at the given index
     ///
     /// Safety:
     /// - index must be in bounds (not determinable via this trait)
     /// - called at most once at each index
-    /// - mutually exclusive with `drop_inputs` for each index*
+    /// - mutually exclusive with [`Self::get_inputs`] for each index*
     ///
     /// *:  if IsRepeatable = Y, indices aren't actually invalidated so it is legal `get_index` and `drop_inputs` at an index
     unsafe fn drop_inputs(&mut self, index: usize);

@@ -6,6 +6,7 @@ Key:
     ~X: to do *when* possible (ie. definitely not possible now)
     ~: deferred for far later
     XX: to do but likely never possible (ex. breaks orphans rules) (still good to motivate further design)
+    XXX: things that im sunk-cost fallacy-ing my way out of
 
 
 To Do's:
@@ -37,6 +38,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        XXX have matrix exprs just be a monad over a vector expr
         ~X add a default impl for Concete___Expr::copy (currently would require many undesirable bounds)
         - impl MatrixOps for a pointed-to unsized matrix expr
         ~ decide between dope vs iliffe slice defaults
@@ -114,6 +116,7 @@ To Do's:
 
 Fix Me's:
 + lib.rs:
+    X check cases of transmuting with a MaybeUninit<T> (its / container's layout **isn't** necessarily the same as T)
     - replace transmute_copy's used to bypass incorrect size errors
     + test:
     + matrix.rs:
