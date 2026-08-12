@@ -23,6 +23,7 @@ file-conversion = []
 csv = ["file-conversion", "dep:csv"]
 mtx = ["file-conversion", "dep:matrix_merchant", "dep:num-complex"]
 hdf5 = ["file-conversion", "dep:hdf5"]
+file-backed = []
 
 [profile.profiling]
 inherits = "release"

@@ -826,3 +826,186 @@ impl<V: VectorLike + ?Sized> HasReuseBuf for Box<V> {
         unsafe { (debox(self)).drop_bound_bufs_index(index) }
     }
 }
+
+#[cfg(feature = "file-backed")]
+mod file_backed_vector_structs {
+    use super::*;
+    use std::fs::*;
+    use std::sync::Mutex;
+
+    static NEXT_OWNED_FILE_ID: Mutex<u64> = Mutex::new(0);
+
+    struct OwnedFile(File);
+
+    impl OwnedFile {
+        fn new() -> Self {
+            let temp_dir = std::env::temp_dir();
+            loop { // retry this file creation until it succeeds
+                let id = {
+                    let mut lock = NEXT_OWNED_FILE_ID.lock().unwrap();
+                    let id = *lock;
+                    *lock += 1;
+                    id
+                };
+                let mut path = temp_dir.clone();
+                path.push(format!("{:016X}", id));
+                let file = OpenOptions::new().create_new(true).write(true).open(path);
+                if let Ok(file) = file {
+                    if let Ok(_) = file.try_lock() {
+                        return OwnedFile(file);
+                    }
+                }
+            }
+        }
+    }
+
+    impl Deref for OwnedFile {
+        type Target = File;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl DerefMut for OwnedFile {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
+    }
+    
+    #[cfg(feature = "file-backed")]
+    const IDEAL_FILE_BUFFER_SIZE: usize = 65536; //ie. 2 << 16
+    
+    #[cfg(feature = "file-backed")]
+    pub struct VectorFile<T: Sized>{
+        file: OwnedFile,
+        buffer: Vec<ManuallyDrop<T>>,
+        buffer_offset: usize,
+    }
+    
+    #[cfg(feature = "file-backed")]
+    impl<T: Sized> VectorFile<T> {
+        fn new_from_file(file: OwnedFile) -> Result<Self, std::io::Error> {
+            let mut out = VectorFile {
+                file,
+                buffer: Vec::with_capacity(IDEAL_FILE_BUFFER_SIZE.next_multiple_of(std::mem::size_of::<T>()) - std::mem::size_of::<T>()),
+                buffer_offset: 0,
+            };
+            out.regen_buffer(0)?;
+            Ok(out)
+        }
+    
+        fn regen_buffer(&mut self, index: usize) -> Result<(), std::io::Error> {
+            use std::io::{Read, Seek};
+    
+            let buffer_data_size = self.buffer.capacity() * std::mem::size_of::<T>();
+            let mut slice = unsafe { 
+                std::slice::from_raw_parts_mut(
+                    std::mem::transmute::<
+                        *mut ManuallyDrop<T>, 
+                        *mut u8
+                    >((&mut *self.buffer).as_mut_ptr()),
+                     buffer_data_size
+                ) 
+            };
+    
+            self.buffer_offset = index.next_multiple_of(self.buffer.capacity()) - self.buffer.capacity();
+            self.file.seek(std::io::SeekFrom::Start((self.buffer_offset * std::mem::size_of::<T>()) as u64))?;
+    
+            // this chunk is yoinked from the std lib (based on file::read_exact)
+            while !slice.is_empty() {
+                match self.file.read(slice) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        slice = &mut slice[n..];
+                    }
+                    Err(e) => {
+                        if let std::io::ErrorKind::Interrupted = e.kind() {} else {return Err(e)}
+                    }
+                }
+            }
+    
+            if !slice.is_empty() {
+                self.buffer.shrink_to(self.buffer.len() - slice.len() / std::mem::size_of::<T>());
+            }
+    
+            Ok(())
+        }
+    }
+    
+    #[cfg(feature = "file-backed")]
+    unsafe impl<T: Sized> Get for VectorFile<T> {
+        type GetBool = Y;
+        type Inputs = T;
+        type Item = T;
+        type BoundItems = ();
+    
+        unsafe fn get_inputs(&mut self, index: usize) -> Self::Inputs {
+            let (intra_buffer_offset, mut outside_buffer) = index.overflowing_sub(self.buffer_offset);
+            outside_buffer |= intra_buffer_offset >= self.buffer.len();
+            if !outside_buffer {
+                unsafe { ptr::read(&**self.buffer.get_unchecked(index)) }
+            } else {
+                let Ok(_) = self.regen_buffer(index) else {
+                    panic!("math_vector FATAL internal error: VectorFile failed regenerating its buffer \n(this isn't your fault, something is wrong on the backend, please report this to get it fixed (hopefully))");
+                };
+                unsafe { self.get_inputs(index) }
+            }
+        }
+    
+        unsafe fn drop_inputs(&mut self, index: usize) {
+            drop(unsafe { self.get_inputs(index) });
+        }
+    
+        fn process(&mut self, _: usize, inputs: Self::Inputs) -> (Self::Item, Self::BoundItems) {
+            (inputs, ())
+        }
+    }
+
+    impl<T> HasOutput for VectorFile<T> {
+        type OutputBool = N;
+        type Output = ();
+
+        #[inline]
+        unsafe fn output(&mut self) -> Self::Output {}
+        #[inline]
+        unsafe fn drop_output(&mut self) {}
+    }
+
+    impl<T> HasReuseBuf for VectorFile<T> {
+        type FstHandleBool = N;
+        type SndHandleBool = N;
+        type BoundHandlesBool = N;
+        type FstOwnedBufferBool = N;
+        type SndOwnedBufferBool = N;
+        type FstOwnedBuffer = ();
+        type SndOwnedBuffer = ();
+        type FstType = ();
+        type SndType = ();
+        type BoundTypes = ();
+
+        #[inline]
+        unsafe fn assign_1st_buf(&mut self, _: usize, _: Self::FstType) {}
+        #[inline]
+        unsafe fn assign_2nd_buf(&mut self, _: usize, _: Self::SndType) {}
+        #[inline]
+        unsafe fn assign_bound_bufs(&mut self, _: usize, _: Self::BoundTypes) {}
+        #[inline]
+        unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {}
+        #[inline]
+        unsafe fn get_2nd_buffer(&mut self) -> Self::FstOwnedBuffer {}
+        #[inline]
+        unsafe fn drop_1st_buffer(&mut self) {}
+        #[inline]
+        unsafe fn drop_2nd_buffer(&mut self) {}
+        #[inline]
+        unsafe fn drop_1st_buf_index(&mut self, _: usize) {}
+        #[inline]
+        unsafe fn drop_2nd_buf_index(&mut self, _: usize) {}
+        #[inline]
+        unsafe fn drop_bound_bufs_index(&mut self, _: usize) {}
+    }
+}
+
+#[cfg(feature = "file-backed")]
+pub use file_backed_vector_structs::*;
