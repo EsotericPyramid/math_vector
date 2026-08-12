@@ -361,9 +361,74 @@ pub mod util_traits {
 
 /// provides utility structs for the Library
 pub(crate) mod util_structs {
-    //! here lies a relic...
-    //! once used for `NoneIter`, a iter with 0 items to extract additive and multiplicative identities
-    //! (This module is being kept around just in case it is later needed (that doesn't sound too unlikely))
+    #[cfg(feature = "file-backed")]
+    pub mod file_backed {
+        use std::sync::Mutex;
+        use std::fs::*;
+        use std::path::PathBuf;
+        use std::ops::{Deref, DerefMut};
+    
+        static NEXT_OWNED_FILE_ID: Mutex<u64> = Mutex::new(0);
+    
+        /// a file to which the process has unique read & write access to (ie. a lock + write)
+        /// 
+        /// this allows for this struct to have ownership semantics over the file's contents.
+        /// However, since this struct doesn't make any attempt to interpret the contents, it dropping
+        /// only deletes the file.
+        pub(crate) struct OwnedFile{
+            // this is only None when during `Drop::drop`
+            file: Option<File>, 
+            path: PathBuf,
+        }
+    
+        impl OwnedFile {
+            pub(crate) fn new() -> Self {
+                let temp_dir = std::env::temp_dir();
+                loop { // retry this file creation until it succeeds
+                    let id = {
+                        let mut lock = NEXT_OWNED_FILE_ID.lock().unwrap();
+                        let id = *lock;
+                        *lock += 1;
+                        id
+                    };
+                    let mut path = temp_dir.clone();
+                    // file names are of the form, "math_vector-vectorfile-[pid]-[id]" where ids increment from 0
+                    path.push(format!("math_vector-vectorfile-{:08X}-{:016X}", std::process::id(), id));
+                    let file = OpenOptions::new().create_new(true).write(true).open(&path);
+                    if let Ok(file) = file {
+                        if let Ok(_) = file.try_lock() {
+                            return OwnedFile{file: Some(file), path};
+                        }
+                    }
+                }
+            }
+        }
+    
+        impl Deref for OwnedFile {
+            type Target = File;
+    
+            fn deref(&self) -> &Self::Target {
+                self.file.as_ref().unwrap()
+            }
+        }
+    
+        impl DerefMut for OwnedFile {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.file.as_mut().unwrap()
+            }
+        }
+    
+        impl Drop for OwnedFile {
+            fn drop(&mut self) {
+                // close the file
+                drop(self.file.take().unwrap());
+
+                if let Err(e) = remove_file(&self.path) {
+                    eprintln!("math_vector internal warning: failed to remove a VectorFile temp file ({e})");
+                }
+            }
+        }
+    }
 }
 
 pub mod matrix;

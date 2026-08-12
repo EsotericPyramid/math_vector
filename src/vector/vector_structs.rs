@@ -830,49 +830,8 @@ impl<V: VectorLike + ?Sized> HasReuseBuf for Box<V> {
 #[cfg(feature = "file-backed")]
 mod file_backed_vector_structs {
     use super::*;
-    use std::fs::*;
-    use std::sync::Mutex;
+    use crate::util_structs::file_backed::*;
 
-    static NEXT_OWNED_FILE_ID: Mutex<u64> = Mutex::new(0);
-
-    struct OwnedFile(File);
-
-    impl OwnedFile {
-        fn new() -> Self {
-            let temp_dir = std::env::temp_dir();
-            loop { // retry this file creation until it succeeds
-                let id = {
-                    let mut lock = NEXT_OWNED_FILE_ID.lock().unwrap();
-                    let id = *lock;
-                    *lock += 1;
-                    id
-                };
-                let mut path = temp_dir.clone();
-                path.push(format!("{:016X}", id));
-                let file = OpenOptions::new().create_new(true).write(true).open(path);
-                if let Ok(file) = file {
-                    if let Ok(_) = file.try_lock() {
-                        return OwnedFile(file);
-                    }
-                }
-            }
-        }
-    }
-
-    impl Deref for OwnedFile {
-        type Target = File;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
-
-    impl DerefMut for OwnedFile {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.0
-        }
-    }
-    
     #[cfg(feature = "file-backed")]
     const IDEAL_FILE_BUFFER_SIZE: usize = 65536; //ie. 2 << 16
     
