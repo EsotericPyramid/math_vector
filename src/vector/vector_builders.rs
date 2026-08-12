@@ -137,6 +137,7 @@ pub trait VectorBuilderUnion<T: VectorBuilder>: VectorBuilder {
     fn union(self, other: T) -> Self::Union;
 }
 
+/*
 impl<B1: VectorBuilder + VectorBuilderUnion<B2Inner>, B2: VectorBuilder + Deref<Target = B2Inner>, B2Inner: VectorBuilder> VectorBuilderUnion<B2> for B1 {
     type Union = B1::Union;
 
@@ -144,7 +145,7 @@ impl<B1: VectorBuilder + VectorBuilderUnion<B2Inner>, B2: VectorBuilder + Deref<
         self.union(*other)
     }
 }
-
+*/
 /// a simple const sized [`VectorBuilder`]
 /// 
 /// this is the builder equivalent of [`VectorExpr`]
@@ -470,3 +471,57 @@ impl VectorBuilderUnion<RSVectorExprBuilder> for RSVectorExprBuilder {
 }
 
 
+#[cfg(feature = "file-backed")]
+mod file_backed_vector_builders {
+    use super::*;
+
+    /// a [`VectorBuilder`] monad which converts the newly allocated vectors of the contained [`VectorBuilder`] to be based on Vector Files 
+    /// 
+    /// this is the builder equivalent of [`VectorFileExpr`]
+    #[derive(Clone, Copy)]
+    pub struct VectorFileBuilder<B: VectorBuilder>(pub B);
+
+    impl<B: VectorBuilder> VectorBuilder for VectorFileBuilder<B> {
+        type Wrapped<T: VectorLike> = VectorFileExpr<B::Wrapped<T>>;
+
+        unsafe fn wrap<T: VectorLike>(&self, vec: T) -> Self::Wrapped<T> {
+            VectorFileExpr(unsafe { self.0.wrap(vec) })
+        }
+
+        fn size(&self) -> usize {
+            self.0.size()
+        }
+    }
+
+    impl<B1: VectorBuilderUnion<B2>, B2: VectorBuilder> VectorBuilderUnion<B2> for VectorFileBuilder<B1> {
+        type Union = VectorFileBuilder<B1::Union>;
+
+        fn union(self, other: B2) -> Self::Union {
+            VectorFileBuilder(self.0.union(other))
+        }
+    }
+
+    macro_rules! impl_for_builders {
+        ($({$($tt:tt)*} $builder:path;)*) => {
+            $(
+                impl<B2: VectorBuilder, $($tt)*> VectorBuilderUnion<VectorFileBuilder<B2>> for $builder where $builder: VectorBuilderUnion<B2> {
+                    type Union = VectorFileBuilder<<$builder as VectorBuilderUnion<B2>>::Union>;
+    
+                    fn union(self, other: VectorFileBuilder<B2>) -> Self::Union {
+                        VectorFileBuilder(self.union(other.0))
+                    }
+                }
+            )*
+        };
+    }
+
+    impl_for_builders!(
+        {const D: usize} VectorExprBuilder<D>;
+        {const D: usize} HeapedVectorExprBuilder<D>;
+        {} RSVectorExprBuilder;
+        {B1: VectorBuilder, IP: GenericInnerProduct} VectorInnerProdExprBuilder<B1, IP>;
+    );
+    
+}
+
+pub use file_backed_vector_builders::*;

@@ -1701,3 +1701,29 @@ where
         todo!()
     }
 }
+
+
+#[cfg(feature = "file-backed")]
+mod file_backed_vector_exprs {
+    use super::*;
+
+    /// a [`VectorOps`] monad which converts the newly allocated vectors of the contained [`VectorOps`] to be based on Vector Files 
+    /// 
+    /// the builder equivalent of this is [`VectorFileBuilder`]
+    pub struct VectorFileExpr<V: VectorOps>(pub(crate) V);
+
+    unsafe impl<V: VectorOps> VectorOps for VectorFileExpr<V> {
+        type Unwrapped = V::Unwrapped;
+        type Builder = VectorFileBuilder<V::Builder>;
+
+        fn get_builder(&self) -> Self::Builder {
+            VectorFileBuilder(self.0.get_builder())
+        }
+
+        fn unwrap(self) -> Self::Unwrapped {
+            self.0.unwrap()
+        }
+    }
+}
+
+pub use file_backed_vector_exprs::*;
