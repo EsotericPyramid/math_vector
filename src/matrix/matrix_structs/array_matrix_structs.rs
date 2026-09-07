@@ -339,6 +339,12 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  arrays are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             MatrixExpr(MatrixArray(mem::transmute_copy::<
                 [[MaybeUninit<T>; D1]; D2],
                 ManuallyDrop<[[T; D1]; D2]>,
@@ -467,6 +473,12 @@ impl<M: MatrixLike<FstHandleBool = N>, T, const D1: usize, const D2: usize> Has2
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  arrays are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             MatrixExpr(MatrixArray(mem::transmute_copy::<
                 [[MaybeUninit<T>; D1]; D2],
                 ManuallyDrop<[[T; D1]; D2]>,
@@ -623,6 +635,12 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  arrays are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.mat.get_1st_buffer(),
                 MatrixExpr(MatrixArray(mem::transmute_copy::<
@@ -786,6 +804,13 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  MathMatrix<T, D1, D2> == [[T; D1]; D2].
+            //  although containers of MaybeUninit may not be identical
+            //  arrays are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.mat.get_1st_buffer(),
                 mem::transmute_copy::<

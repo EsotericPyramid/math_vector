@@ -343,6 +343,12 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf for VecCre
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  arrays are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             VectorExpr(VectorArray(mem::transmute_copy::<
                 [MaybeUninit<T>; D],
                 ManuallyDrop<[T; D]>,
@@ -453,6 +459,11 @@ impl<V: VectorLike<FstHandleBool = N>, T, const D: usize> HasReuseBuf
     }
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
+        // SAFETY: 
+        //  although containers of MaybeUninit may not be identical
+        //  arrays are *guaranteed* to respect and use the size
+        //  and alignment of the contained value which are
+        //  *guaranteed* to be the same through MaybeUninit.
         HeapedVectorExpr(VectorExpr(unsafe { mem::transmute_copy::<Box<[MaybeUninit<T>; D]>, Box<VectorArray<T, D>>>(&self.buf) }))
     }
     #[inline]
@@ -593,6 +604,11 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
             <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.vec.get_1st_buffer(),
                 VectorExpr(VectorArray(ManuallyDrop::new(mem::transmute_copy::<
@@ -739,6 +755,11 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
             <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.vec.get_1st_buffer(),
                 mem::transmute_copy::<

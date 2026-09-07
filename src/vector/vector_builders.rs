@@ -120,7 +120,7 @@ pub unsafe trait UninitVectorBuilder: InitializableVectorBuilder {
     fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>>;
     /// assumes that the contents of the vector is initialized so that it can be worked with normally
     /// 
-    /// Safety: each of the contained MaybeUninit<T> (guaranteed accessible via [`std::ops::Index`])
+    /// Safety: each of the contained MaybeUninit<T> is initialized (guaranteed accessible via [`std::ops::Index`])
     unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T>;
 }
 
@@ -233,6 +233,12 @@ impl<const D: usize> InitializableVectorBuilder for HeapedVectorExprBuilder<D> {
 unsafe impl<const D: usize> UninitVectorBuilder for HeapedVectorExprBuilder<D> {
     fn new_uninit<T: Sized>(&self) -> Self::Concrete<MaybeUninit<T>> {
         let uninit_arr  = unsafe { Box::new_uninit().assume_init() };
+        // SAFETY: 
+        //  although containers of MaybeUninit may not be identical
+        //  slices are *guaranteed* to respect and use the size
+        //  and alignment of the contained value which are
+        //  *guaranteed* to be the same through MaybeUninit.
+        //  The ManualllyDrop is repr(transparent)
         unsafe { self.wrap(transmute::<
             Box<ManuallyDrop<[MaybeUninit<T>; D]>>,
             Box<VectorArray<MaybeUninit<T>, D>>
@@ -240,6 +246,12 @@ unsafe impl<const D: usize> UninitVectorBuilder for HeapedVectorExprBuilder<D> {
     }
 
     unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        // SAFETY: 
+        //  although containers of MaybeUninit may not be identical
+        //  slices are *guaranteed* to respect and use the size
+        //  and alignment of the contained value which are
+        //  *guaranteed* to be the same through MaybeUninit.
+        //  thats then within a Box so everything should be fine
         unsafe { transmute::<HeapedMathVector<MaybeUninit<T>, D>, HeapedMathVector<T, D>>(uninit) }
     }
 }
@@ -297,6 +309,12 @@ unsafe impl UninitVectorBuilder for RSVectorExprBuilder {
     }
 
     unsafe fn assume_init<T: Sized>(uninit: Self::Concrete<MaybeUninit<T>>) -> Self::Concrete<T> {
+        // SAFETY: 
+        //  although containers of MaybeUninit may not be identical
+        //  slices are *guaranteed* to respect and use the size
+        //  and alignment of the contained value which are
+        //  *guaranteed* to be the same through MaybeUninit.
+        //  thats then within an Box so should be fine
         unsafe { transmute::<RSMathVector<MaybeUninit<T>>, RSMathVector<T>>(uninit) }
     }
 }

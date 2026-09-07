@@ -347,6 +347,12 @@ impl<M: MatrixLike<FstHandleBool = N>, T> Has2DReuseBuf
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             RSMatrixExpr{
                 mat: MatrixIliffeSlice(
                     transmute_copy::<ManuallyDrop<Box<[Box<[MaybeUninit<T>]>]>>, Box<[Box<[ManuallyDrop<T>]>]>>(&self.buf)
@@ -505,6 +511,12 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.mat.get_1st_buffer(),
                 RSMatrixExpr { 
@@ -876,6 +888,12 @@ impl<M: MatrixLike<FstHandleBool = N>, T> Has2DReuseBuf
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             RSMatrixExpr{
                 mat: MatrixDopeSlice{
                     mat: transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, Box<[ManuallyDrop<T>]>>(&self.buf),
@@ -1034,6 +1052,12 @@ where
     #[inline]
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             <(M::FstHandleBool, <M::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.mat.get_1st_buffer(),
                 RSMatrixExpr { 

@@ -266,6 +266,12 @@ impl<V: VectorLike<FstHandleBool = N>, T> HasReuseBuf for VecCreateSlice<V, T> {
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         let size = self.buf.len();
         unsafe {
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
+            //  The ManualllyDrop is repr(transparent)
             RSVectorExpr {
                 vec: mem::transmute_copy::<ManuallyDrop<Box<[MaybeUninit<T>]>>, VectorSlice<T>>(
                     &self.buf,
@@ -413,6 +419,11 @@ where
     unsafe fn get_1st_buffer(&mut self) -> Self::FstOwnedBuffer {
         unsafe {
             let size = self.buf.len();
+            // SAFETY: 
+            //  although containers of MaybeUninit may not be identical
+            //  slices are *guaranteed* to respect and use the size
+            //  and alignment of the contained value which are
+            //  *guaranteed* to be the same through MaybeUninit.
             <(V::FstHandleBool, <V::FstHandleBool as TyBool>::Neg) as SelectPair>::select(
                 self.vec.get_1st_buffer(),
                 RSVectorExpr {

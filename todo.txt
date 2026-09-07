@@ -38,6 +38,7 @@ To Do's:
     ~ figure out hinting / encouraging SIMD 
     + test:
     + matrix.rs:
+        - correct the implementation of create_heaped_2d_array
         XXX have matrix exprs just be a monad over a vector expr
         ~X add a default impl for Concete___Expr::copy (currently would require many undesirable bounds)
         - impl MatrixOps for a pointed-to unsized matrix expr
@@ -117,7 +118,6 @@ To Do's:
 
 Fix Me's:
 + lib.rs:
-    X check cases of transmuting with a MaybeUninit<T> (its / container's layout **isn't** necessarily the same as T)
     - replace transmute_copy's used to bypass incorrect size errors
     + test:
     + matrix.rs:
